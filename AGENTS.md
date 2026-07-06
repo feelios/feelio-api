@@ -51,3 +51,21 @@
 - application.yml의 시크릿/DB 비밀번호를 만지지 않는다
 - 한 번에 하나의 도메인만 작업한다
 - SQL을 작성하면 어떤 쿼리를 왜 그렇게 짰는지 한 줄로 설명한다
+
+## 공통 협업 규칙
+
+### 브랜치 전략 (GitHub Flow)
+- main 브랜치는 항상 동작하는 상태로 유지 (직접 push 금지)
+- 모든 작업은 feature 브랜치 → PR로 머지
+- 브랜치 이름: feat/login, fix/token-expire, docs/readme
+
+### 커밋 메시지 (Conventional Commits)
+- 형식: type: 한 줄 요약
+- type: feat / fix / docs / refactor / test / chore
+- 예: "feat: 로그인 API 연동", "fix: 토큰 만료 시 401 처리"
+
+### PR 규칙
+- PR 제목도 커밋 규칙을 따른다
+- 본문에 "무엇을 / 왜 / 어떻게 테스트했는지" 작성
+- 최소 1명 리뷰 승인 후 머지
+- 자기 코드는 자기가 머지하지 않는다 (리뷰어가 머지)
