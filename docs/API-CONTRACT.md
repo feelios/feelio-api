@@ -52,9 +52,13 @@
 
 Request:
 ```json
-{ "provider": "GOOGLE", "providerToken": "<OAuth로 받은 토큰>" }
+{ "provider": "GOOGLE", "code": "<provider가 리다이렉트로 준 인가 코드>", "redirectUri": "https://feelio.app/auth/callback" }
 ```
 - provider: `GOOGLE` | `KAKAO` | `NAVER`
+- code: provider 인가 서버가 redirect로 돌려준 **1회용 authorization code** (짧은 만료·재사용 불가)
+- redirectUri: authorize 요청 때 사용한 값과 **정확히 동일**해야 함 (각 provider 콘솔에 사전 등록)
+- (PKCE 적용 시) `codeVerifier` 필드 추가 — 권장
+- ⚠️ provider access token은 **브라우저로 내려오지 않는다**(백엔드가 서버-투-서버로만 교환)
 
 Response(200) `data`:
 ```json
@@ -73,8 +77,8 @@ Response(200) `data`:
   }
 }
 ```
-- 서버: providerToken 검증 → 제공자 프로필(식별자·이메일·닉네임·**프로필 이미지**) 수신 → `(provider, provider_user_id)` 조회, 없으면 신규 가입(users + social_accounts + notification_settings 기본값 + terms_agreements)
-- 에러: INVALID_PROVIDER(400), UNAUTHORIZED(401)
+- 서버: **code + redirectUri로 provider와 서버-투-서버 토큰 교환**(client_secret 사용) → 받은 ID/access 토큰 검증 → 제공자 프로필(식별자·이메일·닉네임·**프로필 이미지**) 수신 → `(provider, provider_user_id)` 조회, 없으면 신규 가입(users + social_accounts + notification_settings 기본값 + terms_agreements) → **provider 토큰은 검증 후 폐기(미저장)**
+- 에러: INVALID_PROVIDER(400), UNAUTHORIZED(401 — code 만료·재사용·교환 실패 포함)
 
 ### POST /api/auth/token/refresh — 토큰 재발급 · 인증 불필요
 

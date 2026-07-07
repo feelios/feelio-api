@@ -1,4 +1,4 @@
-application-secret.yaml
+secret.yaml
 HELP.md
 .gradle
 build/
