@@ -21,4 +21,6 @@ public interface TransactionMapper {
     Transaction findById(@Param("transactionId") Long transactionId);
     void updateTransaction(Transaction transaction);
     void deleteTransaction(@Param("transactionId") Long transactionId);
+
+    int deleteAllTransactionsByUserId(@Param("userId") Long userId);
 }

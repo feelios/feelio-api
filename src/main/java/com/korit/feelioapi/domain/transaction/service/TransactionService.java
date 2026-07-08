@@ -4,6 +4,7 @@ import com.korit.feelioapi.domain.transaction.dto.TransactionCreateRequest;
 import com.korit.feelioapi.domain.transaction.dto.TransactionDeleteResponse;
 import com.korit.feelioapi.domain.transaction.dto.TransactionDto;
 import com.korit.feelioapi.domain.transaction.dto.TransactionListResponse;
+import com.korit.feelioapi.domain.transaction.dto.TransactionResetResponse;
 import com.korit.feelioapi.domain.transaction.dto.TransactionSearchCondition;
 import com.korit.feelioapi.domain.transaction.dto.TransactionTotalDto;
 import com.korit.feelioapi.domain.transaction.entity.Transaction;
@@ -78,6 +79,12 @@ public class TransactionService {
         getOwnedOrThrow(userId, transactionId);
         transactionMapper.deleteTransaction(transactionId);
         return new TransactionDeleteResponse(true);
+    }
+
+    @Transactional
+    public TransactionResetResponse resetTransactions(Long userId) {
+        int deletedCount = transactionMapper.deleteAllTransactionsByUserId(userId);
+        return new TransactionResetResponse(deletedCount);
     }
 
     /** 대상 존재 + 본인 소유 검증 (계약 §6: 없음 NOT_FOUND / 타인 FORBIDDEN). */
