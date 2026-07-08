@@ -1,6 +1,7 @@
 package com.korit.feelioapi.domain.transaction.controller;
 
 import com.korit.feelioapi.domain.transaction.dto.TransactionCreateRequest;
+import com.korit.feelioapi.domain.transaction.dto.TransactionDeleteResponse;
 import com.korit.feelioapi.domain.transaction.dto.TransactionDto;
 import com.korit.feelioapi.domain.transaction.dto.TransactionListResponse;
 import com.korit.feelioapi.domain.transaction.dto.TransactionSearchCondition;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -46,13 +48,31 @@ public class TransactionController {
         return ApiResponse.success(transactionService.createTransaction(userId, request));
     }
 
-    /** DELETE /api/transactions/{transactionId} — 거래 기록 삭제. 인증 필요. */
-    @DeleteMapping("/{transactionId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteTransaction(
+    /** GET /api/transactions/{transactionId} — 거래 상세 조회. 인증 필요. */
+    @GetMapping("/{transactionId}")
+    public ApiResponse<TransactionDto> getTransaction(
             @AuthenticationPrincipal Long userId,
             @PathVariable Long transactionId
     ) {
-        transactionService.deleteTransaction(userId, transactionId);
+        return ApiResponse.success(transactionService.getTransaction(userId, transactionId));
+    }
+
+    /** PUT /api/transactions/{transactionId} — 거래 수정(POST와 동일 필드). 인증 필요. */
+    @PutMapping("/{transactionId}")
+    public ApiResponse<TransactionDto> updateTransaction(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long transactionId,
+            @Valid @RequestBody TransactionCreateRequest request
+    ) {
+        return ApiResponse.success(transactionService.updateTransaction(userId, transactionId, request));
+    }
+
+    /** DELETE /api/transactions/{transactionId} — 거래 기록 삭제. 인증 필요. */
+    @DeleteMapping("/{transactionId}")
+    public ApiResponse<TransactionDeleteResponse> deleteTransaction(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long transactionId
+    ) {
+        return ApiResponse.success(transactionService.deleteTransaction(userId, transactionId));
     }
 }

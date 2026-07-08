@@ -76,7 +76,7 @@ class TransactionServiceTest {
     }
 
     @Test
-    void 거래_기록을_삭제한다() {
+    void 거래_기록을_삭제하고_deleted_true를_반환한다() {
         Long userId = 1L;
         Long transactionId = 10L;
         Transaction transaction = new Transaction();
@@ -85,10 +85,83 @@ class TransactionServiceTest {
 
         when(transactionMapper.findById(transactionId)).thenReturn(transaction);
 
-        transactionService.deleteTransaction(userId, transactionId);
+        var response = transactionService.deleteTransaction(userId, transactionId);
 
+        assertThat(response.deleted()).isTrue();
         verify(transactionMapper).findById(transactionId);
         verify(transactionMapper).deleteTransaction(transactionId);
+    }
+
+    @Test
+    void 거래_상세를_조회한다() {
+        Long userId = 1L;
+        Long transactionId = 10L;
+        Transaction owned = new Transaction();
+        owned.setTransactionId(transactionId);
+        owned.setUserId(userId);
+        TransactionDto mockDto = new TransactionDto(transactionId, "EXPENSE", 10000, null, null, "memo", LocalDateTime.now());
+
+        when(transactionMapper.findById(transactionId)).thenReturn(owned);
+        when(transactionMapper.findTransactionById(transactionId, userId)).thenReturn(mockDto);
+
+        TransactionDto result = transactionService.getTransaction(userId, transactionId);
+
+        assertThat(result.transactionId()).isEqualTo(transactionId);
+        verify(transactionMapper).findTransactionById(transactionId, userId);
+    }
+
+    @Test
+    void 거래를_수정하고_갱신된_객체를_반환한다() {
+        Long userId = 1L;
+        Long transactionId = 10L;
+        Transaction owned = new Transaction();
+        owned.setTransactionId(transactionId);
+        owned.setUserId(userId);
+        TransactionCreateRequest request = new TransactionCreateRequest("INCOME", 50000, 9L, 1L, "수정메모", LocalDateTime.now());
+        TransactionDto updated = new TransactionDto(transactionId, "INCOME", 50000, null, null, "수정메모", request.occurredAt());
+
+        when(transactionMapper.findById(transactionId)).thenReturn(owned);
+        when(transactionMapper.findTransactionById(transactionId, userId)).thenReturn(updated);
+
+        TransactionDto result = transactionService.updateTransaction(userId, transactionId, request);
+
+        assertThat(result.type()).isEqualTo("INCOME");
+        assertThat(result.amount()).isEqualTo(50000);
+        verify(transactionMapper).updateTransaction(any(Transaction.class));
+        verify(transactionMapper).findTransactionById(transactionId, userId);
+    }
+
+    @Test
+    void 거래_수정시_존재하지_않으면_NOT_FOUND() {
+        Long userId = 1L;
+        Long transactionId = 10L;
+        TransactionCreateRequest request = new TransactionCreateRequest("EXPENSE", 10000, 2L, 3L, "memo", LocalDateTime.now());
+
+        when(transactionMapper.findById(transactionId)).thenReturn(null);
+
+        assertThatThrownBy(() -> transactionService.updateTransaction(userId, transactionId, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.NOT_FOUND);
+
+        verify(transactionMapper, org.mockito.Mockito.never()).updateTransaction(any(Transaction.class));
+    }
+
+    @Test
+    void 타인의_거래를_수정하려_하면_FORBIDDEN() {
+        Long userId = 1L;
+        Long transactionId = 10L;
+        Transaction others = new Transaction();
+        others.setTransactionId(transactionId);
+        others.setUserId(2L);
+        TransactionCreateRequest request = new TransactionCreateRequest("EXPENSE", 10000, 2L, 3L, "memo", LocalDateTime.now());
+
+        when(transactionMapper.findById(transactionId)).thenReturn(others);
+
+        assertThatThrownBy(() -> transactionService.updateTransaction(userId, transactionId, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.FORBIDDEN);
+
+        verify(transactionMapper, org.mockito.Mockito.never()).updateTransaction(any(Transaction.class));
     }
 
     @Test

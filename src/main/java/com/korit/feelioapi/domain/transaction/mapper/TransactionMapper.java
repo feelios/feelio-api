@@ -19,5 +19,6 @@ public interface TransactionMapper {
     TransactionDto findTransactionById(@Param("transactionId") Long transactionId, @Param("userId") Long userId);
     
     Transaction findById(@Param("transactionId") Long transactionId);
+    void updateTransaction(Transaction transaction);
     void deleteTransaction(@Param("transactionId") Long transactionId);
 }
