@@ -4,6 +4,7 @@ import com.korit.feelioapi.domain.transaction.dto.TransactionCreateRequest;
 import com.korit.feelioapi.domain.transaction.dto.TransactionDeleteResponse;
 import com.korit.feelioapi.domain.transaction.dto.TransactionDto;
 import com.korit.feelioapi.domain.transaction.dto.TransactionListResponse;
+import com.korit.feelioapi.domain.transaction.dto.TransactionResetResponse;
 import com.korit.feelioapi.domain.transaction.dto.TransactionSearchCondition;
 import com.korit.feelioapi.domain.transaction.service.TransactionService;
 import com.korit.feelioapi.global.response.ApiResponse;
@@ -74,5 +75,13 @@ public class TransactionController {
             @PathVariable Long transactionId
     ) {
         return ApiResponse.success(transactionService.deleteTransaction(userId, transactionId));
+    }
+
+    /** DELETE /api/transactions — 전체 초기화. 인증 필요. */
+    @DeleteMapping
+    public ApiResponse<TransactionResetResponse> resetTransactions(
+            @AuthenticationPrincipal Long userId
+    ) {
+        return ApiResponse.success(transactionService.resetTransactions(userId));
     }
 }

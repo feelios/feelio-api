@@ -131,4 +131,9 @@
         DELETE FROM transactions
         WHERE transaction_id = #{transactionId}
     </delete>
+
+    <delete id="deleteAllTransactionsByUserId">
+        DELETE FROM transactions
+        WHERE user_id = #{userId}
+    </delete>
 </mapper>
