@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- universe 도메인 SQL. namespace/id 는 UniverseMapper 인터페이스와 정확히 일치. #{} 만 사용. -->
+<mapper namespace="com.korit.feelioapi.domain.universe.mapper.UniverseMapper">
+
+    <!-- 목표 단건: 소유권은 Service 가 user_id 로 검증. -->
+    <select id="findGoalById" resultType="com.korit.feelioapi.domain.universe.dto.GoalRow">
+        SELECT goal_id AS goalId, user_id AS userId, name AS name,
+               target_amount AS targetAmount, current_amount AS currentAmount
+        FROM goals
+        WHERE goal_id = #{goalId}
+    </select>
+
+    <!-- 거래가 있는 가장 최근 연·월. 거래 없으면 MAX(occurred_at)=NULL → year/month NULL. -->
+    <select id="findLatestActivityMonth" resultType="com.korit.feelioapi.domain.universe.dto.MonthKey">
+        SELECT YEAR(MAX(occurred_at)) AS year, MONTH(MAX(occurred_at)) AS month
+        FROM transactions
+        WHERE user_id = #{userId}
+    </select>
+
+    <!-- 기준 월 수입·지출 합계(기록 없으면 0). -->
+    <select id="findMonthlyTotals" resultType="com.korit.feelioapi.domain.universe.dto.UniverseTotalDto">
+        SELECT
+            COALESCE(SUM(CASE WHEN type = 'INCOME'  THEN amount ELSE 0 END), 0) AS monthlyIncome,
+            COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) AS monthlyExpense
+        FROM transactions
+        WHERE user_id = #{userId}
+          AND YEAR(occurred_at) = #{year}
+          AND MONTH(occurred_at) = #{month}
+    </select>
+
+    <!-- 기준 월 소비가 가장 몰린 감정 1건(지출 기준). -->
+    <select id="findFocusEmotion" resultType="com.korit.feelioapi.domain.universe.dto.FocusEmotionDto">
+        SELECT e.emotion_id AS emotionId, e.name AS name, e.color AS color,
+               SUM(t.amount) AS monthlyAmount
+        FROM transactions t
+        JOIN emotions e ON t.emotion_id = e.emotion_id
+        WHERE t.user_id = #{userId}
+          AND YEAR(t.occurred_at) = #{year}
+          AND MONTH(t.occurred_at) = #{month}
+          AND t.type = 'EXPENSE'
+        GROUP BY e.emotion_id, e.name, e.color
+        ORDER BY monthlyAmount DESC
+        LIMIT 1
+    </select>
+
+</mapper>
