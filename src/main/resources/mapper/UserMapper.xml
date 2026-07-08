@@ -46,4 +46,33 @@
         WHERE user_id = #{userId}
     </update>
 
+    <!-- ===== 회원탈퇴(A3-4) ===== -->
+    <!-- users 는 행을 남기고 상태만 WITHDRAWN 으로(재로그인 정책은 auth 소관·미확정). -->
+    <update id="markWithdrawn">
+        UPDATE users SET status = 'WITHDRAWN' WHERE user_id = #{userId}
+    </update>
+
+    <!-- 하위 데이터 hard delete (FK 미사용이라 직접 삭제). terms_agreements 는 보존. -->
+    <delete id="deleteSocialAccountsByUserId">
+        DELETE FROM social_accounts WHERE user_id = #{userId}
+    </delete>
+    <delete id="deleteRefreshTokensByUserId">
+        DELETE FROM refresh_tokens WHERE user_id = #{userId}
+    </delete>
+    <delete id="deleteNotificationSettingsByUserId">
+        DELETE FROM notification_settings WHERE user_id = #{userId}
+    </delete>
+    <delete id="deleteTransactionsByUserId">
+        DELETE FROM transactions WHERE user_id = #{userId}
+    </delete>
+    <delete id="deleteGoalsByUserId">
+        DELETE FROM goals WHERE user_id = #{userId}
+    </delete>
+    <delete id="deleteMonthlySummariesByUserId">
+        DELETE FROM monthly_summaries WHERE user_id = #{userId}
+    </delete>
+    <delete id="deleteAiInsightsByUserId">
+        DELETE FROM ai_insights WHERE user_id = #{userId}
+    </delete>
+
 </mapper>
