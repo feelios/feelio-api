@@ -3,6 +3,8 @@ package com.korit.feelioapi.domain.user.service;
 import com.korit.feelioapi.domain.user.dto.SettingsResponse;
 import com.korit.feelioapi.domain.user.dto.UpdateSettingsRequest;
 import com.korit.feelioapi.domain.user.dto.UserResponse;
+import com.korit.feelioapi.domain.user.dto.WithdrawRequest;
+import com.korit.feelioapi.domain.user.dto.WithdrawResponse;
 import com.korit.feelioapi.domain.user.entity.User;
 import com.korit.feelioapi.domain.user.mapper.UserMapper;
 import com.korit.feelioapi.global.exception.BusinessException;
@@ -156,5 +158,35 @@ class UserServiceTest {
                 .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
 
         verify(userMapper, never()).updateSettings(any(), any(), any());
+    }
+
+    @Test
+    void 회원탈퇴시_하위7종삭제_terms보존_status_WITHDRAWN() {
+        when(userMapper.findUserById(1L)).thenReturn(user(1L, "서연"));
+
+        WithdrawResponse response = userService.withdraw(1L, new WithdrawRequest("사유 없음"));
+
+        assertThat(response.withdrawn()).isTrue();
+        verify(userMapper).deleteSocialAccountsByUserId(1L);
+        verify(userMapper).deleteRefreshTokensByUserId(1L);
+        verify(userMapper).deleteNotificationSettingsByUserId(1L);
+        verify(userMapper).deleteTransactionsByUserId(1L);
+        verify(userMapper).deleteGoalsByUserId(1L);
+        verify(userMapper).deleteMonthlySummariesByUserId(1L);
+        verify(userMapper).deleteAiInsightsByUserId(1L);
+        verify(userMapper).markWithdrawn(1L);
+        // terms_agreements 는 보존 → 삭제 메서드 자체가 없음(컴파일 레벨에서 보장)
+    }
+
+    @Test
+    void 없는_사용자_탈퇴는_NOT_FOUND이고_아무것도_지우지_않는다() {
+        when(userMapper.findUserById(99L)).thenReturn(null);
+
+        assertThatThrownBy(() -> userService.withdraw(99L, new WithdrawRequest(null)))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.NOT_FOUND);
+
+        verify(userMapper, never()).markWithdrawn(any());
+        verify(userMapper, never()).deleteTransactionsByUserId(any());
     }
 }

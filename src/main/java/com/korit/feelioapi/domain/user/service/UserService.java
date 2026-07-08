@@ -4,6 +4,8 @@ import com.korit.feelioapi.domain.user.dto.OnboardingResponse;
 import com.korit.feelioapi.domain.user.dto.SettingsResponse;
 import com.korit.feelioapi.domain.user.dto.UpdateSettingsRequest;
 import com.korit.feelioapi.domain.user.dto.UserResponse;
+import com.korit.feelioapi.domain.user.dto.WithdrawRequest;
+import com.korit.feelioapi.domain.user.dto.WithdrawResponse;
 import com.korit.feelioapi.domain.user.entity.User;
 
 import java.util.Set;
@@ -61,6 +63,27 @@ public class UserService {
         userMapper.updateSettings(userId, hasTheme ? request.themeMode() : null,
                 hasAurora ? request.auroraTheme() : null);
         return SettingsResponse.of(loadUser(userId));
+    }
+
+    /**
+     * 회원탈퇴: users 는 status=WITHDRAWN(행 유지), 하위 데이터는 hard delete.
+     * terms_agreements 는 법적 보관 목적으로 보존. reason 은 저장 컬럼이 없어 받되 저장하지 않는다.
+     * (재로그인 차단 정책은 auth 소관·미확정 — 이 이슈 범위 밖)
+     */
+    @Transactional
+    public WithdrawResponse withdraw(Long userId, WithdrawRequest request) {
+        loadUser(userId); // 본인 존재 확인(없으면 NOT_FOUND)
+
+        userMapper.deleteSocialAccountsByUserId(userId);
+        userMapper.deleteRefreshTokensByUserId(userId);
+        userMapper.deleteNotificationSettingsByUserId(userId);
+        userMapper.deleteTransactionsByUserId(userId);
+        userMapper.deleteGoalsByUserId(userId);
+        userMapper.deleteMonthlySummariesByUserId(userId);
+        userMapper.deleteAiInsightsByUserId(userId);
+
+        userMapper.markWithdrawn(userId);
+        return new WithdrawResponse(true);
     }
 
     private User loadUser(Long userId) {

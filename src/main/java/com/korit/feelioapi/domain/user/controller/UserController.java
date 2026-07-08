@@ -5,11 +5,14 @@ import com.korit.feelioapi.domain.user.dto.SettingsResponse;
 import com.korit.feelioapi.domain.user.dto.UpdateNicknameRequest;
 import com.korit.feelioapi.domain.user.dto.UpdateSettingsRequest;
 import com.korit.feelioapi.domain.user.dto.UserResponse;
+import com.korit.feelioapi.domain.user.dto.WithdrawRequest;
+import com.korit.feelioapi.domain.user.dto.WithdrawResponse;
 import com.korit.feelioapi.domain.user.service.UserService;
 import com.korit.feelioapi.global.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -51,5 +54,12 @@ public class UserController {
     public ApiResponse<SettingsResponse> updateSettings(@AuthenticationPrincipal Long userId,
                                                         @RequestBody UpdateSettingsRequest request) {
         return ApiResponse.success(userService.updateSettings(userId, request));
+    }
+
+    /** DELETE /api/users/me — 회원탈퇴(reason 선택, 바디 생략 가능). */
+    @DeleteMapping("/me")
+    public ApiResponse<WithdrawResponse> withdraw(@AuthenticationPrincipal Long userId,
+                                                  @RequestBody(required = false) WithdrawRequest request) {
+        return ApiResponse.success(userService.withdraw(userId, request));
     }
 }
