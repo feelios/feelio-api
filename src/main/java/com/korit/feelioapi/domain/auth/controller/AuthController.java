@@ -2,10 +2,12 @@ package com.korit.feelioapi.domain.auth.controller;
 
 import com.korit.feelioapi.domain.auth.dto.LoginRequest;
 import com.korit.feelioapi.domain.auth.dto.LoginResponse;
+import com.korit.feelioapi.domain.auth.dto.LogoutResponse;
 import com.korit.feelioapi.domain.auth.dto.TokenRefreshRequest;
 import com.korit.feelioapi.domain.auth.dto.TokenRefreshResponse;
 import com.korit.feelioapi.domain.auth.service.AuthService;
 import com.korit.feelioapi.global.response.ApiResponse;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,5 +36,11 @@ public class AuthController {
     @PostMapping("/token/refresh")
     public ApiResponse<TokenRefreshResponse> refreshToken(@Valid @RequestBody TokenRefreshRequest request) {
         return ApiResponse.success(authService.refreshToken(request));
+    }
+
+    /** POST /api/auth/logout — 로그아웃. 인증 필요. */
+    @PostMapping("/logout")
+    public ApiResponse<LogoutResponse> logout(@AuthenticationPrincipal Long userId) {
+        return ApiResponse.success(authService.logout(userId));
     }
 }

@@ -40,4 +40,7 @@ public interface AuthMapper {
 
     /** 사용이 완료되거나 만료된 리프레시 토큰 삭제. */
     void deleteRefreshToken(@Param("tokenId") Long tokenId);
+
+    /** 특정 유저의 모든 리프레시 토큰 폐기 (로그아웃용). */
+    void deleteAllRefreshTokensByUserId(@Param("userId") Long userId);
 }
