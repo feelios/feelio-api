@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- user 도메인 SQL. namespace/id 는 UserMapper 인터페이스와 정확히 일치. #{} 만 사용. -->
+<mapper namespace="com.korit.feelioapi.domain.user.mapper.UserMapper">
+
+    <!-- 본인 정보 조회(PK). -->
+    <select id="findUserById" resultType="com.korit.feelioapi.domain.user.entity.User">
+        SELECT user_id, nickname, email, profile_image_url, onboarding_done,
+               theme_mode, aurora_theme, status, created_at, updated_at
+        FROM users
+        WHERE user_id = #{userId}
+    </select>
+
+    <!-- user 객체의 provider: 복수 연동 대비 최신 connected_at 1건. -->
+    <select id="findProviderByUserId" resultType="string">
+        SELECT provider
+        FROM social_accounts
+        WHERE user_id = #{userId}
+        ORDER BY connected_at DESC
+        LIMIT 1
+    </select>
+
+    <!-- 닉네임 수정: 본인 행만. -->
+    <update id="updateNickname">
+        UPDATE users
+        SET nickname = #{nickname}
+        WHERE user_id = #{userId}
+    </update>
+
+</mapper>
