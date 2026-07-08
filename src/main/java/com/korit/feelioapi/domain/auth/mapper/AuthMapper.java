@@ -34,4 +34,10 @@ public interface AuthMapper {
     void insertTermsAgreements(@Param("agreements") List<TermsAgreement> agreements);
 
     void insertRefreshToken(RefreshToken refreshToken);
+
+    /** hash 기반 리프레시 토큰 단건 조회. */
+    RefreshToken findRefreshTokenByHash(@Param("userId") Long userId, @Param("tokenHash") String tokenHash);
+
+    /** 사용이 완료되거나 만료된 리프레시 토큰 삭제. */
+    void deleteRefreshToken(@Param("tokenId") Long tokenId);
 }

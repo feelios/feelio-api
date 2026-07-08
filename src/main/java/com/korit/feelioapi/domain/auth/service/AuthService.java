@@ -2,6 +2,8 @@ package com.korit.feelioapi.domain.auth.service;
 
 import com.korit.feelioapi.domain.auth.dto.LoginRequest;
 import com.korit.feelioapi.domain.auth.dto.LoginResponse;
+import com.korit.feelioapi.domain.auth.dto.TokenRefreshRequest;
+import com.korit.feelioapi.domain.auth.dto.TokenRefreshResponse;
 import com.korit.feelioapi.domain.auth.dto.UserResponse;
 import com.korit.feelioapi.domain.auth.entity.RefreshToken;
 import com.korit.feelioapi.domain.auth.entity.SocialAccount;
@@ -60,6 +62,35 @@ public class AuthService {
         storeRefreshToken(user.getUserId(), refreshToken);
 
         return new LoginResponse(accessToken, refreshToken, UserResponse.of(user, provider.name()));
+    }
+
+    @Transactional
+    public TokenRefreshResponse refreshToken(TokenRefreshRequest request) {
+        try {
+            Long userId = jwtProvider.parseUserId(request.refreshToken());
+            String hash = tokenHasher.hash(request.refreshToken());
+
+            RefreshToken storedToken = authMapper.findRefreshTokenByHash(userId, hash);
+            if (storedToken == null) {
+                throw new BusinessException(ErrorCode.UNAUTHORIZED);
+            }
+            if (storedToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+                authMapper.deleteRefreshToken(storedToken.getTokenId());
+                throw new BusinessException(ErrorCode.UNAUTHORIZED);
+            }
+
+            authMapper.deleteRefreshToken(storedToken.getTokenId());
+
+            String newAccessToken = jwtProvider.createAccessToken(userId);
+            String newRefreshToken = jwtProvider.createRefreshToken(userId);
+            storeRefreshToken(userId, newRefreshToken);
+
+            return new TokenRefreshResponse(newAccessToken, newRefreshToken);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
     }
 
     /** 신규 가입: 5개 테이블 원자적 생성. */
