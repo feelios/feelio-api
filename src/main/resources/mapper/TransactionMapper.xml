@@ -116,6 +116,17 @@
         WHERE transaction_id = #{transactionId}
     </select>
 
+    <update id="updateTransaction">
+        UPDATE transactions
+        SET emotion_id = #{emotionId},
+            category_id = #{categoryId},
+            type = #{type},
+            amount = #{amount},
+            memo = #{memo},
+            occurred_at = #{occurredAt}
+        WHERE transaction_id = #{transactionId}
+    </update>
+
     <delete id="deleteTransaction">
         DELETE FROM transactions
         WHERE transaction_id = #{transactionId}
