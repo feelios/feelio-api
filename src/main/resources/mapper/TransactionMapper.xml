@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.korit.feelioapi.domain.transaction.mapper.TransactionMapper">
+
+    <resultMap id="transactionResultMap" type="com.korit.feelioapi.domain.transaction.dto.TransactionDto">
+        <id property="transactionId" column="transaction_id"/>
+        <result property="type" column="type"/>
+        <result property="amount" column="amount"/>
+        <result property="memo" column="memo"/>
+        <result property="occurredAt" column="occurred_at"/>
+        
+        <association property="category" javaType="com.korit.feelioapi.domain.transaction.dto.CategoryDto">
+            <id property="categoryId" column="category_id"/>
+            <result property="name" column="category_name"/>
+        </association>
+        
+        <association property="emotion" javaType="com.korit.feelioapi.domain.transaction.dto.EmotionDto">
+            <id property="emotionId" column="emotion_id"/>
+            <result property="name" column="emotion_name"/>
+            <result property="color" column="emotion_color"/>
+        </association>
+    </resultMap>
+
+    <sql id="searchConditions">
+        <where>
+            t.user_id = #{userId}
+            <if test="condition.year != null">
+                AND YEAR(t.occurred_at) = #{condition.year}
+            </if>
+            <if test="condition.month != null">
+                AND MONTH(t.occurred_at) = #{condition.month}
+            </if>
+            <if test="condition.day != null">
+                AND DAY(t.occurred_at) = #{condition.day}
+            </if>
+            <if test="condition.emotionId != null and !condition.emotionId.isEmpty()">
+                AND t.emotion_id IN
+                <foreach item="item" collection="condition.emotionId" open="(" separator="," close=")">
+                    #{item}
+                </foreach>
+            </if>
+            <if test="condition.categoryId != null and !condition.categoryId.isEmpty()">
+                AND t.category_id IN
+                <foreach item="item" collection="condition.categoryId" open="(" separator="," close=")">
+                    #{item}
+                </foreach>
+            </if>
+            <if test="condition.query != null and condition.query != ''">
+                AND (t.memo LIKE CONCAT('%', #{condition.query}, '%') OR c.name LIKE CONCAT('%', #{condition.query}, '%'))
+            </if>
+        </where>
+    </sql>
+
+    <select id="findTransactions" resultMap="transactionResultMap">
+        SELECT
+            t.transaction_id,
+            t.type,
+            t.amount,
+            t.memo,
+            t.occurred_at,
+            c.category_id,
+            c.name AS category_name,
+            e.emotion_id,
+            e.name AS emotion_name,
+            e.color AS emotion_color
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.category_id
+        LEFT JOIN emotions e ON t.emotion_id = e.emotion_id
+        <include refid="searchConditions"/>
+        <choose>
+            <when test="condition.sort == 'date_asc'">ORDER BY t.occurred_at ASC, t.transaction_id ASC</when>
+            <when test="condition.sort == 'category_asc'">ORDER BY c.name ASC, t.occurred_at DESC</when>
+            <when test="condition.sort == 'category_desc'">ORDER BY c.name DESC, t.occurred_at DESC</when>
+            <when test="condition.sort == 'amount_asc'">ORDER BY t.amount ASC, t.occurred_at DESC</when>
+            <when test="condition.sort == 'amount_desc'">ORDER BY t.amount DESC, t.occurred_at DESC</when>
+            <otherwise>ORDER BY t.occurred_at DESC, t.transaction_id DESC</otherwise>
+        </choose>
+    </select>
+
+    <select id="calculateTotals" resultType="com.korit.feelioapi.domain.transaction.dto.TransactionTotalDto">
+        SELECT
+            COALESCE(SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END), 0) AS totalIncome,
+            COALESCE(SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END), 0) AS totalExpense
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.category_id
+        <include refid="searchConditions"/>
+    </select>
+</mapper>
