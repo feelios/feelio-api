@@ -224,11 +224,74 @@ Response `data`:
 ```
 - 지출 기록 기준 집계. 감정 능선(8종 전체 축)·홈 감정 신호(전월 대비)에 사용.
 
-## 9. 분석·평행우주 (3순위 — 스키마 미확정)
+## 9. 분석·평행우주 (3순위 — 스키마 확정, A3-1)
 
-- `GET /api/analysis/monthly?year&month` — 카테고리·시간대·감정 집계 + 인사이트 문장
-- `GET /api/universe/simulation?goalId` — 두 미래 시나리오 수치·내레이션
-- **응답 스키마 확정 전 구현 금지. 확정하면 이 문서를 먼저 갱신한다.**
+> 스키마 확정 완료. A3-2(analysis)·A3-3(universe)는 아래 응답 형태를 기준으로 구현한다.
+> 집계는 모두 **지출(EXPENSE) 기준**이며, 모든 접근은 인증 주체 user_id 기준.
+> **"감정소비"의 정의**: 특정 **한 감정**에 소비가 지나치게 쏠리는 것을 짚어주는 개념이다. 긍정·부정을 가리지 않는다("설렘일 때 유독 많이 썼다"도 감정소비). 특정 부정 감정만 대상으로 삼지 않으며, 모든 지출을 무차별로 보지도 않는다 — **소비가 몰린 그 감정**에 초점을 둔다.
+> ⚠️ 제거 확정된 "감정소비 누수율"(비율·점수)은 재도입하지 않는다. universe는 비율 지표가 아니라 **시나리오 비교**로만 표현한다.
+
+### GET /api/analysis/monthly?year&month · 인증 필요
+
+- month 필수. 해당 월의 카테고리·시간대·감정별 지출 집계 + 인사이트 문장.
+
+Response(200) `data`:
+```json
+{
+  "year": 2026,
+  "month": 7,
+  "totalIncome": 2600000,
+  "totalExpense": 320000,
+  "byCategory": [
+    { "categoryId": 3, "name": "카페", "type": "EXPENSE", "amount": 48000, "count": 6 }
+  ],
+  "byEmotion": [
+    { "emotionId": 4, "name": "스트레스", "color": "#A68BEA", "amount": 140600, "count": 6 }
+  ],
+  "byTimeSlot": [
+    { "slot": "DAWN",      "label": "새벽", "amount": 12000,  "count": 1 },
+    { "slot": "MORNING",   "label": "아침", "amount": 30000,  "count": 2 },
+    { "slot": "AFTERNOON", "label": "오후", "amount": 88000,  "count": 4 },
+    { "slot": "NIGHT",     "label": "밤",   "amount": 190000, "count": 8 }
+  ],
+  "insights": [
+    { "type": "PATTERN", "content": "외로운 밤마다 배달 소비가 반복되고 있어요." }
+  ]
+}
+```
+- `byCategory`·`byEmotion`·`byTimeSlot`: 지출 기준 집계(금액 `amount`·건수 `count`). 기록 없는 항목은 배열에서 생략.
+- `byEmotion`은 **amount 내림차순** 정렬 → 소비가 가장 몰린 감정이 맨 앞(긍정·부정 무관, "감정소비" 관점의 초점 감정).
+- `byTimeSlot.slot`: `occurred_at` 시(hour) 기준 4구간 — `DAWN`(0–5) · `MORNING`(6–11) · `AFTERNOON`(12–17) · `NIGHT`(18–23). `label`은 한글 표기.
+- `insights`: `ai_insights` 테이블 매핑(`insight_type`→`type`, `content`→`content`), 0..n건. 문구는 감정 중립(긍정 감정도 대상). 인사이트 생성 로직은 A3-2 소관.
+
+### GET /api/universe/simulation?goalId · 인증 필요
+
+- **goalId 필수**. 해당 목표에 대해 두 미래 시나리오(현재 소비 유지 / 소비를 줄임)를 비교한다.
+- 목표 없음·타인 목표: `NOT_FOUND` / `FORBIDDEN`.
+
+Response(200) `data`:
+```json
+{
+  "goal": { "goalId": 1, "name": "제주도 여행", "targetAmount": 2000000, "currentAmount": 300000 },
+  "monthlyIncome": 2600000,
+  "monthlyExpense": 250000,
+  "focusEmotion": { "emotionId": 2, "name": "설렘", "color": "#F28AB7", "monthlyAmount": 120000 },
+  "reductionRate": 0.5,
+  "scenarios": [
+    { "key": "CURRENT", "title": "지금처럼 쓴다면",     "monthlyExpense": 250000, "monthlySaving": 150000, "monthsToGoal": 12, "estimatedAchieveDate": "2027-07", "narration": "지금 속도라면 약 12개월 걸려요." },
+    { "key": "REDUCED", "title": "설렘 소비를 줄이면",   "monthlyExpense": 190000, "monthlySaving": 210000, "monthsToGoal": 9,  "estimatedAchieveDate": "2027-04", "narration": "설렘 소비를 절반 줄이면 3개월 빨라져요." }
+  ]
+}
+```
+- **감정소비 = 소비가 가장 몰린 한 감정**(긍정·부정 무관)에 초점. REDUCED는 월 지출 전체가 아니라 **그 감정의 지출만** 줄인 시나리오다.
+- `focusEmotion`: 해당 기간 지출이 가장 큰 감정 1건 + 그 감정의 월 지출 `monthlyAmount`. 지출 기록이 전혀 없으면 `null`.
+- `monthlyIncome`/`monthlyExpense`: 최근 활동 기준 월 수입·지출(산정 방식은 A3-3 구현 소관).
+- `reductionRate`: 서버가 가정한 감축 비율(0~1, 예 `0.5`). 응답에 명시해 프론트 하드코딩을 피한다.
+- `scenarios`: `CURRENT`(현행)·`REDUCED`(감축) 2건 고정. `REDUCED.title`은 focusEmotion 이름을 반영(예: "설렘 소비를 줄이면").
+  - `REDUCED.monthlyExpense = monthlyExpense − round(focusEmotion.monthlyAmount × reductionRate)` (focusEmotion 이 `null`이면 CURRENT 와 동일).
+  - `monthlySaving = monthlyIncome − 시나리오 monthlyExpense` (음수면 0 처리).
+  - `monthsToGoal = ceil((targetAmount − currentAmount) / monthlySaving)`. `monthlySaving ≤ 0`이면 `monthsToGoal`·`estimatedAchieveDate` 모두 `null`(도달 불가).
+- 에러: `NOT_FOUND`(목표 없음) · `FORBIDDEN`(타인 목표) · `VALIDATION_ERROR`(goalId 누락).
 
 ## 10. 캐시 무효화 규칙 (프론트 TanStack Query)
 
