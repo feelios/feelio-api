@@ -42,9 +42,9 @@
 
 - **감정 8종 (고정, 커스텀 불가):** 신남, 설렘, 뿌듯함, 스트레스, 외로움, 화남, 평온, 무덤덤
 - **카테고리:** EXPENSE — 식비, 배달, 카페, 교통, 쇼핑, 문화, 건강, 기타 / INCOME — 급여, 용돈, 기타
-- **상황:** 퇴근 후, 혼자 있음, 친구와, 보상, 습관, 이동 중, 아침, 밤
 - 감정 색상·정렬의 원본은 웹 `src/styles/theme.js`의 emotionPalette → DB emotions 테이블 시드로 이관
 - ⚠️ **감정소비 누수율 관련 API·필드는 만들지 않는다 (제거 확정 기능)**
+- ⚠️ **상황(situation) 관련 API·필드·테이블은 만들지 않는다 (제거 확정 기능)**
 
 ## 3. 인증 (Auth)
 
@@ -117,8 +117,7 @@ Response `data`:
 ```json
 {
   "emotions":   [ { "emotionId": 4, "name": "스트레스", "color": "#A68BEA", "sortOrder": 4 } ],
-  "categories": [ { "categoryId": 3, "name": "카페", "type": "EXPENSE", "sortOrder": 3 } ],
-  "situations": [ { "situationId": 1, "name": "퇴근 후", "sortOrder": 1 } ]
+  "categories": [ { "categoryId": 3, "name": "카페", "type": "EXPENSE", "sortOrder": 3 } ]
 }
 ```
 - `is_active=true`만 반환. 프론트는 세션 캐시(TanStack Query staleTime 길게). 기록 입력 폼·필터 옵션·수정 폼이 사용.
@@ -133,12 +132,11 @@ Response `data`:
   "amount": 18600,
   "category":  { "categoryId": 3, "name": "카페" },
   "emotion":   { "emotionId": 4, "name": "스트레스", "color": "#A68BEA" },
-  "situations": [ { "situationId": 1, "name": "퇴근 후" }, { "situationId": 2, "name": "혼자 있음" } ],
   "memo": "달달한 라떼와 케이크",
   "occurredAt": "2026-07-01T21:30:00"
 }
 ```
-- type: `EXPENSE` | `INCOME` / 감정·카테고리는 단일, **상황은 복수(N:M)** — 팀 확정
+- type: `EXPENSE` | `INCOME` / 감정·카테고리는 단일
 
 ### GET /api/transactions · 인증 필요
 
@@ -166,19 +164,18 @@ Request:
   "amount": 18600,
   "categoryId": 3,
   "emotionId": 4,
-  "situationIds": [1, 2],
   "memo": "달달한 라떼와 케이크",
   "occurredAt": "2026-07-01T21:30:00"
 }
 ```
 - 필수: type, amount(>0 정수), categoryId, emotionId, occurredAt
-- situationIds: 생략·빈 배열 허용 / memo: 생략 시 **null 저장**(기본 문자열 저장 금지), 최대 200자
-- 서버: transactions + transaction_situations **단일 트랜잭션** 저장
+- memo: 생략 시 **null 저장**(기본 문자열 저장 금지), 최대 200자
+- 서버: transactions 저장(단건)
 
 Response(201) `data`: 생성된 거래 객체. 에러: VALIDATION_ERROR
 
 ### GET /api/transactions/{transactionId} · 인증 필요 — 거래 객체 반환 (딥링크 대비용, 목록 재사용 가능하면 생략)
-### PUT /api/transactions/{transactionId} · 인증 필요 — POST와 동일 필드, situationIds는 전량 교체. 에러: VALIDATION_ERROR·FORBIDDEN·NOT_FOUND
+### PUT /api/transactions/{transactionId} · 인증 필요 — POST와 동일 필드. 에러: VALIDATION_ERROR·FORBIDDEN·NOT_FOUND
 ### DELETE /api/transactions/{transactionId} · 인증 필요 → `data`: `{ "deleted": true }` (확인 다이얼로그는 프론트 책임)
 ### DELETE /api/transactions — 전체 초기화 · 인증 필요 → `data`: `{ "deletedCount": 42 }` (프로필>데이터 관리 전용)
 
