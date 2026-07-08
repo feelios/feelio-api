@@ -1,7 +1,9 @@
 package com.korit.feelioapi.domain.user.controller;
 
 import com.korit.feelioapi.domain.user.dto.OnboardingResponse;
+import com.korit.feelioapi.domain.user.dto.SettingsResponse;
 import com.korit.feelioapi.domain.user.dto.UpdateNicknameRequest;
+import com.korit.feelioapi.domain.user.dto.UpdateSettingsRequest;
 import com.korit.feelioapi.domain.user.dto.UserResponse;
 import com.korit.feelioapi.domain.user.service.UserService;
 import com.korit.feelioapi.global.response.ApiResponse;
@@ -42,5 +44,12 @@ public class UserController {
     @PatchMapping("/me/onboarding")
     public ApiResponse<OnboardingResponse> completeOnboarding(@AuthenticationPrincipal Long userId) {
         return ApiResponse.success(userService.completeOnboarding(userId));
+    }
+
+    /** PATCH /api/users/me/settings — 테마 설정 부분 수정. */
+    @PatchMapping("/me/settings")
+    public ApiResponse<SettingsResponse> updateSettings(@AuthenticationPrincipal Long userId,
+                                                        @RequestBody UpdateSettingsRequest request) {
+        return ApiResponse.success(userService.updateSettings(userId, request));
     }
 }

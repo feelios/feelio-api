@@ -36,4 +36,14 @@
         WHERE user_id = #{userId}
     </update>
 
+    <!-- 설정 부분 수정: 전송된(null 아닌) 컬럼만 갱신. -->
+    <update id="updateSettings">
+        UPDATE users
+        <set>
+            <if test="themeMode != null">theme_mode = #{themeMode},</if>
+            <if test="auroraTheme != null">aurora_theme = #{auroraTheme},</if>
+        </set>
+        WHERE user_id = #{userId}
+    </update>
+
 </mapper>
