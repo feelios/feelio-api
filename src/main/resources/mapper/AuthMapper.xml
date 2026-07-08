@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- auth 도메인 SQL. namespace/id 는 AuthMapper 인터페이스와 정확히 일치. #{} 만 사용. -->
+<mapper namespace="com.korit.feelioapi.domain.auth.mapper.AuthMapper">
+
+    <!-- 소셜 계정 식별: 유니크 (provider, provider_user_id) 로 단건 조회. -->
+    <select id="findSocialAccountByProvider" resultType="com.korit.feelioapi.domain.auth.entity.SocialAccount">
+        SELECT social_account_id, user_id, provider, provider_user_id, connected_at
+        FROM social_accounts
+        WHERE provider = #{provider}
+          AND provider_user_id = #{providerUserId}
+    </select>
+
+    <!-- 로그인 응답 조립용 사용자 단건 조회(PK). -->
+    <select id="findUserById" resultType="com.korit.feelioapi.domain.auth.entity.User">
+        SELECT user_id, nickname, email, profile_image_url, onboarding_done,
+               theme_mode, aurora_theme, status, created_at, updated_at
+        FROM users
+        WHERE user_id = #{userId}
+    </select>
+
+    <!-- 신규 가입: 필수/프로필 컬럼만 넣고 나머지는 DB DEFAULT 사용. 생성 PK 를 userId 로 회수. -->
+    <insert id="insertUser" parameterType="com.korit.feelioapi.domain.auth.entity.User"
+            useGeneratedKeys="true" keyProperty="userId">
+        INSERT INTO users (nickname, email, profile_image_url)
+        VALUES (#{nickname}, #{email}, #{profileImageUrl})
+    </insert>
+
+    <insert id="insertSocialAccount" parameterType="com.korit.feelioapi.domain.auth.entity.SocialAccount"
+            useGeneratedKeys="true" keyProperty="socialAccountId">
+        INSERT INTO social_accounts (user_id, provider, provider_user_id)
+        VALUES (#{userId}, #{provider}, #{providerUserId})
+    </insert>
+
+    <!-- 알림설정: 컬럼 기본값(리마인더 on/주간 on/넛지 off)에 의존, user_id 만 삽입. -->
+    <insert id="insertNotificationSettingDefault">
+        INSERT INTO notification_settings (user_id)
+        VALUES (#{userId})
+    </insert>
+
+    <!-- 약관 동의 다건(SERVICE/PRIVACY/MARKETING) 일괄 삽입. -->
+    <insert id="insertTermsAgreements">
+        INSERT INTO terms_agreements (user_id, terms_type, agreed, version)
+        VALUES
+        <foreach collection="agreements" item="a" separator=",">
+            (#{a.userId}, #{a.termsType}, #{a.agreed}, #{a.version})
+        </foreach>
+    </insert>
+
+    <insert id="insertRefreshToken" parameterType="com.korit.feelioapi.domain.auth.entity.RefreshToken"
+            useGeneratedKeys="true" keyProperty="tokenId">
+        INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+        VALUES (#{userId}, #{tokenHash}, #{expiresAt})
+    </insert>
+
+</mapper>
