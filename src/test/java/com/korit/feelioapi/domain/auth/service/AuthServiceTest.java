@@ -2,6 +2,9 @@ package com.korit.feelioapi.domain.auth.service;
 
 import com.korit.feelioapi.domain.auth.dto.LoginRequest;
 import com.korit.feelioapi.domain.auth.dto.LoginResponse;
+import com.korit.feelioapi.domain.auth.dto.TokenRefreshRequest;
+import com.korit.feelioapi.domain.auth.dto.TokenRefreshResponse;
+import com.korit.feelioapi.domain.auth.entity.RefreshToken;
 import com.korit.feelioapi.domain.auth.entity.SocialAccount;
 import com.korit.feelioapi.domain.auth.entity.TermsAgreement;
 import com.korit.feelioapi.domain.auth.entity.User;
@@ -22,6 +25,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -157,5 +161,66 @@ class AuthServiceTest {
 
         verify(authMapper, never()).insertUser(any());
         verify(authMapper, never()).insertRefreshToken(any());
+    }
+
+    @Test
+    void 유효한_리프레시_토큰으로_재발급_성공() {
+        TokenRefreshRequest request = new TokenRefreshRequest("valid-refresh-token");
+        RefreshToken storedToken = new RefreshToken();
+        storedToken.setTokenId(100L);
+        storedToken.setExpiresAt(LocalDateTime.now().plusDays(1));
+
+        when(jwtProvider.parseUserId("valid-refresh-token")).thenReturn(5L);
+        when(tokenHasher.hash("valid-refresh-token")).thenReturn("hashed-refresh");
+        when(authMapper.findRefreshTokenByHash(5L, "hashed-refresh")).thenReturn(storedToken);
+        when(jwtProvider.createAccessToken(5L)).thenReturn("new-access");
+        when(jwtProvider.createRefreshToken(5L)).thenReturn("new-refresh");
+
+        TokenRefreshResponse response = authService.refreshToken(request);
+
+        assertThat(response.accessToken()).isEqualTo("new-access");
+        assertThat(response.refreshToken()).isEqualTo("new-refresh");
+        verify(authMapper).deleteRefreshToken(100L);
+        verify(authMapper).insertRefreshToken(any(RefreshToken.class));
+    }
+
+    @Test
+    void 만료된_JWT토큰으로_재발급요청시_UNAUTHORIZED() {
+        TokenRefreshRequest request = new TokenRefreshRequest("expired-jwt");
+        when(jwtProvider.parseUserId("expired-jwt")).thenThrow(new RuntimeException("Expired JWT"));
+
+        assertThatThrownBy(() -> authService.refreshToken(request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.UNAUTHORIZED);
+    }
+
+    @Test
+    void DB에_없는_리프레시토큰_UNAUTHORIZED() {
+        TokenRefreshRequest request = new TokenRefreshRequest("valid-jwt-not-in-db");
+        when(jwtProvider.parseUserId("valid-jwt-not-in-db")).thenReturn(5L);
+        when(tokenHasher.hash("valid-jwt-not-in-db")).thenReturn("hashed-not-found");
+        when(authMapper.findRefreshTokenByHash(5L, "hashed-not-found")).thenReturn(null);
+
+        assertThatThrownBy(() -> authService.refreshToken(request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.UNAUTHORIZED);
+    }
+
+    @Test
+    void DB토큰이_만료기간을_지났으면_삭제후_UNAUTHORIZED() {
+        TokenRefreshRequest request = new TokenRefreshRequest("valid-jwt-but-db-expired");
+        RefreshToken storedToken = new RefreshToken();
+        storedToken.setTokenId(100L);
+        storedToken.setExpiresAt(LocalDateTime.now().minusDays(1));
+
+        when(jwtProvider.parseUserId("valid-jwt-but-db-expired")).thenReturn(5L);
+        when(tokenHasher.hash("valid-jwt-but-db-expired")).thenReturn("hashed-expired");
+        when(authMapper.findRefreshTokenByHash(5L, "hashed-expired")).thenReturn(storedToken);
+
+        assertThatThrownBy(() -> authService.refreshToken(request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.UNAUTHORIZED);
+
+        verify(authMapper).deleteRefreshToken(100L);
     }
 }
