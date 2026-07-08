@@ -95,6 +95,21 @@
 - 테스트 범위 (기본 Service 단위 — 이 이슈는 더 넓혀야 하는지)
 - 새 파일 생성 vs 기존 파일 수정
 
+## 협업 충돌 사전 점검 (병렬 작업 시)
+> 브랜치/PR이 2개 이상 동시에 열려 있을 때, 구현 전에 수행한다.
+> 혼자 이슈를 순차로 진행할 때는 생략 가능.
+
+1. 이 이슈가 수정할 파일 예측 (특히 공유 자원: Mapper 인터페이스·XML, global/, application.yaml)
+2. 열린 PR·다른 작업 브랜치가 같은 파일을 건드리는지 확인
+   (`gh pr list` / `git branch -r` / GitHub PR 목록)
+3. 겹치면 구현 전에 먼저 제안한다:
+   - 충돌 지점과 원인
+   - 분리 가능한 구조 (예: 같은 Mapper라도 메서드/XML 조각 단위로 분리)
+   - 먼저 머지해야 할 이슈 (Depends 우선순위)
+4. 충돌 위험이 크면 구현보다 **구조 변경·작업 순서 조정을 먼저 제안**한다.
+
+> 충돌 상습 지점(참고): TransactionMapper, UserMapper, RefreshTokenMapper, global/, application.yaml
+
 ## 공통 협업 규칙
 
 ### 브랜치 전략 (GitHub Flow)
