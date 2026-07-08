@@ -1,5 +1,6 @@
 package com.korit.feelioapi.domain.user.controller;
 
+import com.korit.feelioapi.domain.user.dto.OnboardingResponse;
 import com.korit.feelioapi.domain.user.dto.UpdateNicknameRequest;
 import com.korit.feelioapi.domain.user.dto.UserResponse;
 import com.korit.feelioapi.domain.user.service.UserService;
@@ -35,5 +36,11 @@ public class UserController {
     public ApiResponse<UserResponse> updateMe(@AuthenticationPrincipal Long userId,
                                               @Valid @RequestBody UpdateNicknameRequest request) {
         return ApiResponse.success(userService.updateNickname(userId, request.nickname()));
+    }
+
+    /** PATCH /api/users/me/onboarding — 온보딩 완료 처리(바디 없음). */
+    @PatchMapping("/me/onboarding")
+    public ApiResponse<OnboardingResponse> completeOnboarding(@AuthenticationPrincipal Long userId) {
+        return ApiResponse.success(userService.completeOnboarding(userId));
     }
 }

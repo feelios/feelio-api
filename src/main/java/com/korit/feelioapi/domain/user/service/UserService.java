@@ -1,5 +1,6 @@
 package com.korit.feelioapi.domain.user.service;
 
+import com.korit.feelioapi.domain.user.dto.OnboardingResponse;
 import com.korit.feelioapi.domain.user.dto.UserResponse;
 import com.korit.feelioapi.domain.user.entity.User;
 import com.korit.feelioapi.domain.user.mapper.UserMapper;
@@ -30,6 +31,13 @@ public class UserService {
         userMapper.updateNickname(userId, trimmed);
         user.setNickname(trimmed);
         return toResponse(user);
+    }
+
+    @Transactional
+    public OnboardingResponse completeOnboarding(Long userId) {
+        loadUser(userId); // 본인 존재 확인(없으면 NOT_FOUND)
+        userMapper.markOnboardingDone(userId);
+        return new OnboardingResponse(true);
     }
 
     private User loadUser(Long userId) {
