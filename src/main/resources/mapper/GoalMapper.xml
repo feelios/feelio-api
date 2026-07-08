@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- goal 도메인 SQL. namespace/id 는 GoalMapper 인터페이스와 정확히 일치. #{} 만 사용. -->
+<mapper namespace="com.korit.feelioapi.domain.goal.mapper.GoalMapper">
+
+    <!-- 본인 목표 목록: 대표 먼저, 최신순. -->
+    <select id="findGoalsByUserId" resultType="com.korit.feelioapi.domain.goal.entity.Goal">
+        SELECT goal_id, user_id, name, target_amount, current_amount,
+               start_date, due_date, is_main, status, created_at, updated_at
+        FROM goals
+        WHERE user_id = #{userId}
+        ORDER BY is_main DESC, created_at DESC
+    </select>
+
+    <!-- 소유권 확인·응답 재조회용 단건(PK). -->
+    <select id="findById" resultType="com.korit.feelioapi.domain.goal.entity.Goal">
+        SELECT goal_id, user_id, name, target_amount, current_amount,
+               start_date, due_date, is_main, status, created_at, updated_at
+        FROM goals
+        WHERE goal_id = #{goalId}
+    </select>
+
+    <!-- 생성: current_amount(0)·status(ACTIVE)는 DB 기본값. 생성 PK 회수. -->
+    <insert id="insertGoal" parameterType="com.korit.feelioapi.domain.goal.entity.Goal"
+            useGeneratedKeys="true" keyProperty="goalId">
+        INSERT INTO goals (user_id, name, target_amount, start_date, due_date, is_main)
+        VALUES (#{userId}, #{name}, #{targetAmount}, #{startDate}, #{dueDate}, #{isMain})
+    </insert>
+
+    <!-- 수정: POST와 동일 필드만. 소유권은 Service 선검증. -->
+    <update id="updateGoal" parameterType="com.korit.feelioapi.domain.goal.entity.Goal">
+        UPDATE goals
+        SET name = #{name},
+            target_amount = #{targetAmount},
+            start_date = #{startDate},
+            due_date = #{dueDate},
+            is_main = #{isMain}
+        WHERE goal_id = #{goalId}
+    </update>
+
+    <!-- 대표 목표 유일성: isMain=true 처리 직전, 본인의 기존 대표를 모두 해제. -->
+    <update id="clearMainFlag">
+        UPDATE goals
+        SET is_main = 0
+        WHERE user_id = #{userId} AND is_main = 1
+    </update>
+
+    <delete id="deleteGoal">
+        DELETE FROM goals
+        WHERE goal_id = #{goalId}
+    </delete>
+
+</mapper>
