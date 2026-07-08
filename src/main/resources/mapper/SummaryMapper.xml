@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.korit.feelioapi.domain.summary.mapper.SummaryMapper">
+
+    <resultMap id="calendarDayResultMap" type="com.korit.feelioapi.domain.summary.dto.CalendarDayDto">
+        <result property="date" column="date" />
+        <result property="transactionCount" column="transaction_count" />
+        <result property="totalExpense" column="total_expense" />
+        <association property="dominantEmotion" javaType="com.korit.feelioapi.domain.summary.dto.EmotionDto">
+            <result property="emotionId" column="emotion_id" />
+            <result property="name" column="emotion_name" />
+            <result property="color" column="emotion_color" />
+        </association>
+    </resultMap>
+
+    <select id="findCalendarSummary" resultMap="calendarDayResultMap">
+        WITH DailyEmotions AS (
+            SELECT
+                DATE(t.occurred_at) as date,
+                t.emotion_id,
+                COUNT(*) as emotion_count,
+                MAX(t.occurred_at) as max_occurred_at
+            FROM transactions t
+            WHERE t.user_id = #{userId}
+              AND YEAR(t.occurred_at) = #{year}
+              <if test="month != null">
+              AND MONTH(t.occurred_at) = #{month}
+              </if>
+            GROUP BY DATE(t.occurred_at), t.emotion_id
+        ),
+        RankedEmotions AS (
+            SELECT
+                de.date,
+                de.emotion_id,
+                ROW_NUMBER() OVER (PARTITION BY de.date ORDER BY de.emotion_count DESC, de.max_occurred_at DESC) as rn
+            FROM DailyEmotions de
+        ),
+        DailyStats AS (
+            SELECT
+                DATE(t.occurred_at) as date,
+                COUNT(*) as transaction_count,
+                COALESCE(SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END), 0) as total_expense
+            FROM transactions t
+            WHERE t.user_id = #{userId}
+              AND YEAR(t.occurred_at) = #{year}
+              <if test="month != null">
+              AND MONTH(t.occurred_at) = #{month}
+              </if>
+            GROUP BY DATE(t.occurred_at)
+        )
+        SELECT
+            ds.date,
+            ds.transaction_count,
+            ds.total_expense,
+            e.emotion_id,
+            e.name AS emotion_name,
+            e.color AS emotion_color
+        FROM DailyStats ds
+        JOIN RankedEmotions re ON ds.date = re.date AND re.rn = 1
+        JOIN emotions e ON re.emotion_id = e.emotion_id
+        ORDER BY ds.date ASC
+    </select>
+
+</mapper>
