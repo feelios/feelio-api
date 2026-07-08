@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- analysis 도메인 SQL. namespace/id 는 AnalysisMapper 인터페이스와 정확히 일치. #{} 만 사용. -->
+<mapper namespace="com.korit.feelioapi.domain.analysis.mapper.AnalysisMapper">
+
+    <!-- 공통 연·월·본인 필터 -->
+    <sql id="userMonth">
+        t.user_id = #{userId}
+        AND YEAR(t.occurred_at) = #{year}
+        AND MONTH(t.occurred_at) = #{month}
+    </sql>
+
+    <!-- 월 합계: 수입·지출 모두(합계만 수입 포함). 기록 없으면 0. -->
+    <select id="findMonthlyTotals" resultType="com.korit.feelioapi.domain.analysis.dto.AnalysisTotalDto">
+        SELECT
+            COALESCE(SUM(CASE WHEN t.type = 'INCOME'  THEN t.amount ELSE 0 END), 0) AS totalIncome,
+            COALESCE(SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END), 0) AS totalExpense
+        FROM transactions t
+        WHERE <include refid="userMonth"/>
+    </select>
+
+    <!-- 카테고리별 지출: 금액 내림차순. -->
+    <select id="findExpenseByCategory" resultType="com.korit.feelioapi.domain.analysis.dto.CategoryStatDto">
+        SELECT c.category_id AS categoryId, c.name AS name, c.type AS type,
+               SUM(t.amount) AS amount, COUNT(*) AS count
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.category_id
+        WHERE <include refid="userMonth"/> AND t.type = 'EXPENSE'
+        GROUP BY c.category_id, c.name, c.type
+        ORDER BY amount DESC
+    </select>
+
+    <!-- 감정별 지출: 금액 내림차순(§9 — 소비 몰린 감정 우선). -->
+    <select id="findExpenseByEmotion" resultType="com.korit.feelioapi.domain.analysis.dto.EmotionStatDto">
+        SELECT e.emotion_id AS emotionId, e.name AS name, e.color AS color,
+               SUM(t.amount) AS amount, COUNT(*) AS count
+        FROM transactions t
+        JOIN emotions e ON t.emotion_id = e.emotion_id
+        WHERE <include refid="userMonth"/> AND t.type = 'EXPENSE'
+        GROUP BY e.emotion_id, e.name, e.color
+        ORDER BY amount DESC
+    </select>
+
+    <!-- 시간대별 지출: occurred_at 시(hour) 4구간. label·정렬은 Service 가 부여. -->
+    <select id="findExpenseByTimeSlot" resultType="com.korit.feelioapi.domain.analysis.dto.TimeSlotStat">
+        SELECT slot, SUM(amount) AS amount, COUNT(*) AS count
+        FROM (
+            SELECT
+                CASE
+                    WHEN HOUR(t.occurred_at) BETWEEN 0 AND 5  THEN 'DAWN'
+                    WHEN HOUR(t.occurred_at) BETWEEN 6 AND 11 THEN 'MORNING'
+                    WHEN HOUR(t.occurred_at) BETWEEN 12 AND 17 THEN 'AFTERNOON'
+                    ELSE 'NIGHT'
+                END AS slot,
+                t.amount AS amount
+            FROM transactions t
+            WHERE <include refid="userMonth"/> AND t.type = 'EXPENSE'
+        ) s
+        GROUP BY slot
+    </select>
+
+</mapper>
