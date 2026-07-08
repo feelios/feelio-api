@@ -13,9 +13,9 @@ description: Feelio 백엔드 기능 이슈를 하네스+루프로 구현 (사�
 ### [이슈 표]
 | 코드 | 제목 | 브랜치 | 계약 | 슬롯 | 테이블 | 완료기준(핵심) |
 |---|---|---|---|---|---|---|
-| A1-1 | 소셜 로그인(code 교환) | feat/auth-login | §3 | Ctrl·Svc·DTO·Entity·Mapper+XML | users, social_accounts, refresh_token | code+redirectUri로 provider 서버교환→검증→프로필→조회/가입→JWT 발급, provider 토큰 미저장 |
-| A1-2 | 토큰 재발급 | feat/auth-refresh | §3 | Ctrl·Svc·DTO·Mapper | refresh_token | refresh 검증→신규 access·refresh, UNAUTHORIZED 처리 |
-| A1-3 | 로그아웃 | feat/auth-logout | §3 | Ctrl·Svc·Mapper | refresh_token | refresh 폐기, onboarding_done 유지 |
+| A1-1 | 소셜 로그인(code 교환) | feat/auth-login | §3 | Ctrl·Svc·DTO·Entity·Mapper+XML | users, social_accounts, refresh_tokens, notification_settings, terms_agreements | code+redirectUri로 provider 서버교환→검증→프로필→조회/가입(users+social_accounts+notification_settings 기본값+terms_agreements)→JWT 발급, provider 토큰 미저장 |
+| A1-2 | 토큰 재발급 | feat/auth-refresh | §3 | Ctrl·Svc·DTO·Mapper | refresh_tokens | refresh 검증→신규 access·refresh, UNAUTHORIZED 처리 |
+| A1-3 | 로그아웃 | feat/auth-logout | §3 | Ctrl·Svc·Mapper | refresh_tokens | refresh 폐기, onboarding_done 유지 |
 | A1-4 | 메타 조회 | feat/meta | §5 | Ctrl·Svc·DTO·Entity·Mapper+XML | emotions, categories | is_active=true만, 감정·카테고리 2종(상황 없음) |
 | A1-5 | 내 정보 조회·수정 | feat/users-me | §4 | Ctrl·Svc·DTO·Entity·Mapper+XML | users | user_id 기준, 닉네임 1~8자 검증 |
 | A1-6 | 온보딩 완료 | feat/users-onboarding | §4 | Ctrl·Svc·Mapper | users | {onboardingDone:true} |
@@ -38,7 +38,7 @@ description: Feelio 백엔드 기능 이슈를 하네스+루프로 구현 (사�
 - SQL은 XML Mapper에, `#{}`만 사용(`${}` 금지), namespace/메서드명/id 정확히 일치
 - 모든 개인 데이터는 인증 주체 user_id 기준으로만 접근(클라 userId 불신)
 - 응답 봉투 { success, data } / { success, error:{code,message} }, 에러코드는 계약 §1 표에서만
-- jjwt 0.12.x API만, @Transactional은 Service, Controller는 얇게
+- jjwt 0.12+ 비-deprecated API만(0.11 이하 deprecated 금지, 현재 0.13.x), @Transactional은 Service, Controller는 얇게
 - OAuth는 A안(프론트 code → 백엔드 서버교환·검증)
 - 확정 제거기능 금지: 이메일 로그인 · 감정소비 누수율 · 상황(situation)
 - 계약(docs/API-CONTRACT.md)에 없는 엔드포인트·필드 임의 생성 금지
