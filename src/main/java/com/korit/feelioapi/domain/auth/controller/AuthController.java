@@ -1,0 +1,30 @@
+package com.korit.feelioapi.domain.auth.controller;
+
+import com.korit.feelioapi.domain.auth.dto.LoginRequest;
+import com.korit.feelioapi.domain.auth.dto.LoginResponse;
+import com.korit.feelioapi.domain.auth.service.AuthService;
+import com.korit.feelioapi.global.response.ApiResponse;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * 인증 API (API-CONTRACT §3). SecurityConfig 에서 /api/auth/** 는 permitAll.
+ * Controller 는 얇게 — 검증/트랜잭션/비즈니스는 AuthService 소관.
+ */
+@RestController
+@RequestMapping("/api/auth")
+@RequiredArgsConstructor
+public class AuthController {
+
+    private final AuthService authService;
+
+    /** POST /api/auth/login — 소셜 로그인(code 서버교환). 성공 시 200 + 공통 봉투. */
+    @PostMapping("/login")
+    public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        return ApiResponse.success(authService.login(request));
+    }
+}
