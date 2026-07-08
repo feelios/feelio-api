@@ -1,6 +1,7 @@
 package com.korit.feelioapi.domain.summary.controller;
 
 import com.korit.feelioapi.domain.summary.dto.CalendarSummaryResponse;
+import com.korit.feelioapi.domain.summary.dto.EmotionSummaryResponse;
 import com.korit.feelioapi.domain.summary.service.SummaryService;
 import com.korit.feelioapi.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -25,5 +26,15 @@ public class SummaryController {
             @RequestParam(required = false) Integer month
     ) {
         return ApiResponse.success(summaryService.getCalendarSummary(userId, year, month));
+    }
+
+    /** GET /api/summary/emotions?year&month — 감정 요약. 인증 필요. */
+    @GetMapping("/emotions")
+    public ApiResponse<EmotionSummaryResponse> getEmotionSummary(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam Integer year,
+            @RequestParam Integer month
+    ) {
+        return ApiResponse.success(summaryService.getEmotionSummary(userId, year, month));
     }
 }

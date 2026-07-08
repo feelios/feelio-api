@@ -62,4 +62,20 @@
         ORDER BY ds.date ASC
     </select>
 
+    <select id="findEmotionSummary" resultType="com.korit.feelioapi.domain.summary.dto.EmotionSummaryDto">
+        SELECT
+            e.emotion_id AS emotionId,
+            e.name,
+            COUNT(t.transaction_id) AS count,
+            COALESCE(SUM(t.amount), 0) AS amount
+        FROM transactions t
+        JOIN emotions e ON t.emotion_id = e.emotion_id
+        WHERE t.user_id = #{userId}
+          AND YEAR(t.occurred_at) = #{year}
+          AND MONTH(t.occurred_at) = #{month}
+          AND t.type = 'EXPENSE'
+        GROUP BY e.emotion_id, e.name
+        ORDER BY count DESC, amount DESC
+    </select>
+
 </mapper>
