@@ -6,10 +6,15 @@ import com.korit.feelioapi.domain.transaction.dto.TransactionTotalDto;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import com.korit.feelioapi.domain.transaction.entity.Transaction;
+
 import java.util.List;
 
 @Mapper
 public interface TransactionMapper {
     List<TransactionDto> findTransactions(@Param("userId") Long userId, @Param("condition") TransactionSearchCondition condition);
     TransactionTotalDto calculateTotals(@Param("userId") Long userId, @Param("condition") TransactionSearchCondition condition);
+    
+    void insertTransaction(Transaction transaction);
+    TransactionDto findTransactionById(@Param("transactionId") Long transactionId, @Param("userId") Long userId);
 }

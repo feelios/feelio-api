@@ -86,4 +86,27 @@
         LEFT JOIN categories c ON t.category_id = c.category_id
         <include refid="searchConditions"/>
     </select>
+
+    <insert id="insertTransaction" useGeneratedKeys="true" keyProperty="transactionId">
+        INSERT INTO transactions (user_id, emotion_id, category_id, type, amount, memo, occurred_at)
+        VALUES (#{userId}, #{emotionId}, #{categoryId}, #{type}, #{amount}, #{memo}, #{occurredAt})
+    </insert>
+
+    <select id="findTransactionById" resultMap="transactionResultMap">
+        SELECT
+            t.transaction_id,
+            t.type,
+            t.amount,
+            t.memo,
+            t.occurred_at,
+            c.category_id,
+            c.name AS category_name,
+            e.emotion_id,
+            e.name AS emotion_name,
+            e.color AS emotion_color
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.category_id
+        LEFT JOIN emotions e ON t.emotion_id = e.emotion_id
+        WHERE t.transaction_id = #{transactionId} AND t.user_id = #{userId}
+    </select>
 </mapper>

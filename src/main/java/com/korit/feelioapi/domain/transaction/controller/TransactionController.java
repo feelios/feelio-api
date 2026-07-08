@@ -1,5 +1,7 @@
 package com.korit.feelioapi.domain.transaction.controller;
 
+import com.korit.feelioapi.domain.transaction.dto.TransactionCreateRequest;
+import com.korit.feelioapi.domain.transaction.dto.TransactionDto;
 import com.korit.feelioapi.domain.transaction.dto.TransactionListResponse;
 import com.korit.feelioapi.domain.transaction.dto.TransactionSearchCondition;
 import com.korit.feelioapi.domain.transaction.service.TransactionService;
@@ -7,9 +9,14 @@ import com.korit.feelioapi.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/transactions")
@@ -25,5 +32,15 @@ public class TransactionController {
             @ModelAttribute TransactionSearchCondition condition
     ) {
         return ApiResponse.success(transactionService.getTransactions(userId, condition));
+    }
+
+    /** POST /api/transactions — 거래 기록 생성. 인증 필요. */
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<TransactionDto> createTransaction(
+            @AuthenticationPrincipal Long userId,
+            @Valid @RequestBody TransactionCreateRequest request
+    ) {
+        return ApiResponse.success(transactionService.createTransaction(userId, request));
     }
 }
