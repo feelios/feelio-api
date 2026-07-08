@@ -19,4 +19,9 @@ public interface UserMapper {
     int updateNickname(@Param("userId") Long userId, @Param("nickname") String nickname);
 
     int markOnboardingDone(@Param("userId") Long userId);
+
+    /** 부분 전송: null 인 컬럼은 건드리지 않는다(동적 SQL). */
+    int updateSettings(@Param("userId") Long userId,
+                       @Param("themeMode") String themeMode,
+                       @Param("auroraTheme") String auroraTheme);
 }

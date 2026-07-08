@@ -1,5 +1,7 @@
 package com.korit.feelioapi.domain.user.service;
 
+import com.korit.feelioapi.domain.user.dto.SettingsResponse;
+import com.korit.feelioapi.domain.user.dto.UpdateSettingsRequest;
 import com.korit.feelioapi.domain.user.dto.UserResponse;
 import com.korit.feelioapi.domain.user.entity.User;
 import com.korit.feelioapi.domain.user.mapper.UserMapper;
@@ -13,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -109,5 +112,49 @@ class UserServiceTest {
                 .extracting("errorCode").isEqualTo(ErrorCode.NOT_FOUND);
 
         verify(userMapper, never()).markOnboardingDone(99L);
+    }
+
+    @Test
+    void 설정_부분수정_themeMode만_보내면_해당컬럼만_갱신한다() {
+        User updated = user(1L, "서연");
+        updated.setThemeMode("DARK");
+        when(userMapper.findUserById(1L)).thenReturn(updated);
+
+        SettingsResponse response = userService.updateSettings(1L, new UpdateSettingsRequest("DARK", null));
+
+        assertThat(response.themeMode()).isEqualTo("DARK");
+        verify(userMapper).updateSettings(eq(1L), eq("DARK"), org.mockito.ArgumentMatchers.isNull());
+    }
+
+    @Test
+    void 설정_부분수정_둘다_보내면_모두_갱신한다() {
+        User updated = user(1L, "서연");
+        updated.setThemeMode("DARK");
+        updated.setAuroraTheme("핑크");
+        when(userMapper.findUserById(1L)).thenReturn(updated);
+
+        SettingsResponse response = userService.updateSettings(1L, new UpdateSettingsRequest("DARK", "핑크"));
+
+        assertThat(response.themeMode()).isEqualTo("DARK");
+        assertThat(response.auroraTheme()).isEqualTo("핑크");
+        verify(userMapper).updateSettings(eq(1L), eq("DARK"), eq("핑크"));
+    }
+
+    @Test
+    void 설정_둘다_없으면_VALIDATION_ERROR() {
+        assertThatThrownBy(() -> userService.updateSettings(1L, new UpdateSettingsRequest(null, "  ")))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
+
+        verify(userMapper, never()).updateSettings(any(), any(), any());
+    }
+
+    @Test
+    void 잘못된_themeMode는_VALIDATION_ERROR() {
+        assertThatThrownBy(() -> userService.updateSettings(1L, new UpdateSettingsRequest("PURPLE", null)))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
+
+        verify(userMapper, never()).updateSettings(any(), any(), any());
     }
 }
