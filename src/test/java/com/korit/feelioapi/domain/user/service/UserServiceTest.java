@@ -89,4 +89,25 @@ class UserServiceTest {
 
         verify(userMapper, never()).updateNickname(eq(99L), org.mockito.ArgumentMatchers.anyString());
     }
+
+    @Test
+    void 온보딩_완료시_플래그를_켜고_true를_반환한다() {
+        when(userMapper.findUserById(1L)).thenReturn(user(1L, "서연"));
+
+        var response = userService.completeOnboarding(1L);
+
+        assertThat(response.onboardingDone()).isTrue();
+        verify(userMapper).markOnboardingDone(1L);
+    }
+
+    @Test
+    void 온보딩_대상이_없으면_NOT_FOUND이고_update안한다() {
+        when(userMapper.findUserById(99L)).thenReturn(null);
+
+        assertThatThrownBy(() -> userService.completeOnboarding(99L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.NOT_FOUND);
+
+        verify(userMapper, never()).markOnboardingDone(99L);
+    }
 }

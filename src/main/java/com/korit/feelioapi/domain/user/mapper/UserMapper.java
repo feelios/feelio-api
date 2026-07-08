@@ -17,4 +17,6 @@ public interface UserMapper {
     String findProviderByUserId(@Param("userId") Long userId);
 
     int updateNickname(@Param("userId") Long userId, @Param("nickname") String nickname);
+
+    int markOnboardingDone(@Param("userId") Long userId);
 }

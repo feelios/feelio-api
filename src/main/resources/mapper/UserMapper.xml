@@ -29,4 +29,11 @@
         WHERE user_id = #{userId}
     </update>
 
+    <!-- 온보딩 완료: 본인 행의 플래그만 on. -->
+    <update id="markOnboardingDone">
+        UPDATE users
+        SET onboarding_done = 1
+        WHERE user_id = #{userId}
+    </update>
+
 </mapper>
