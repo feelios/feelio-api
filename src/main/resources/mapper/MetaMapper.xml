@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- meta 도메인 SQL. namespace/id 는 MetaMapper 인터페이스와 정확히 일치. #{} 만 사용(파라미터 없음). -->
+<mapper namespace="com.korit.feelioapi.domain.meta.mapper.MetaMapper">
+
+    <!-- 활성 감정만, 계약 §5 순서(sort_order)대로. 응답 4필드만 조회(character_key/is_active 제외). -->
+    <select id="findActiveEmotions" resultType="com.korit.feelioapi.domain.meta.entity.Emotion">
+        SELECT emotion_id, name, color, sort_order
+        FROM emotions
+        WHERE is_active = 1
+        ORDER BY sort_order
+    </select>
+
+    <!-- 활성 카테고리만. type 별 sort_order 가 1부터 겹치므로 (type, sort_order) 로 결정적 정렬. -->
+    <select id="findActiveCategories" resultType="com.korit.feelioapi.domain.meta.entity.Category">
+        SELECT category_id, name, type, sort_order
+        FROM categories
+        WHERE is_active = 1
+        ORDER BY type, sort_order
+    </select>
+
+</mapper>
