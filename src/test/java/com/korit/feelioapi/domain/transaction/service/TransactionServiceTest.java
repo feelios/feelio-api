@@ -7,6 +7,8 @@ import com.korit.feelioapi.domain.transaction.dto.TransactionSearchCondition;
 import com.korit.feelioapi.domain.transaction.dto.TransactionTotalDto;
 import com.korit.feelioapi.domain.transaction.entity.Transaction;
 import com.korit.feelioapi.domain.transaction.mapper.TransactionMapper;
+import com.korit.feelioapi.global.exception.BusinessException;
+import com.korit.feelioapi.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -17,6 +19,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
@@ -70,5 +73,48 @@ class TransactionServiceTest {
         assertThat(result.transactionId()).isEqualTo(10L);
         verify(transactionMapper).insertTransaction(any(Transaction.class));
         verify(transactionMapper).findTransactionById(10L, userId);
+    }
+
+    @Test
+    void 거래_기록을_삭제한다() {
+        Long userId = 1L;
+        Long transactionId = 10L;
+        Transaction transaction = new Transaction();
+        transaction.setTransactionId(transactionId);
+        transaction.setUserId(userId);
+
+        when(transactionMapper.findById(transactionId)).thenReturn(transaction);
+
+        transactionService.deleteTransaction(userId, transactionId);
+
+        verify(transactionMapper).findById(transactionId);
+        verify(transactionMapper).deleteTransaction(transactionId);
+    }
+
+    @Test
+    void 거래_삭제시_존재하지_않으면_NOT_FOUND() {
+        Long userId = 1L;
+        Long transactionId = 10L;
+
+        when(transactionMapper.findById(transactionId)).thenReturn(null);
+
+        assertThatThrownBy(() -> transactionService.deleteTransaction(userId, transactionId))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.NOT_FOUND);
+    }
+
+    @Test
+    void 타인의_거래를_삭제하려_하면_FORBIDDEN() {
+        Long userId = 1L;
+        Long transactionId = 10L;
+        Transaction transaction = new Transaction();
+        transaction.setTransactionId(transactionId);
+        transaction.setUserId(2L); // Other user
+
+        when(transactionMapper.findById(transactionId)).thenReturn(transaction);
+
+        assertThatThrownBy(() -> transactionService.deleteTransaction(userId, transactionId))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.FORBIDDEN);
     }
 }
