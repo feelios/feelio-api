@@ -58,6 +58,7 @@ spring:
             user-info-authentication-method: id
 
 mybatis:
+  mapper-locations: classpath:mapper/*.xml
   configuration:
     map-underscore-to-camel-case: true
 
