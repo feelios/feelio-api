@@ -2,6 +2,7 @@ package com.korit.feelioapi.domain.auth.service;
 
 import com.korit.feelioapi.domain.auth.dto.LoginRequest;
 import com.korit.feelioapi.domain.auth.dto.LoginResponse;
+import com.korit.feelioapi.domain.auth.dto.LogoutResponse;
 import com.korit.feelioapi.domain.auth.dto.TokenRefreshRequest;
 import com.korit.feelioapi.domain.auth.dto.TokenRefreshResponse;
 import com.korit.feelioapi.domain.auth.dto.UserResponse;
@@ -91,6 +92,12 @@ public class AuthService {
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
+    }
+
+    @Transactional
+    public LogoutResponse logout(Long userId) {
+        authMapper.deleteAllRefreshTokensByUserId(userId);
+        return new LogoutResponse(true);
     }
 
     /** 신규 가입: 5개 테이블 원자적 생성. */

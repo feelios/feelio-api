@@ -2,6 +2,7 @@ package com.korit.feelioapi.domain.auth.service;
 
 import com.korit.feelioapi.domain.auth.dto.LoginRequest;
 import com.korit.feelioapi.domain.auth.dto.LoginResponse;
+import com.korit.feelioapi.domain.auth.dto.LogoutResponse;
 import com.korit.feelioapi.domain.auth.dto.TokenRefreshRequest;
 import com.korit.feelioapi.domain.auth.dto.TokenRefreshResponse;
 import com.korit.feelioapi.domain.auth.entity.RefreshToken;
@@ -222,5 +223,13 @@ class AuthServiceTest {
                 .extracting("errorCode").isEqualTo(ErrorCode.UNAUTHORIZED);
 
         verify(authMapper).deleteRefreshToken(100L);
+    }
+
+    @Test
+    void 정상_로그아웃시_유저의_모든_토큰을_삭제한다() {
+        LogoutResponse response = authService.logout(10L);
+
+        assertThat(response.loggedOut()).isTrue();
+        verify(authMapper).deleteAllRefreshTokensByUserId(10L);
     }
 }
