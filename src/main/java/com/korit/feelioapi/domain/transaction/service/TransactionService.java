@@ -7,6 +7,8 @@ import com.korit.feelioapi.domain.transaction.dto.TransactionSearchCondition;
 import com.korit.feelioapi.domain.transaction.dto.TransactionTotalDto;
 import com.korit.feelioapi.domain.transaction.entity.Transaction;
 import com.korit.feelioapi.domain.transaction.mapper.TransactionMapper;
+import com.korit.feelioapi.global.exception.BusinessException;
+import com.korit.feelioapi.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,5 +47,17 @@ public class TransactionService {
         transactionMapper.insertTransaction(transaction);
 
         return transactionMapper.findTransactionById(transaction.getTransactionId(), userId);
+    }
+
+    @Transactional
+    public void deleteTransaction(Long userId, Long transactionId) {
+        Transaction transaction = transactionMapper.findById(transactionId);
+        if (transaction == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND);
+        }
+        if (!transaction.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+        transactionMapper.deleteTransaction(transactionId);
     }
 }

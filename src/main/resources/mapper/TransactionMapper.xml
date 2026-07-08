@@ -109,4 +109,15 @@
         LEFT JOIN emotions e ON t.emotion_id = e.emotion_id
         WHERE t.transaction_id = #{transactionId} AND t.user_id = #{userId}
     </select>
+
+    <select id="findById" resultType="com.korit.feelioapi.domain.transaction.entity.Transaction">
+        SELECT *
+        FROM transactions
+        WHERE transaction_id = #{transactionId}
+    </select>
+
+    <delete id="deleteTransaction">
+        DELETE FROM transactions
+        WHERE transaction_id = #{transactionId}
+    </delete>
 </mapper>
