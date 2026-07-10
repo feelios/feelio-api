@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.korit.feelioapi.domain.category.mapper.CategoryMapper">
+
+    <select id="countCategoryOrders" resultType="int">
+        SELECT COUNT(*)
+        FROM category_orders
+        WHERE user_id = #{userId} AND type = #{type}
+    </select>
+
+    <insert id="initializeCategoryOrders">
+        INSERT INTO category_orders (user_id, category_id, is_custom, type, sort_order)
+        SELECT #{userId}, category_id, 0, type, sort_order
+        FROM categories
+        WHERE type = #{type} AND is_active = 1
+    </insert>
+
+    <select id="findCategoriesWithOrder" resultType="com.korit.feelioapi.domain.category.dto.CategoryDto">
+        SELECT
+            co.category_id as categoryId,
+            CASE WHEN co.is_custom = 1 THEN cc.name ELSE c.name END as name,
+            co.type,
+            co.is_custom as isCustom,
+            co.sort_order as sortOrder
+        FROM category_orders co
+        LEFT JOIN categories c ON co.category_id = c.category_id AND co.is_custom = 0
+        LEFT JOIN custom_categories cc ON co.category_id = cc.custom_category_id AND co.is_custom = 1
+        WHERE co.user_id = #{userId} 
+          AND co.type = #{type}
+          AND (co.is_custom = 1 OR c.is_active = 1)
+        ORDER BY co.sort_order ASC
+    </select>
+
+    <insert id="insertCustomCategory" useGeneratedKeys="true" keyProperty="customCategoryId">
+        INSERT INTO custom_categories (user_id, name, type)
+        VALUES (#{userId}, #{name}, #{type})
+    </insert>
+
+    <insert id="insertCategoryOrder">
+        INSERT INTO category_orders (user_id, category_id, is_custom, type, sort_order)
+        SELECT #{userId}, #{categoryId}, #{isCustom}, #{type}, COALESCE(MAX(sort_order), 0) + 1
+        FROM category_orders
+        WHERE user_id = #{userId} AND type = #{type}
+    </insert>
+
+    <select id="findCustomCategoryById" resultType="com.korit.feelioapi.domain.category.entity.CustomCategoryEntity">
+        SELECT custom_category_id as customCategoryId, user_id, name, type, created_at
+        FROM custom_categories
+        WHERE custom_category_id = #{customCategoryId}
+    </select>
+
+    <delete id="deleteCustomCategory">
+        DELETE FROM custom_categories
+        WHERE custom_category_id = #{customCategoryId}
+    </delete>
+
+    <delete id="deleteCategoryOrder">
+        DELETE FROM category_orders
+        WHERE user_id = #{userId} AND category_id = #{categoryId} AND is_custom = #{isCustom}
+    </delete>
+
+    <insert id="upsertCategoryOrders">
+        INSERT INTO category_orders (user_id, category_id, is_custom, type, sort_order)
+        VALUES
+        <foreach collection="orders" item="order" separator=",">
+            (#{userId}, #{order.categoryId}, #{order.isCustom}, #{type}, #{order.sortOrder})
+        </foreach>
+        ON DUPLICATE KEY UPDATE sort_order = VALUES(sort_order)
+    </insert>
+
+</mapper>

@@ -152,3 +152,26 @@ CREATE TABLE `ai_insights` (
   PRIMARY KEY (`insight_id`),
   KEY `idx_ai_user_ym` (`user_id`,`year`,`month`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 12. custom_categories (사용자 생성 커스텀 카테고리)
+CREATE TABLE `custom_categories` (
+  `custom_category_id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `name` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`custom_category_id`),
+  KEY `idx_custom_cat_user` (`user_id`, `type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 13. category_orders (공통 + 커스텀 통합 정렬 순서)
+CREATE TABLE `category_orders` (
+  `category_order_id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `category_id` bigint NOT NULL,
+  `is_custom` tinyint(1) NOT NULL,
+  `type` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sort_order` int NOT NULL,
+  PRIMARY KEY (`category_order_id`),
+  UNIQUE KEY `uq_cat_order_user` (`user_id`, `type`, `category_id`, `is_custom`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
