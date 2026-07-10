@@ -12,8 +12,6 @@ import com.korit.feelioapi.domain.auth.entity.TermsAgreement;
 import com.korit.feelioapi.domain.auth.entity.User;
 import com.korit.feelioapi.domain.auth.mapper.AuthMapper;
 import com.korit.feelioapi.domain.auth.oauth.OAuthUserProfile;
-import com.korit.feelioapi.domain.auth.oauth.SocialOAuthClient;
-import com.korit.feelioapi.domain.auth.oauth.SocialOAuthClientResolver;
 import com.korit.feelioapi.domain.auth.oauth.SocialProvider;
 import com.korit.feelioapi.domain.auth.support.TokenHasher;
 import com.korit.feelioapi.global.exception.BusinessException;
@@ -39,30 +37,17 @@ public class AuthService {
     private static final String TERMS_VERSION = "1.0";
     private static final String DEFAULT_NICKNAME = "사용자";
 
-    private final SocialOAuthClientResolver oAuthClientResolver;
     private final AuthMapper authMapper;
     private final JwtProvider jwtProvider;
     private final JwtProperties jwtProperties;
     private final TokenHasher tokenHasher;
 
     @Transactional
-    public LoginResponse login(LoginRequest request) {
-        SocialProvider provider = SocialProvider.from(request.provider());
-        SocialOAuthClient client = oAuthClientResolver.resolve(provider);
-
-        OAuthUserProfile profile =
-                client.authenticate(request.code(), request.redirectUri(), request.codeVerifier());
-
+    public User processSocialUser(SocialProvider provider, OAuthUserProfile profile) {
         SocialAccount social = authMapper.findSocialAccountByProvider(provider.name(), profile.providerUserId());
-        User user = (social == null)
+        return (social == null)
                 ? signup(provider, profile)
                 : loadExistingUser(social.getUserId());
-
-        String accessToken = jwtProvider.createAccessToken(user.getUserId());
-        String refreshToken = jwtProvider.createRefreshToken(user.getUserId());
-        storeRefreshToken(user.getUserId(), refreshToken);
-
-        return new LoginResponse(accessToken, refreshToken, UserResponse.of(user, provider.name()));
     }
 
     @Transactional
@@ -133,7 +118,7 @@ public class AuthService {
         return user;
     }
 
-    private void storeRefreshToken(Long userId, String refreshToken) {
+    public void storeRefreshToken(Long userId, String refreshToken) {
         RefreshToken token = new RefreshToken();
         token.setUserId(userId);
         token.setTokenHash(tokenHasher.hash(refreshToken));
