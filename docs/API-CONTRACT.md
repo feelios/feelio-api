@@ -308,3 +308,41 @@ Response(200) `data`:
 | 1차 | auth(login/refresh/logout), meta, users/me(조회·수정·온보딩), transactions CRUD·목록 |
 | 2차 | goals CRUD, summary 2종, users/me/settings |
 | 3차 | analysis, universe, 회원탈퇴, 전체 초기화 |
+
+## 12. 카테고리 설정 (Categories)
+
+### GET /api/categories?type=EXPENSE · 인증 필요
+- 인증된 사용자의 공통 카테고리와 커스텀 카테고리를 `category_orders` 순서대로 통합 반환.
+- Response `data`:
+```json
+{
+  "categories": [
+    { "categoryId": 1, "name": "식비", "type": "EXPENSE", "isCustom": false, "sortOrder": 1 },
+    { "categoryId": 4, "name": "해외직구", "type": "EXPENSE", "isCustom": true, "sortOrder": 2 }
+  ]
+}
+```
+
+### POST /api/categories/custom · 인증 필요
+- 커스텀 카테고리 추가. 추가 즉시 자동으로 맨 뒤 정렬 순서를 부여.
+- Request: `{ "name": "해외직구", "type": "EXPENSE" }`
+- Response(201) `data`: 생성된 객체 반환. 에러: `VALIDATION_ERROR`
+
+### DELETE /api/categories/custom/{customCategoryId} · 인증 필요
+- 해당 커스텀 카테고리 삭제 (동시에 `category_orders`에서도 제거).
+- Response(200) `data`: `{ "deleted": true }`
+- 에러: `NOT_FOUND` (없음), `FORBIDDEN` (내 것이 아님)
+
+### PUT /api/categories/order · 인증 필요
+- 드래그 앤 드롭 등으로 변경된 카테고리 통합 순서를 일괄 저장.
+- Request:
+```json
+{
+  "type": "EXPENSE",
+  "orders": [
+    { "categoryId": 1, "isCustom": false, "sortOrder": 1 },
+    { "categoryId": 4, "isCustom": true, "sortOrder": 2 }
+  ]
+}
+```
+- Response(200) `data`: `{ "updated": true }`
