@@ -6,8 +6,8 @@ public record TransactionDto(
         Long transactionId,
         String type,
         Integer amount,
-        CategoryDto category,
-        EmotionDto emotion,
         String memo,
-        LocalDateTime occurredAt
+        LocalDateTime occurredAt,
+        CategoryDto category,
+        EmotionDto emotion
 ) {}
