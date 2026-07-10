@@ -3,23 +3,31 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.korit.feelioapi.domain.transaction.mapper.TransactionMapper">
 
+    <resultMap id="categoryResultMap" type="com.korit.feelioapi.domain.transaction.dto.CategoryDto">
+        <constructor>
+            <idArg column="category_id" javaType="java.lang.Long"/>
+            <arg column="category_name" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="emotionResultMap" type="com.korit.feelioapi.domain.transaction.dto.EmotionDto">
+        <constructor>
+            <idArg column="emotion_id" javaType="java.lang.Long"/>
+            <arg column="emotion_name" javaType="java.lang.String"/>
+            <arg column="emotion_color" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+
     <resultMap id="transactionResultMap" type="com.korit.feelioapi.domain.transaction.dto.TransactionDto">
-        <id property="transactionId" column="transaction_id"/>
-        <result property="type" column="type"/>
-        <result property="amount" column="amount"/>
-        <result property="memo" column="memo"/>
-        <result property="occurredAt" column="occurred_at"/>
-        
-        <association property="category" javaType="com.korit.feelioapi.domain.transaction.dto.CategoryDto">
-            <id property="categoryId" column="category_id"/>
-            <result property="name" column="category_name"/>
-        </association>
-        
-        <association property="emotion" javaType="com.korit.feelioapi.domain.transaction.dto.EmotionDto">
-            <id property="emotionId" column="emotion_id"/>
-            <result property="name" column="emotion_name"/>
-            <result property="color" column="emotion_color"/>
-        </association>
+        <constructor>
+            <idArg column="transaction_id" javaType="java.lang.Long"/>
+            <arg column="type" javaType="java.lang.String"/>
+            <arg column="amount" javaType="java.lang.Integer"/>
+            <arg column="memo" javaType="java.lang.String"/>
+            <arg column="occurred_at" javaType="java.time.LocalDateTime"/>
+            <arg javaType="com.korit.feelioapi.domain.transaction.dto.CategoryDto" resultMap="categoryResultMap"/>
+            <arg javaType="com.korit.feelioapi.domain.transaction.dto.EmotionDto" resultMap="emotionResultMap"/>
+        </constructor>
     </resultMap>
 
     <sql id="searchConditions">
