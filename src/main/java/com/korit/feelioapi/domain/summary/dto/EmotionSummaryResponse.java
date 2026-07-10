@@ -1,8 +1,14 @@
 package com.korit.feelioapi.domain.summary.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import java.util.List;
 
-public record EmotionSummaryResponse(
-        List<EmotionSummaryDto> emotions,
-        List<EmotionSummaryDto> prevMonth
-) {}
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class EmotionSummaryResponse {
+    private List<EmotionSummaryDto> emotions;
+    private List<EmotionSummaryDto> prevMonth;
+}
