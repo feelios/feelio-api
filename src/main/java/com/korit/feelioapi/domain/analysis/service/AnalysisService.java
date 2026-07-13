@@ -1,5 +1,6 @@
 package com.korit.feelioapi.domain.analysis.service;
 
+import com.korit.feelioapi.domain.analysis.dto.AiInsightsResponse;
 import com.korit.feelioapi.domain.analysis.dto.AnalysisResponse;
 import com.korit.feelioapi.domain.analysis.dto.AnalysisTotalDto;
 import com.korit.feelioapi.domain.analysis.dto.CategoryStatDto;
@@ -64,5 +65,18 @@ public class AnalysisService {
             }
         }
         return result;
+    }
+
+    @Transactional(readOnly = true)
+    public AiInsightsResponse getAiInsights(Long userId) {
+        // [F7-3 테스트용] Empty State (데이터 없음) 반환
+        return AiInsightsResponse.builder()
+                .aiQuickInsights(List.of()) // 빈 배열
+                .emotionCards(List.of())   // 빈 배열
+                .evidence(List.of())       // 빈 배열
+                .pattern(AiInsightsResponse.AiPattern.builder()
+                        .count(0) // 0으로 설정하여 빈 상태 트리거
+                        .build())
+                .build();
     }
 }
