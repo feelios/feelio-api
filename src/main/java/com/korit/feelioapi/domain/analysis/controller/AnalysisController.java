@@ -27,4 +27,10 @@ public class AnalysisController {
                                                     @RequestParam int month) {
         return ApiResponse.success(analysisService.getMonthlyAnalysis(userId, year, month));
     }
+
+    /** GET /api/analysis/ai-insights — AI 인사이트 분석 Mock API. */
+    @GetMapping("/ai-insights")
+    public ApiResponse<com.korit.feelioapi.domain.analysis.dto.AiInsightsResponse> getAiInsights(@AuthenticationPrincipal Long userId) {
+        return ApiResponse.success(analysisService.getAiInsights(userId));
+    }
 }

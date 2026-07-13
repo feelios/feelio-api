@@ -26,7 +26,8 @@
 | A3-4 | 회원탈퇴 | feat/user-withdraw | §4 | Ctrl·Svc·Mapper+XML | users(+CASCADE) | status=WITHDRAWN + 하위 CASCADE 삭제 |
 | A3-5 | 거래 전체 초기화 | feat/tx-reset | §6 | Ctrl·Svc·Mapper | transactions | 본인 거래 전체 삭제 → {deletedCount} |
 | A4-1 | 커스텀 카테고리 설정 | feat/custom-category-order | 신규 | Ctrl·Svc·DTO·Entity·Mapper+XML | custom_categories, category_orders | 커스텀 카테고리 추가/삭제, 공통+커스텀 통합 정렬 순서 저장 및 반환 |
-| B4-2 | 프론트 연동용 CORS 설정 | feat/cors-credentials | §14 | config | - | Allow-Credentials: true 활성화 및 Allow-Origin에 프론트 도메인 매핑 |
+| A4-2 | 프론트 연동용 CORS 설정 | feat/cors-credentials | §14 | config | - | Allow-Credentials: true 활성화 및 Allow-Origin에 프론트 도메인 매핑 |
+| A4-3 | AI 멘트 API 설계 및 Mock 연동 | `feat/analysis-ai-insights-api` | 신규 API | Ctrl·DTO | - | `GET /api/analysis/ai-insights` 신설 → 응답 DTO(`aiQuickInsights`, `emotionCards`) 설계 → DB 없이 Mock 객체 반환(200 OK) |
 ## 병렬 작업 규칙 (Claude ↔ Gemini 충돌 방지)
 - **도메인 단위로 분할**한다. 같은 도메인(auth/users/transactions…) 이슈를 둘이 쪼개 갖지 않는다.
 - `refresh_tokens`를 공유하는 auth 3종(A1-1/2/3)은 **한 사람**이 맡는다.
