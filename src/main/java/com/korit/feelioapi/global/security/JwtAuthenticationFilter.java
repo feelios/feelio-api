@@ -19,8 +19,8 @@ import java.io.IOException;
 import java.util.Collections;
 
 /**
- * Authorization: Bearer <token> 을 검증해 성공 시 user_id 를 principal 로 SecurityContext 에 주입한다.
- * 토큰이 없으면 그냥 통과(공개 경로 대응), 무효/만료면 에러코드를 request attribute 로 남겨
+ * accessToken HttpOnly 쿠키를 검증해 성공 시 user_id 를 principal 로 SecurityContext 에 주입한다(BFF).
+ * 쿠키가 없으면 그냥 통과(공개 경로 대응), 무효/만료면 에러코드를 request attribute 로 남겨
  * JwtAuthenticationEntryPoint 가 UNAUTHORIZED / TOKEN_EXPIRED 를 구분하도록 한다.
  */
 @RequiredArgsConstructor

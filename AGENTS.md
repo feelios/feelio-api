@@ -61,8 +61,10 @@
 
 ## 인증·데이터 접근 (확정)
 - 로그인은 **소셜 로그인 전용**(Google/Kakao/Naver). 이메일/비밀번호 로그인 금지.
-- OAuth는 **A안**: 프론트가 인가 코드(code)를 전달 → 백엔드가 client_secret으로 서버-투-서버 교환·검증한다.
-  provider access token은 브라우저에 노출하지 않는다. (계약 §3 기준)
+- OAuth는 **BFF 패턴**(Spring Security `oauth2Login`): 프론트는 `GET /oauth2/authorization/{provider}`로 리다이렉트만
+  하고, 백엔드가 provider와 서버-투-서버로 code를 교환·검증한 뒤 `OAuth2SuccessHandler`에서 자체 JWT를
+  **HttpOnly 쿠키**(accessToken·refreshToken)로 구워 프론트로 리다이렉트한다.
+  provider 토큰도 우리 JWT도 **브라우저 JS에 노출하지 않는다**(HttpOnly). (계약 §3 기준)
 - 모든 개인 데이터는 인증 주체 **user_id 기준으로만** 조회·변경한다(클라이언트가 보낸 userId는 신뢰하지 않음).
 
 ## 확정 제거 기능 (구현 금지)

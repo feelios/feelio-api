@@ -6,17 +6,21 @@ import com.korit.feelioapi.domain.auth.dto.TokenRefreshRequest;
 import com.korit.feelioapi.domain.auth.dto.TokenRefreshResponse;
 import com.korit.feelioapi.domain.auth.service.AuthService;
 import com.korit.feelioapi.global.response.ApiResponse;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import jakarta.validation.Valid;
+import com.korit.feelioapi.global.security.AuthCookieManager;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 인증 API (API-CONTRACT §3). SecurityConfig 에서 /api/auth/** 는 permitAll.
- * Controller 는 얇게 — 검증/트랜잭션/비즈니스는 AuthService 소관.
+ * 인증 API (API-CONTRACT §3). 최초 로그인은 Spring Security oauth2Login →
+ * OAuth2SuccessHandler 가 처리(HttpOnly 쿠키 발급 + 프론트 리다이렉트)하고,
+ * 이 컨트롤러는 재발급·로그아웃만 담당한다. 토큰은 HttpOnly 쿠키로만 오간다.
+ * Controller 는 얇게 — 비즈니스는 AuthService, 쿠키 발급/삭제는 AuthCookieManager 소관.
+ * SecurityConfig 에서 /api/auth/token/refresh 는 permitAll.
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -24,44 +28,25 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final AuthCookieManager authCookieManager;
 
-
-    /** POST /api/auth/token/refresh — 토큰 재발급. 성공 시 200 + 공통 봉투. */
+    /** POST /api/auth/token/refresh — refreshToken 쿠키로 재발급. 성공 시 200 + 새 토큰 쿠키. */
     @PostMapping("/token/refresh")
-    public ApiResponse<TokenRefreshResponse> refreshToken(@org.springframework.web.bind.annotation.CookieValue("refreshToken") String refreshToken, jakarta.servlet.http.HttpServletResponse response) {
+    public ApiResponse<TokenRefreshResponse> refreshToken(
+            @CookieValue("refreshToken") String refreshToken,
+            HttpServletResponse response) {
         TokenRefreshResponse tokens = authService.refreshToken(new TokenRefreshRequest(refreshToken));
-        
-        // 새로 발급된 토큰도 쿠키에 구워줍니다. (이 로직은 AuthService나 Handler에서 하는게 좋지만 간략하게 여기서 처리)
-        jakarta.servlet.http.Cookie accessCookie = new jakarta.servlet.http.Cookie("accessToken", tokens.accessToken());
-        accessCookie.setPath("/");
-        accessCookie.setHttpOnly(true);
-        accessCookie.setMaxAge(3600); // 1시간
-        response.addCookie(accessCookie);
-        
-        jakarta.servlet.http.Cookie refreshCookie = new jakarta.servlet.http.Cookie("refreshToken", tokens.refreshToken());
-        refreshCookie.setPath("/");
-        refreshCookie.setHttpOnly(true);
-        refreshCookie.setMaxAge(1209600); // 14일
-        response.addCookie(refreshCookie);
-        
+        authCookieManager.writeTokens(response, tokens.accessToken(), tokens.refreshToken());
         return ApiResponse.success(tokens);
     }
 
-    /** POST /api/auth/logout — 로그아웃. 인증 필요. */
+    /** POST /api/auth/logout — 로그아웃. 인증 필요. 토큰 쿠키를 만료시킨다. */
     @PostMapping("/logout")
-    public ApiResponse<LogoutResponse> logout(@AuthenticationPrincipal Long userId, jakarta.servlet.http.HttpServletResponse response) {
+    public ApiResponse<LogoutResponse> logout(
+            @AuthenticationPrincipal Long userId,
+            HttpServletResponse response) {
         LogoutResponse logoutResponse = authService.logout(userId);
-        
-        jakarta.servlet.http.Cookie accessCookie = new jakarta.servlet.http.Cookie("accessToken", "");
-        accessCookie.setPath("/");
-        accessCookie.setMaxAge(0);
-        response.addCookie(accessCookie);
-        
-        jakarta.servlet.http.Cookie refreshCookie = new jakarta.servlet.http.Cookie("refreshToken", "");
-        refreshCookie.setPath("/");
-        refreshCookie.setMaxAge(0);
-        response.addCookie(refreshCookie);
-        
+        authCookieManager.clearTokens(response);
         return ApiResponse.success(logoutResponse);
     }
 }

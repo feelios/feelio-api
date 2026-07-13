@@ -14,11 +14,11 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * JWT 기반 stateless 시큐리티 골격.
- * - /api/auth/** 공개, 그 외 인증 필요
- * - JwtAuthenticationFilter 로 Bearer → user_id 주입
+ * JWT 기반 stateless 시큐리티 (BFF 패턴).
+ * - 소셜 로그인은 oauth2Login: provider 교환·검증 → CustomOAuth2UserService(조회/가입) → OAuth2SuccessHandler(쿠키 발급)
+ * - /oauth2/**·/api/auth/token/refresh·swagger 공개, 그 외 인증 필요
+ * - JwtAuthenticationFilter 로 accessToken 쿠키 → user_id 주입
  * - 인증/인가 실패는 공통 봉투(EntryPoint/AccessDeniedHandler)로 변환
- * ※ 소셜 로그인 실제 교환 로직(oauth2Login)은 이 골격에 포함하지 않는다(1차 로그인 이슈 소관).
  */
 @Configuration
 @EnableWebSecurity
