@@ -61,4 +61,15 @@
         GROUP BY slot
     </select>
 
+    <!-- 최근 7개월 지출 추이 (당월 포함) -->
+    <select id="findMonthlyTrend" resultType="com.korit.feelioapi.domain.analysis.dto.MonthlyDataStat">
+        SELECT DATE_FORMAT(t.occurred_at, '%Y-%m') AS yearMonth,
+               SUM(t.amount) AS amount
+        FROM transactions t
+        WHERE t.user_id = #{userId} AND t.type = 'EXPENSE'
+          AND t.occurred_at &gt;= #{startDate} AND t.occurred_at &lt; #{endDate}
+        GROUP BY DATE_FORMAT(t.occurred_at, '%Y-%m')
+        ORDER BY yearMonth ASC
+    </select>
+
 </mapper>

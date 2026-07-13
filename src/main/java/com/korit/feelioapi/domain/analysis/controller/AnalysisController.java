@@ -33,4 +33,10 @@ public class AnalysisController {
     public ApiResponse<com.korit.feelioapi.domain.analysis.dto.AiInsightsResponse> getAiInsights(@AuthenticationPrincipal Long userId) {
         return ApiResponse.success(analysisService.getAiInsights(userId));
     }
+
+    /** GET /api/analysis/trend — 최근 7개월 지출 추이. */
+    @GetMapping("/trend")
+    public ApiResponse<com.korit.feelioapi.domain.analysis.dto.MonthlyTrendResponse> getMonthlyTrend(@AuthenticationPrincipal Long userId) {
+        return ApiResponse.success(analysisService.getMonthlyTrend(userId));
+    }
 }

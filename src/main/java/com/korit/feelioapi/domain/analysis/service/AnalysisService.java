@@ -79,4 +79,60 @@ public class AnalysisService {
                         .build())
                 .build();
     }
+
+    @Transactional(readOnly = true)
+    public com.korit.feelioapi.domain.analysis.dto.MonthlyTrendResponse getMonthlyTrend(Long userId) {
+        java.time.LocalDate now = java.time.LocalDate.now();
+        java.time.LocalDate startDate = now.minusMonths(6).withDayOfMonth(1);
+        java.time.LocalDate endDate = now.plusMonths(1).withDayOfMonth(1);
+
+        List<com.korit.feelioapi.domain.analysis.dto.MonthlyDataStat> stats = analysisMapper.findMonthlyTrend(userId, startDate, endDate);
+        Map<String, Long> statMap = stats.stream()
+                .collect(Collectors.toMap(com.korit.feelioapi.domain.analysis.dto.MonthlyDataStat::yearMonth, com.korit.feelioapi.domain.analysis.dto.MonthlyDataStat::amount));
+
+        List<com.korit.feelioapi.domain.analysis.dto.MonthlyTrendResponse.MonthlyData> monthlyData = new ArrayList<>();
+        Long currentMonthAmount = 0L;
+        Long previousMonthAmount = 0L;
+
+        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM");
+
+        for (int i = 6; i >= 0; i--) {
+            java.time.LocalDate targetMonth = now.minusMonths(i);
+            String yearMonthStr = targetMonth.format(formatter);
+            Long amount = statMap.getOrDefault(yearMonthStr, 0L);
+            monthlyData.add(new com.korit.feelioapi.domain.analysis.dto.MonthlyTrendResponse.MonthlyData(
+                    targetMonth.getMonthValue() + "월",
+                    amount
+            ));
+
+            if (i == 0) {
+                currentMonthAmount = amount;
+            } else if (i == 1) {
+                previousMonthAmount = amount;
+            }
+        }
+
+        Double comparedToLastMonth = 0.0;
+        if (previousMonthAmount > 0) {
+            comparedToLastMonth = Math.round(((double) (currentMonthAmount - previousMonthAmount) / previousMonthAmount) * 1000) / 10.0;
+        } else if (currentMonthAmount > 0) {
+            comparedToLastMonth = 100.0;
+        }
+
+        String trendMessage = "데이터를 모으고 있어요";
+        if (currentMonthAmount > previousMonthAmount) {
+            trendMessage = "저번 달보다 지출이 늘었어요";
+        } else if (currentMonthAmount < previousMonthAmount && previousMonthAmount > 0) {
+            trendMessage = "저번 달보다 지출이 줄었어요";
+        } else if (currentMonthAmount > 0 && currentMonthAmount.equals(previousMonthAmount)) {
+            trendMessage = "저번 달과 지출이 비슷해요";
+        }
+
+        return new com.korit.feelioapi.domain.analysis.dto.MonthlyTrendResponse(
+                currentMonthAmount,
+                comparedToLastMonth,
+                trendMessage,
+                monthlyData
+        );
+    }
 }
