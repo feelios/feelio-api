@@ -72,4 +72,36 @@
         ORDER BY yearMonth ASC
     </select>
 
+    <!-- 현재 달 카테고리별 합계 및 최다 빈도 감정 조회 -->
+    <select id="findCurrentCategoryStats" resultType="com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat">
+        SELECT c.category_id AS categoryId,
+               c.name AS categoryName,
+               (
+                   SELECT e.name
+                   FROM transactions t2
+                   JOIN emotions e ON t2.emotion_id = e.emotion_id
+                   WHERE t2.user_id = #{userId} AND t2.category_id = c.category_id AND t2.type = 'EXPENSE'
+                     AND YEAR(t2.occurred_at) = #{year} AND MONTH(t2.occurred_at) = #{month}
+                   GROUP BY e.emotion_id, e.name
+                   ORDER BY COUNT(*) DESC, SUM(t2.amount) DESC
+                   LIMIT 1
+               ) AS dominantEmotion,
+               SUM(t.amount) AS currentAmount
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.category_id
+        WHERE t.user_id = #{userId} AND t.type = 'EXPENSE'
+          AND YEAR(t.occurred_at) = #{year} AND MONTH(t.occurred_at) = #{month}
+        GROUP BY c.category_id, c.name
+    </select>
+
+    <!-- 저번 달 카테고리별 지출 합계 -->
+    <select id="findPrevCategoryStats" resultType="com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat">
+        SELECT category_id AS categoryId,
+               SUM(amount) AS prevAmount
+        FROM transactions
+        WHERE user_id = #{userId} AND type = 'EXPENSE'
+          AND YEAR(occurred_at) = #{year} AND MONTH(occurred_at) = #{month}
+        GROUP BY category_id
+    </select>
+
 </mapper>
