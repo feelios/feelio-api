@@ -1,11 +1,8 @@
 package com.korit.feelioapi.domain.auth.service;
 
-import com.korit.feelioapi.domain.auth.dto.LoginRequest;
-import com.korit.feelioapi.domain.auth.dto.LoginResponse;
 import com.korit.feelioapi.domain.auth.dto.LogoutResponse;
 import com.korit.feelioapi.domain.auth.dto.TokenRefreshRequest;
 import com.korit.feelioapi.domain.auth.dto.TokenRefreshResponse;
-import com.korit.feelioapi.domain.auth.dto.UserResponse;
 import com.korit.feelioapi.domain.auth.entity.RefreshToken;
 import com.korit.feelioapi.domain.auth.entity.SocialAccount;
 import com.korit.feelioapi.domain.auth.entity.TermsAgreement;
@@ -26,9 +23,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 소셜 로그인(API-CONTRACT §3, A안).
- * code+redirectUri 서버교환 → 프로필 → (provider, provider_user_id) 조회/신규가입 → JWT 발급.
+ * 소셜 로그인(API-CONTRACT §3, BFF 패턴).
+ * Spring Security oauth2Login 이 provider 와 서버-투-서버 교환·검증을 끝낸 뒤,
+ * CustomOAuth2UserService 가 프로필을 넘겨 processSocialUser 로 (provider, provider_user_id) 조회/신규가입한다.
  * 신규가입은 users + social_accounts + notification_settings + terms_agreements 를 한 트랜잭션으로 처리한다.
+ * 토큰 발급·쿠키 굽기는 OAuth2SuccessHandler(최초 로그인)·AuthController(재발급) 소관.
  */
 @Service
 @RequiredArgsConstructor

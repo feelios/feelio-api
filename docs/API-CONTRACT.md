@@ -6,7 +6,7 @@
 > ⚠️ 로그인은 **소셜 로그인(Google/Kakao/Naver) 전용**이다. 이메일/비밀번호 로그인은 만들지 않는다 (팀 확정).
 
 - Base URL: `/api` (프론트는 `VITE_API_BASE_URL` 환경변수 사용)
-- 인증: 보호 API는 `Authorization: Bearer <accessToken>` 헤더 필수
+- 인증: **BFF 패턴**. 토큰은 `accessToken`·`refreshToken` **HttpOnly 쿠키**로만 오간다(브라우저 JS 노출 금지). 보호 API 호출 시 브라우저가 `accessToken` 쿠키를 자동 전송하며, 프론트는 요청에 `withCredentials`(쿠키 동봉)를 켠다
 - JSON은 camelCase (DB snake_case ↔ 서버 매핑)
 - 모든 개인 데이터는 **인증 주체의 user_id 기준으로만** 조회·변경 (클라이언트가 보낸 userId는 신뢰하지 않음)
 
@@ -48,53 +48,52 @@
 
 ## 3. 인증 (Auth)
 
-### POST /api/auth/login — 소셜 로그인 · 인증 불필요
+> **BFF 패턴**(Spring Security `oauth2Login`). 프론트는 인가 코드(code)를 직접 다루지 않는다.
+> 백엔드가 provider와 서버-투-서버로 교환·검증하고, 자체 JWT를 **HttpOnly 쿠키**로 발급한다.
+> provider 토큰도 우리 JWT도 브라우저 JS에 노출되지 않는다.
 
-Request:
-```json
-{ "provider": "GOOGLE", "code": "<provider가 리다이렉트로 준 인가 코드>", "redirectUri": "https://feelio.app/auth/callback" }
-```
-- provider: `GOOGLE` | `KAKAO` | `NAVER`
-- code: provider 인가 서버가 redirect로 돌려준 **1회용 authorization code** (짧은 만료·재사용 불가)
-- redirectUri: authorize 요청 때 사용한 값과 **정확히 동일**해야 함 (각 provider 콘솔에 사전 등록)
-- (PKCE 적용 시) `codeVerifier` 필드 추가 — 권장
-- ⚠️ provider access token은 **브라우저로 내려오지 않는다**(백엔드가 서버-투-서버로만 교환)
+### 소셜 로그인 (리다이렉트 플로우) · 인증 불필요
 
-Response(200) `data`:
-```json
-{
-  "accessToken": "jwt-access-token",
-  "refreshToken": "jwt-refresh-token",
-  "user": {
-    "userId": 1,
-    "nickname": "서연",
-    "email": "user@example.com",
-    "profileImageUrl": "https://.../photo.jpg",
-    "provider": "GOOGLE",
-    "onboardingDone": false,
-    "themeMode": "LIGHT",
-    "auroraTheme": "블루"
-  }
-}
-```
-- 서버: **code + redirectUri로 provider와 서버-투-서버 토큰 교환**(client_secret 사용) → 받은 ID/access 토큰 검증 → 제공자 프로필(식별자·이메일·닉네임·**프로필 이미지**) 수신 → `(provider, provider_user_id)` 조회, 없으면 신규 가입(users + social_accounts + notification_settings 기본값 + terms_agreements) → **provider 토큰은 검증 후 폐기(미저장)**
-- 에러: INVALID_PROVIDER(400), UNAUTHORIZED(401 — code 만료·재사용·교환 실패 포함)
+로그인 전용 `POST` 엔드포인트는 **없다**. 아래 리다이렉트 흐름으로 처리한다.
+
+1. 프론트가 브라우저를 `GET /oauth2/authorization/{provider}`로 이동시킨다.
+   - `{provider}`: `google` | `kakao` | `naver` (Spring Security registrationId, 소문자)
+2. provider 로그인·동의 → provider가 백엔드 콜백(`/login/oauth2/code/{provider}`)으로 리다이렉트.
+3. 서버: provider와 **서버-투-서버로 code 교환·검증**(client_secret 사용) → 프로필(식별자·이메일·닉네임·**프로필 이미지**) 수신 → `(provider, provider_user_id)` 조회, 없으면 신규 가입(users + social_accounts + notification_settings 기본값 + terms_agreements) → **provider 토큰은 검증 후 폐기(미저장)**.
+4. 서버가 자체 JWT(`accessToken` 1h, `refreshToken` 14d)를 **HttpOnly 쿠키**로 구운 뒤 프론트 URL로 리다이렉트한다.
+
+- ⚠️ accessToken·refreshToken은 **HttpOnly 쿠키로만** 내려온다. 응답 바디로 토큰을 주지 않으며, 브라우저 JS는 토큰 값을 읽을 수 없다.
+- 로그인 후 사용자 정보는 `GET /api/users/me`(§4)로 조회한다(신규 가입 여부·온보딩 상태 포함). user 객체 구조는 §4 참조.
+- 이후 보호 API는 브라우저가 `accessToken` 쿠키를 자동 전송해 인증한다(별도 Authorization 헤더 불필요).
+- 지원하지 않는 provider·교환 실패는 로그인 실패로 처리되어 프론트 로그인 화면으로 리다이렉트된다.
 
 ### POST /api/auth/token/refresh — 토큰 재발급 · 인증 불필요
 
-Request: `{ "refreshToken": "..." }`
-Response(200) `data`: `{ "accessToken": "...", "refreshToken": "..." }`
-- 에러: UNAUTHORIZED(401) → 프론트는 로그인 화면으로
+- Request: **바디 없음**. 브라우저가 `refreshToken` 쿠키를 자동 전송한다(`withCredentials`).
+- Response(200): 새 `accessToken`·`refreshToken`을 **HttpOnly 쿠키로 재발급**(회전). 브라우저는 갱신된 쿠키로 원 요청을 재시도한다.
+- 에러: UNAUTHORIZED(401 — 쿠키 없음·검증 실패·만료·재사용) → 프론트는 로그인 화면으로
 
 ### POST /api/auth/logout — 로그아웃 · 인증 필요
 
 Request 없음 → Response(200) `data`: `{ "loggedOut": true }`
-- 서버: refresh_token 폐기. **users.onboarding_done은 유지** (재로그인 시 온보딩 재표시 없음 — 팀 확정)
+- 서버: refresh_token 폐기 + `accessToken`·`refreshToken` 쿠키를 만료(삭제)시킨다. **users.onboarding_done은 유지** (재로그인 시 온보딩 재표시 없음 — 팀 확정)
 
 ## 4. 사용자 (Users)
 
 ### GET /api/users/me · 인증 필요
-Response `data`: login 응답의 `user` 객체와 동일 구조.
+Response `data` (로그인 리다이렉트 직후 프론트가 사용자 상태를 확인하는 기준 객체):
+```json
+{
+  "userId": 1,
+  "nickname": "서연",
+  "email": "user@example.com",
+  "profileImageUrl": "https://.../photo.jpg",
+  "provider": "GOOGLE",
+  "onboardingDone": false,
+  "themeMode": "LIGHT",
+  "auroraTheme": "블루"
+}
+```
 
 ### PATCH /api/users/me · 인증 필요
 Request: `{ "nickname": "새닉네임" }` (1~8자) → Response `data`: 갱신된 user 객체. 에러: VALIDATION_ERROR

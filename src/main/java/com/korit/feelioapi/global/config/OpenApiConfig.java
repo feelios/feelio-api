@@ -9,11 +9,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Swagger UI 에 Bearer(JWT) 인증 스킴을 노출한다.
- * 보호 API 는 런타임에 JwtAuthenticationFilter 가 검사하지만, springdoc 문서엔 그 정보가 없어
- * Authorize 버튼이 뜨지 않는다. 이 스킴 선언으로 Authorize 에 accessToken 을 넣으면
- * 이후 요청에 Authorization: Bearer &lt;token&gt; 이 자동으로 실린다.
- * (/api/auth/login·token/refresh 는 permitAll 이라 토큰 없이도 동작)
+ * Swagger UI 에 Bearer(JWT) 인증 스킴을 노출한다(문서 표기용).
+ * 실제 런타임 인증은 BFF 방식으로 accessToken HttpOnly 쿠키를 JwtAuthenticationFilter 가 읽어 처리한다.
+ * (/api/auth/token/refresh 는 permitAll 이라 토큰 없이도 동작)
  */
 @Configuration
 public class OpenApiConfig {

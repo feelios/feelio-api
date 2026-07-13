@@ -1,7 +1,5 @@
 package com.korit.feelioapi.domain.auth.service;
 
-import com.korit.feelioapi.domain.auth.dto.LoginRequest;
-import com.korit.feelioapi.domain.auth.dto.LoginResponse;
 import com.korit.feelioapi.domain.auth.dto.LogoutResponse;
 import com.korit.feelioapi.domain.auth.dto.TokenRefreshRequest;
 import com.korit.feelioapi.domain.auth.dto.TokenRefreshResponse;
@@ -11,8 +9,6 @@ import com.korit.feelioapi.domain.auth.entity.TermsAgreement;
 import com.korit.feelioapi.domain.auth.entity.User;
 import com.korit.feelioapi.domain.auth.mapper.AuthMapper;
 import com.korit.feelioapi.domain.auth.oauth.OAuthUserProfile;
-import com.korit.feelioapi.domain.auth.oauth.SocialOAuthClient;
-import com.korit.feelioapi.domain.auth.oauth.SocialOAuthClientResolver;
 import com.korit.feelioapi.domain.auth.oauth.SocialProvider;
 import com.korit.feelioapi.domain.auth.support.TokenHasher;
 import com.korit.feelioapi.global.exception.BusinessException;
@@ -33,35 +29,29 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * AuthService 단위 테스트 (계약 §3). provider 서버교환은 SocialOAuthClient 목킹으로 대체.
+ * AuthService 단위 테스트 (계약 §3, BFF 패턴).
+ * provider 서버교환·검증은 Spring Security oauth2Login 소관이므로 여기서 다루지 않는다.
+ * AuthService 는 프로필 수신 이후의 조회/가입(processSocialUser)·재발급·로그아웃·refresh 저장만 책임진다.
  */
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
-    @Mock private SocialOAuthClientResolver oAuthClientResolver;
     @Mock private AuthMapper authMapper;
     @Mock private JwtProvider jwtProvider;
     @Mock private TokenHasher tokenHasher;
-    @Mock private SocialOAuthClient googleClient;
 
     private AuthService authService;
 
-    private final JwtProperties jwtProperties = new JwtProperties("korit", "test-secret", 3600L, 86_400L);
+    private final JwtProperties jwtProperties = new JwtProperties("korit", "test-secret", 3600L, 1_209_600L);
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(oAuthClientResolver, authMapper, jwtProvider, jwtProperties, tokenHasher);
-    }
-
-    private LoginRequest googleRequest() {
-        return new LoginRequest("GOOGLE", "auth-code", "https://feelio.app/auth/callback", null);
+        authService = new AuthService(authMapper, jwtProvider, jwtProperties, tokenHasher);
     }
 
     private OAuthUserProfile googleProfile() {
@@ -69,36 +59,25 @@ class AuthServiceTest {
     }
 
     @Test
-    void 신규회원_로그인시_5개테이블_생성후_토큰발급() {
-        when(oAuthClientResolver.resolve(SocialProvider.GOOGLE)).thenReturn(googleClient);
-        when(googleClient.authenticate("auth-code", "https://feelio.app/auth/callback", null))
-                .thenReturn(googleProfile());
+    void 신규회원_로그인시_5개테이블_생성후_유저반환() {
         when(authMapper.findSocialAccountByProvider("GOOGLE", "google-sub-1")).thenReturn(null);
-        doAnswer(inv -> {
-            User u = inv.getArgument(0);
-            u.setUserId(10L);
-            return null;
-        }).when(authMapper).insertUser(any(User.class));
-        when(jwtProvider.createAccessToken(10L)).thenReturn("access-token");
-        when(jwtProvider.createRefreshToken(10L)).thenReturn("refresh-token");
-        when(tokenHasher.hash("refresh-token")).thenReturn("hashed-refresh");
+        doAnswerSetUserId(10L);
 
-        LoginResponse response = authService.login(googleRequest());
+        User user = authService.processSocialUser(SocialProvider.GOOGLE, googleProfile());
 
-        assertThat(response.accessToken()).isEqualTo("access-token");
-        assertThat(response.refreshToken()).isEqualTo("refresh-token");
-        assertThat(response.user().userId()).isEqualTo(10L);
-        assertThat(response.user().provider()).isEqualTo("GOOGLE");
-        assertThat(response.user().nickname()).isEqualTo("서연");
-        assertThat(response.user().onboardingDone()).isFalse();
-        assertThat(response.user().themeMode()).isEqualTo("LIGHT");
-        assertThat(response.user().auroraTheme()).isEqualTo("블루");
+        assertThat(user.getUserId()).isEqualTo(10L);
+        assertThat(user.getNickname()).isEqualTo("서연");
+        assertThat(user.getEmail()).isEqualTo("user@example.com");
+        assertThat(user.getOnboardingDone()).isFalse();
+        assertThat(user.getThemeMode()).isEqualTo("LIGHT");
+        assertThat(user.getAuroraTheme()).isEqualTo("블루");
 
         verify(authMapper).insertUser(any(User.class));
         verify(authMapper).insertSocialAccount(any(SocialAccount.class));
         verify(authMapper).insertNotificationSettingDefault(10L);
-        verify(authMapper).insertRefreshToken(any());
         verify(authMapper, never()).findUserById(anyLong());
+        // BFF: 토큰/refresh 저장은 OAuth2SuccessHandler 소관이므로 가입 단계에서 발급하지 않는다.
+        verify(authMapper, never()).insertRefreshToken(any());
 
         ArgumentCaptor<List<TermsAgreement>> captor = ArgumentCaptor.captor();
         verify(authMapper).insertTermsAgreements(captor.capture());
@@ -111,57 +90,49 @@ class AuthServiceTest {
     }
 
     @Test
-    void 기존회원_로그인시_가입없이_토큰발급() {
+    void 기존회원_로그인시_가입없이_유저조회() {
         SocialAccount existing = new SocialAccount();
         existing.setUserId(5L);
         User user = new User();
         user.setUserId(5L);
         user.setNickname("기존");
         user.setOnboardingDone(true);
-        user.setThemeMode("DARK");
-        user.setAuroraTheme("핑크");
 
-        when(oAuthClientResolver.resolve(SocialProvider.GOOGLE)).thenReturn(googleClient);
-        when(googleClient.authenticate(any(), any(), any())).thenReturn(googleProfile());
         when(authMapper.findSocialAccountByProvider("GOOGLE", "google-sub-1")).thenReturn(existing);
         when(authMapper.findUserById(5L)).thenReturn(user);
-        when(jwtProvider.createAccessToken(5L)).thenReturn("access-token");
-        when(jwtProvider.createRefreshToken(5L)).thenReturn("refresh-token");
-        when(tokenHasher.hash("refresh-token")).thenReturn("hashed-refresh");
 
-        LoginResponse response = authService.login(googleRequest());
+        User result = authService.processSocialUser(SocialProvider.GOOGLE, googleProfile());
 
-        assertThat(response.user().userId()).isEqualTo(5L);
-        assertThat(response.user().onboardingDone()).isTrue();
+        assertThat(result.getUserId()).isEqualTo(5L);
+        assertThat(result.getOnboardingDone()).isTrue();
         verify(authMapper, never()).insertUser(any());
         verify(authMapper, never()).insertSocialAccount(any());
         verify(authMapper, never()).insertTermsAgreements(any());
-        verify(authMapper).insertRefreshToken(any());
     }
 
     @Test
-    void 지원하지않는_provider는_INVALID_PROVIDER() {
-        LoginRequest request = new LoginRequest("FACEBOOK", "code", "uri", null);
+    void 닉네임_없는_프로필은_이메일_로컬파트로_대체() {
+        OAuthUserProfile noNickname = new OAuthUserProfile("google-sub-2", "hong@example.com", null, null);
+        when(authMapper.findSocialAccountByProvider("GOOGLE", "google-sub-2")).thenReturn(null);
+        doAnswerSetUserId(11L);
 
-        assertThatThrownBy(() -> authService.login(request))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_PROVIDER);
+        User user = authService.processSocialUser(SocialProvider.GOOGLE, noNickname);
 
-        verify(authMapper, never()).insertRefreshToken(any());
+        assertThat(user.getNickname()).isEqualTo("hong");
     }
 
     @Test
-    void provider_교환실패시_UNAUTHORIZED_전파() {
-        when(oAuthClientResolver.resolve(SocialProvider.GOOGLE)).thenReturn(googleClient);
-        when(googleClient.authenticate(any(), any(), any()))
-                .thenThrow(new BusinessException(ErrorCode.UNAUTHORIZED));
+    void storeRefreshToken_은_해시해서_TTL과_함께_저장한다() {
+        when(tokenHasher.hash("refresh-token")).thenReturn("hashed-refresh");
 
-        assertThatThrownBy(() -> authService.login(googleRequest()))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.UNAUTHORIZED);
+        authService.storeRefreshToken(7L, "refresh-token");
 
-        verify(authMapper, never()).insertUser(any());
-        verify(authMapper, never()).insertRefreshToken(any());
+        ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.captor();
+        verify(authMapper).insertRefreshToken(captor.capture());
+        RefreshToken saved = captor.getValue();
+        assertThat(saved.getUserId()).isEqualTo(7L);
+        assertThat(saved.getTokenHash()).isEqualTo("hashed-refresh");
+        assertThat(saved.getExpiresAt()).isAfter(LocalDateTime.now());
     }
 
     @Test
@@ -231,5 +202,14 @@ class AuthServiceTest {
 
         assertThat(response.loggedOut()).isTrue();
         verify(authMapper).deleteAllRefreshTokensByUserId(10L);
+    }
+
+    /** insertUser 가 useGeneratedKeys 로 userId 를 채우는 동작을 목킹한다. */
+    private void doAnswerSetUserId(long userId) {
+        org.mockito.Mockito.doAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setUserId(userId);
+            return null;
+        }).when(authMapper).insertUser(any(User.class));
     }
 }
