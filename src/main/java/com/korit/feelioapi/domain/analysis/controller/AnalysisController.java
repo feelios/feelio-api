@@ -39,4 +39,10 @@ public class AnalysisController {
     public ApiResponse<com.korit.feelioapi.domain.analysis.dto.MonthlyTrendResponse> getMonthlyTrend(@AuthenticationPrincipal Long userId) {
         return ApiResponse.success(analysisService.getMonthlyTrend(userId));
     }
+
+    /** GET /api/analysis/budget — 목표 예산 현황 API. */
+    @GetMapping("/budget")
+    public ApiResponse<com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse> getBudgetStatus(@AuthenticationPrincipal Long userId) {
+        return ApiResponse.success(analysisService.getBudgetStatus(userId));
+    }
 }

@@ -135,4 +135,37 @@ public class AnalysisService {
                 monthlyData
         );
     }
+
+    @Transactional(readOnly = true)
+    public com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse getBudgetStatus(Long userId) {
+        java.time.LocalDate now = java.time.LocalDate.now();
+        int currentYear = now.getYear();
+        int currentMonth = now.getMonthValue();
+
+        java.time.LocalDate prevDate = now.minusMonths(1);
+        int prevYear = prevDate.getYear();
+        int prevMonth = prevDate.getMonthValue();
+
+        List<com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat> currentStats = analysisMapper.findCurrentCategoryStats(userId, currentYear, currentMonth);
+        List<com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat> prevStats = analysisMapper.findPrevCategoryStats(userId, prevYear, prevMonth);
+
+        Map<Long, Long> prevStatMap = prevStats.stream()
+                .collect(Collectors.toMap(com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat::categoryId, com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat::prevAmount));
+
+        List<com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem> budgetItems = new ArrayList<>();
+
+        for (com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat currentStat : currentStats) {
+            Long prevAmount = prevStatMap.getOrDefault(currentStat.categoryId(), 0L);
+            Long budget = prevAmount > 0 ? (long) (prevAmount * 0.95) : 0L;
+            budgetItems.add(new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem(
+                    currentStat.categoryName(),
+                    currentStat.dominantEmotion() != null ? currentStat.dominantEmotion() : "보통",
+                    currentStat.currentAmount(),
+                    prevAmount,
+                    budget
+            ));
+        }
+
+        return new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse(budgetItems);
+    }
 }

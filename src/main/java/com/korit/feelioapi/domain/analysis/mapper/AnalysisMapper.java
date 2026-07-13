@@ -35,4 +35,12 @@ public interface AnalysisMapper {
     List<com.korit.feelioapi.domain.analysis.dto.MonthlyDataStat> findMonthlyTrend(@Param("userId") Long userId,
                                                                                    @Param("startDate") java.time.LocalDate startDate,
                                                                                    @Param("endDate") java.time.LocalDate endDate);
+
+    List<com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat> findCurrentCategoryStats(@Param("userId") Long userId,
+                                                                                               @Param("year") int year,
+                                                                                               @Param("month") int month);
+
+    List<com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat> findPrevCategoryStats(@Param("userId") Long userId,
+                                                                                         @Param("year") int year,
+                                                                                         @Param("month") int month);
 }
