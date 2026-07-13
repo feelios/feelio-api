@@ -28,6 +28,9 @@
 | A4-1 | 커스텀 카테고리 설정 | feat/custom-category-order | 신규 | Ctrl·Svc·DTO·Entity·Mapper+XML | custom_categories, category_orders | 커스텀 카테고리 추가/삭제, 공통+커스텀 통합 정렬 순서 저장 및 반환 |
 | A4-2 | 프론트 연동용 CORS 설정 | feat/cors-credentials | §14 | config | - | Allow-Credentials: true 활성화 및 Allow-Origin에 프론트 도메인 매핑 |
 | A4-3 | AI 멘트 API 설계 및 Mock 연동 | `feat/analysis-ai-insights-api` | 신규 API | Ctrl·DTO | - | `GET /api/analysis/ai-insights` 신설 → 응답 DTO(`aiQuickInsights`, `emotionCards`) 설계 → DB 없이 Mock 객체 반환(200 OK) |
+| A4-4 | 최근 7개월 지출 추이 API 설계 | `feat/analysis-trend-api` | 신규 API | Ctrl·Svc·DTO·Mapper | transactions | 신규 | 1. `GET /api/analysis/trend` 엔드포인트 신설.<br>2. 호출 시점 기준 최근 7개월(당월 포함)간 월별 총 지출액 Group By 집계 (데이터 없는 달은 금액 `0`으로 채워 총 7개 요소 반환 보장).<br>3. 당월 및 전월 총 지출액을 비교하여 증감률(%) 계산 후 프론트 규격에 맞춰 JSON 반환. |
+| A4-5 | 목표 예산 현황 API 설계 | `feat/analysis-budget-api` | 신규 API | Ctrl·Svc·DTO·Mapper | transactions | 신규 | 1. `GET /api/analysis/budget` 엔드포인트 신설 및 응답 DTO(`budgetItems`) 설계.<br>2. 당월 소비 카테고리 기준 저번 달 지출 금액(`prevAmount`) DB 조회 로직 구현.<br>3. `prevAmount` 값에 `0.95`를 곱해 이번 달 목표 예산을 자동 산출하는 비즈니스 로직 적용.<br>4. 카테고리별 소비 내역에서 지배적 "감정 태그"(예: 스트레스) 추출 및 동반 반환. |
+
 ## 병렬 작업 규칙 (Claude ↔ Gemini 충돌 방지)
 - **도메인 단위로 분할**한다. 같은 도메인(auth/users/transactions…) 이슈를 둘이 쪼개 갖지 않는다.
 - `refresh_tokens`를 공유하는 auth 3종(A1-1/2/3)은 **한 사람**이 맡는다.

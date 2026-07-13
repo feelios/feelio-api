@@ -31,4 +31,8 @@ public interface AnalysisMapper {
     List<TimeSlotStat> findExpenseByTimeSlot(@Param("userId") Long userId,
                                              @Param("year") int year,
                                              @Param("month") int month);
+
+    List<com.korit.feelioapi.domain.analysis.dto.MonthlyDataStat> findMonthlyTrend(@Param("userId") Long userId,
+                                                                                   @Param("startDate") java.time.LocalDate startDate,
+                                                                                   @Param("endDate") java.time.LocalDate endDate);
 }
