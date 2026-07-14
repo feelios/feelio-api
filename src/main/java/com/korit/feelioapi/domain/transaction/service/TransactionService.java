@@ -82,6 +82,24 @@ public class TransactionService {
     }
 
     @Transactional
+    public TransactionDeleteResponse deleteTransactionsBulk(Long userId, List<Long> transactionIds) {
+        if (transactionIds == null || transactionIds.isEmpty()) {
+            return new TransactionDeleteResponse(true);
+        }
+        List<Transaction> transactions = transactionMapper.findByIds(transactionIds);
+        if (transactions.size() != transactionIds.size()) {
+            throw new BusinessException(ErrorCode.NOT_FOUND);
+        }
+        for (Transaction t : transactions) {
+            if (!t.getUserId().equals(userId)) {
+                throw new BusinessException(ErrorCode.FORBIDDEN);
+            }
+        }
+        transactionMapper.deleteTransactionsBulk(transactionIds);
+        return new TransactionDeleteResponse(true);
+    }
+
+    @Transactional
     public TransactionResetResponse resetTransactions(Long userId) {
         int deletedCount = transactionMapper.deleteAllTransactionsByUserId(userId);
         return new TransactionResetResponse(deletedCount);

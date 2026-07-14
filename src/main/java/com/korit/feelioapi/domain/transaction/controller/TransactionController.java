@@ -77,6 +77,15 @@ public class TransactionController {
         return ApiResponse.success(transactionService.deleteTransaction(userId, transactionId));
     }
 
+    /** DELETE /api/transactions/bulk — 다중 거래 기록 삭제. 인증 필요. */
+    @DeleteMapping("/bulk")
+    public ApiResponse<TransactionDeleteResponse> deleteTransactionsBulk(
+            @AuthenticationPrincipal Long userId,
+            @Valid @RequestBody com.korit.feelioapi.domain.transaction.dto.TransactionBulkDeleteRequest request
+    ) {
+        return ApiResponse.success(transactionService.deleteTransactionsBulk(userId, request.transactionIds()));
+    }
+
     /** DELETE /api/transactions — 전체 초기화. 인증 필요. */
     @DeleteMapping
     public ApiResponse<TransactionResetResponse> resetTransactions(

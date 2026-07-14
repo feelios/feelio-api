@@ -3,7 +3,10 @@
 > **Claude / Gemini 어떤 도구로 작업하든 이 표를 공통 기준으로 삼는다.**
 > 이슈 코드(예: A1-1)로 브랜치·계약섹션·슬롯·테이블·완료기준을 확정한다.
 > 규칙 전체는 [AGENTS.md](../AGENTS.md), API 계약은 [docs/API-CONTRACT.md](./API-CONTRACT.md)가 SSOT.
-> 코드 체계: A1=1차, A2=2차, A3=3차 (계약 §11 우선순위와 일치).
+> 코드 체계: 
+> - A1=1차, A2=2차, A3=3차 (계약 §11 우선순위와 일치)
+> - A4=API 추가 연동 (기존 구현 외 확장)
+> - **A5=트랜잭션 관리 및 고급 API 연동**: 다중 삭제 및 반복 패턴 분석 등 새로운 로직 구현 (마일스톤 3)
 
 | 코드 | 제목 | 브랜치 | 계약 | 슬롯 | 테이블 | 완료기준(핵심) |
 |---|---|---|---|---|---|---|
@@ -30,6 +33,8 @@
 | A4-3 | AI 멘트 API 설계 및 Mock 연동 | `feat/analysis-ai-insights-api` | 신규 API | Ctrl·DTO | - | `GET /api/analysis/ai-insights` 신설 → 응답 DTO(`aiQuickInsights`, `emotionCards`) 설계 → DB 없이 Mock 객체 반환(200 OK) |
 | A4-4 | 최근 7개월 지출 추이 API 설계 | `feat/analysis-trend-api` | 신규 API | Ctrl·Svc·DTO·Mapper | transactions | 신규 | 1. `GET /api/analysis/trend` 엔드포인트 신설.<br>2. 호출 시점 기준 최근 7개월(당월 포함)간 월별 총 지출액 Group By 집계 (데이터 없는 달은 금액 `0`으로 채워 총 7개 요소 반환 보장).<br>3. 당월 및 전월 총 지출액을 비교하여 증감률(%) 계산 후 프론트 규격에 맞춰 JSON 반환. |
 | A4-5 | 목표 예산 현황 API 설계 | `feat/analysis-budget-api` | 신규 API | Ctrl·Svc·DTO·Mapper | transactions | 신규 | 1. `GET /api/analysis/budget` 엔드포인트 신설 및 응답 DTO(`budgetItems`) 설계.<br>2. 당월 소비 카테고리 기준 저번 달 지출 금액(`prevAmount`) DB 조회 로직 구현.<br>3. `prevAmount` 값에 `0.95`를 곱해 이번 달 목표 예산을 자동 산출하는 비즈니스 로직 적용.<br>4. 카테고리별 소비 내역에서 지배적 "감정 태그"(예: 스트레스) 추출 및 동반 반환. |
+| A5-1 | 다중 거래내역 삭제 API | `feat/transaction-bulk-delete-api` | 신규 API | Ctrl·Svc·Mapper | transactions | 다중 거래내역 ID 배열을 받아 DB에서 일괄 삭제 처리 |
+| A5-2 | 반복 소비 패턴 분석 API | `feat/recurring-pattern-api` | 신규 API | Ctrl·Svc·DTO·Mapper | transactions | 동일 감정/시간대/사용처 소비 패턴 반환, 5분 이내 중복 결제 병합 필터링 포함 |
 
 ## 병렬 작업 규칙 (Claude ↔ Gemini 충돌 방지)
 - **도메인 단위로 분할**한다. 같은 도메인(auth/users/transactions…) 이슈를 둘이 쪼개 갖지 않는다.
