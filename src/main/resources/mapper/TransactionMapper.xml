@@ -124,6 +124,15 @@
         WHERE transaction_id = #{transactionId}
     </select>
 
+    <select id="findByIds" resultType="com.korit.feelioapi.domain.transaction.entity.Transaction">
+        SELECT *
+        FROM transactions
+        WHERE transaction_id IN
+        <foreach item="id" collection="transactionIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
     <update id="updateTransaction">
         UPDATE transactions
         SET emotion_id = #{emotionId},
@@ -138,6 +147,14 @@
     <delete id="deleteTransaction">
         DELETE FROM transactions
         WHERE transaction_id = #{transactionId}
+    </delete>
+
+    <delete id="deleteTransactionsBulk">
+        DELETE FROM transactions
+        WHERE transaction_id IN
+        <foreach item="id" collection="transactionIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
     </delete>
 
     <delete id="deleteAllTransactionsByUserId">
