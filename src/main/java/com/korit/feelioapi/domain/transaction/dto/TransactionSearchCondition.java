@@ -9,5 +9,6 @@ public record TransactionSearchCondition(
         List<Long> emotionId,
         List<Long> categoryId,
         String query,
-        String sort
+        String sort,
+        java.time.LocalDate fromDate
 ) {}
