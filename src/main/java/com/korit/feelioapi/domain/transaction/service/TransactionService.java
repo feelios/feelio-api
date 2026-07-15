@@ -4,6 +4,8 @@ import com.korit.feelioapi.domain.transaction.dto.TransactionCreateRequest;
 import com.korit.feelioapi.domain.transaction.dto.TransactionDeleteResponse;
 import com.korit.feelioapi.domain.transaction.dto.TransactionDto;
 import com.korit.feelioapi.domain.transaction.dto.TransactionListResponse;
+import com.korit.feelioapi.domain.transaction.dto.TransactionPatternDto;
+import com.korit.feelioapi.domain.transaction.dto.TransactionPatternResponse;
 import com.korit.feelioapi.domain.transaction.dto.TransactionResetResponse;
 import com.korit.feelioapi.domain.transaction.dto.TransactionSearchCondition;
 import com.korit.feelioapi.domain.transaction.dto.TransactionTotalDto;
@@ -103,6 +105,67 @@ public class TransactionService {
     public TransactionResetResponse resetTransactions(Long userId) {
         int deletedCount = transactionMapper.deleteAllTransactionsByUserId(userId);
         return new TransactionResetResponse(deletedCount);
+    }
+
+    @Transactional(readOnly = true)
+    public TransactionPatternResponse getRecurringPatterns(Long userId) {
+        List<Transaction> expenses = transactionMapper.findExpensesForPattern(userId);
+
+        List<Transaction> merged = new java.util.ArrayList<>();
+        for (Transaction current : expenses) {
+            if (merged.isEmpty()) {
+                merged.add(cloneTransaction(current));
+            } else {
+                Transaction last = merged.get(merged.size() - 1);
+                long Math_abs_diff = java.time.Duration.between(last.getOccurredAt(), current.getOccurredAt()).abs().toMinutes();
+                
+                if (Math_abs_diff <= 5 && java.util.Objects.equals(last.getMemo(), current.getMemo())) {
+                    last.setAmount(last.getAmount() + current.getAmount());
+                } else {
+                    merged.add(cloneTransaction(current));
+                }
+            }
+        }
+
+        java.util.Map<String, TransactionPatternDto> patternsMap = new java.util.HashMap<>();
+        for (Transaction t : merged) {
+            String timeSlot = getTimeSlot(t.getOccurredAt().getHour());
+            String key = t.getEmotionId() + ":" + timeSlot + ":" + t.getMemo();
+            
+            TransactionPatternDto existing = patternsMap.get(key);
+            if (existing == null) {
+                patternsMap.put(key, new TransactionPatternDto(timeSlot, t.getEmotionId(), t.getMemo(), 1, t.getAmount()));
+            } else {
+                patternsMap.put(key, new TransactionPatternDto(timeSlot, t.getEmotionId(), t.getMemo(), existing.count() + 1, existing.totalAmount() + t.getAmount()));
+            }
+        }
+
+        List<TransactionPatternDto> result = patternsMap.values().stream()
+                .filter(p -> p.count() >= 2)
+                .sorted(java.util.Comparator.comparingInt(TransactionPatternDto::count).reversed())
+                .toList();
+
+        return new TransactionPatternResponse(result);
+    }
+
+    private Transaction cloneTransaction(Transaction t) {
+        Transaction cloned = new Transaction();
+        cloned.setTransactionId(t.getTransactionId());
+        cloned.setUserId(t.getUserId());
+        cloned.setEmotionId(t.getEmotionId());
+        cloned.setCategoryId(t.getCategoryId());
+        cloned.setType(t.getType());
+        cloned.setAmount(t.getAmount());
+        cloned.setMemo(t.getMemo());
+        cloned.setOccurredAt(t.getOccurredAt());
+        return cloned;
+    }
+
+    private String getTimeSlot(int hour) {
+        if (hour >= 0 && hour < 6) return "DAWN";
+        if (hour >= 6 && hour < 12) return "MORNING";
+        if (hour >= 12 && hour < 18) return "AFTERNOON";
+        return "NIGHT";
     }
 
     /** 대상 존재 + 본인 소유 검증 (계약 §6: 없음 NOT_FOUND / 타인 FORBIDDEN). */

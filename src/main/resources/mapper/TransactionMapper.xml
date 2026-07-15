@@ -157,6 +157,14 @@
         </foreach>
     </delete>
 
+    <select id="findExpensesForPattern" resultType="com.korit.feelioapi.domain.transaction.entity.Transaction">
+        SELECT *
+        FROM transactions
+        WHERE user_id = #{userId}
+          AND type = 'EXPENSE'
+        ORDER BY occurred_at ASC
+    </select>
+
     <delete id="deleteAllTransactionsByUserId">
         DELETE FROM transactions
         WHERE user_id = #{userId}

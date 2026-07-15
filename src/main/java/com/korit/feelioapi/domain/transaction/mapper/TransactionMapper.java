@@ -24,5 +24,7 @@ public interface TransactionMapper {
     void deleteTransaction(@Param("transactionId") Long transactionId);
     void deleteTransactionsBulk(@Param("transactionIds") List<Long> transactionIds);
 
+    List<Transaction> findExpensesForPattern(@Param("userId") Long userId);
+
     int deleteAllTransactionsByUserId(@Param("userId") Long userId);
 }
