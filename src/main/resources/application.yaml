@@ -65,5 +65,5 @@ mybatis:
 jwt:
   issuer: korit
   secret: ${JWT_SECRET}
-  accessTokenTtlSeconds: 8640000
-  refreshTokenTtlSeconds: 864000000
+  accessTokenTtlSeconds: 3600       # 1h  (계약 §3 기준)
+  refreshTokenTtlSeconds: 1209600   # 14d (계약 §3 기준)

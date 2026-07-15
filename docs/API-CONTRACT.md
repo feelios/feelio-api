@@ -60,7 +60,7 @@
    - `{provider}`: `google` | `kakao` | `naver` (Spring Security registrationId, 소문자)
 2. provider 로그인·동의 → provider가 백엔드 콜백(`/login/oauth2/code/{provider}`)으로 리다이렉트.
 3. 서버: provider와 **서버-투-서버로 code 교환·검증**(client_secret 사용) → 프로필(식별자·이메일·닉네임·**프로필 이미지**) 수신 → `(provider, provider_user_id)` 조회, 없으면 신규 가입(users + social_accounts + notification_settings 기본값 + terms_agreements) → **provider 토큰은 검증 후 폐기(미저장)**.
-4. 서버가 자체 JWT(`accessToken` 1h, `refreshToken` 14d)를 **HttpOnly 쿠키**로 구운 뒤 프론트 URL로 리다이렉트한다.
+4. 서버가 자체 JWT(`accessToken` 1h=3600s, `refreshToken` 14d=1209600s)를 **HttpOnly 쿠키**로 구운 뒤 프론트 URL로 리다이렉트한다.
 
 - ⚠️ accessToken·refreshToken은 **HttpOnly 쿠키로만** 내려온다. 응답 바디로 토큰을 주지 않으며, 브라우저 JS는 토큰 값을 읽을 수 없다.
 - 로그인 후 사용자 정보는 `GET /api/users/me`(§4)로 조회한다(신규 가입 여부·온보딩 상태 포함). user 객체 구조는 §4 참조.
