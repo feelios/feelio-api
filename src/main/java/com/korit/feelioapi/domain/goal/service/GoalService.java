@@ -35,9 +35,9 @@ public class GoalService {
                     TransactionSearchCondition condition = new TransactionSearchCondition(null, null, null, null, null, null, null, goal.getStartDate());
                     TransactionTotalDto totals = transactionMapper.calculateTotals(userId, condition);
                     
-                    int netSavings = totals.totalIncome() - totals.totalExpense();
-                    int finalCurrentAmount = (goal.getCurrentAmount() != null ? goal.getCurrentAmount() : 0) + netSavings;
-                    goal.setCurrentAmount(Math.max(0, finalCurrentAmount));
+                    long netSavings = Math.max(0, totals.totalIncome() - totals.totalExpense());
+                    int finalCurrentAmount = (goal.getCurrentAmount() != null ? goal.getCurrentAmount() : 0) + (int) netSavings;
+                    goal.setCurrentAmount(finalCurrentAmount);
                     
                     return GoalResponse.of(goal);
                 })
