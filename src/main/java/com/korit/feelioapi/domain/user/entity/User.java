@@ -17,6 +17,7 @@ public class User {
     private String nickname;
     private String email;
     private String profileImageUrl;
+    private Long totalAsset;
     private Boolean onboardingDone;
     private String themeMode;
     private String auroraTheme;

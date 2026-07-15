@@ -99,21 +99,21 @@ class UserServiceTest {
     void 온보딩_완료시_플래그를_켜고_true를_반환한다() {
         when(userMapper.findUserById(1L)).thenReturn(user(1L, "서연"));
 
-        var response = userService.completeOnboarding(1L);
+        var response = userService.completeOnboarding(1L, 1000000L);
 
         assertThat(response.onboardingDone()).isTrue();
-        verify(userMapper).markOnboardingDone(1L);
+        verify(userMapper).markOnboardingDone(1L, 1000000L);
     }
 
     @Test
     void 온보딩_대상이_없으면_NOT_FOUND이고_update안한다() {
         when(userMapper.findUserById(99L)).thenReturn(null);
 
-        assertThatThrownBy(() -> userService.completeOnboarding(99L))
+        assertThatThrownBy(() -> userService.completeOnboarding(99L, 1000000L))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.NOT_FOUND);
 
-        verify(userMapper, never()).markOnboardingDone(99L);
+        verify(userMapper, never()).markOnboardingDone(99L, 1000000L);
     }
 
     @Test

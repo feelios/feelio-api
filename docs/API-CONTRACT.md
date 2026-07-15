@@ -89,6 +89,7 @@ Response `data` (로그인 리다이렉트 직후 프론트가 사용자 상태�
   "email": "user@example.com",
   "profileImageUrl": "https://.../photo.jpg",
   "provider": "GOOGLE",
+  "totalAsset": 1000000,
   "onboardingDone": false,
   "themeMode": "LIGHT",
   "auroraTheme": "블루"
@@ -98,8 +99,9 @@ Response `data` (로그인 리다이렉트 직후 프론트가 사용자 상태�
 ### PATCH /api/users/me · 인증 필요
 Request: `{ "nickname": "새닉네임" }` (1~8자) → Response `data`: 갱신된 user 객체. 에러: VALIDATION_ERROR
 
-### PATCH /api/users/me/onboarding · 인증 필요
-Request 없음 → Response `data`: `{ "onboardingDone": true }`
+### PATCH /api/users/me/onboarding — 온보딩 완료 처리 (A6-1)
+Request: `{ "totalAsset": 1000000 }` (총자산 금액, 필수)
+Response `data`: `{ "onboardingDone": true }`
 
 ### PATCH /api/users/me/settings · 인증 필요
 Request: `{ "themeMode": "DARK", "auroraTheme": "핑크" }` (부분 전송 허용) → Response `data`: 갱신된 설정.
