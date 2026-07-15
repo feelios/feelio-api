@@ -25,8 +25,8 @@
     <!-- 생성: current_amount(0)·status(ACTIVE)는 DB 기본값. 생성 PK 회수. -->
     <insert id="insertGoal" parameterType="com.korit.feelioapi.domain.goal.entity.Goal"
             useGeneratedKeys="true" keyProperty="goalId">
-        INSERT INTO goals (user_id, name, target_amount, start_date, due_date, is_main)
-        VALUES (#{userId}, #{name}, #{targetAmount}, #{startDate}, #{dueDate}, #{isMain})
+        INSERT INTO goals (user_id, name, target_amount, current_amount, start_date, due_date, is_main)
+        VALUES (#{userId}, #{name}, #{targetAmount}, #{currentAmount}, #{startDate}, #{dueDate}, #{isMain})
     </insert>
 
     <!-- 수정: POST와 동일 필드만. 소유권은 Service 선검증. -->
@@ -34,6 +34,7 @@
         UPDATE goals
         SET name = #{name},
             target_amount = #{targetAmount},
+            current_amount = #{currentAmount},
             start_date = #{startDate},
             due_date = #{dueDate},
             is_main = #{isMain}
