@@ -42,6 +42,9 @@
             <if test="condition.day != null">
                 AND DAY(t.occurred_at) = #{condition.day}
             </if>
+            <if test="condition.fromDate != null">
+                AND t.occurred_at >= #{condition.fromDate}
+            </if>
             <if test="condition.emotionId != null and !condition.emotionId.isEmpty()">
                 AND t.emotion_id IN
                 <foreach item="item" collection="condition.emotionId" open="(" separator="," close=")">
@@ -156,6 +159,14 @@
             #{id}
         </foreach>
     </delete>
+
+    <select id="findExpensesForPattern" resultType="com.korit.feelioapi.domain.transaction.entity.Transaction">
+        SELECT *
+        FROM transactions
+        WHERE user_id = #{userId}
+          AND type = 'EXPENSE'
+        ORDER BY occurred_at ASC
+    </select>
 
     <delete id="deleteAllTransactionsByUserId">
         DELETE FROM transactions

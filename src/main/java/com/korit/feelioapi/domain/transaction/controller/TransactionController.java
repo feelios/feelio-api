@@ -4,6 +4,7 @@ import com.korit.feelioapi.domain.transaction.dto.TransactionCreateRequest;
 import com.korit.feelioapi.domain.transaction.dto.TransactionDeleteResponse;
 import com.korit.feelioapi.domain.transaction.dto.TransactionDto;
 import com.korit.feelioapi.domain.transaction.dto.TransactionListResponse;
+import com.korit.feelioapi.domain.transaction.dto.TransactionPatternResponse;
 import com.korit.feelioapi.domain.transaction.dto.TransactionResetResponse;
 import com.korit.feelioapi.domain.transaction.dto.TransactionSearchCondition;
 import com.korit.feelioapi.domain.transaction.service.TransactionService;
@@ -37,6 +38,14 @@ public class TransactionController {
             @ModelAttribute TransactionSearchCondition condition
     ) {
         return ApiResponse.success(transactionService.getTransactions(userId, condition));
+    }
+
+    /** GET /api/transactions/patterns — 반복 소비 패턴 조회. 인증 필요. */
+    @GetMapping("/patterns")
+    public ApiResponse<TransactionPatternResponse> getRecurringPatterns(
+            @AuthenticationPrincipal Long userId
+    ) {
+        return ApiResponse.success(transactionService.getRecurringPatterns(userId));
     }
 
     /** POST /api/transactions — 거래 기록 생성. 인증 필요. */

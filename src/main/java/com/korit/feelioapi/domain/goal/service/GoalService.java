@@ -6,6 +6,9 @@ import com.korit.feelioapi.domain.goal.dto.GoalRequest;
 import com.korit.feelioapi.domain.goal.dto.GoalResponse;
 import com.korit.feelioapi.domain.goal.entity.Goal;
 import com.korit.feelioapi.domain.goal.mapper.GoalMapper;
+import com.korit.feelioapi.domain.transaction.dto.TransactionSearchCondition;
+import com.korit.feelioapi.domain.transaction.dto.TransactionTotalDto;
+import com.korit.feelioapi.domain.transaction.mapper.TransactionMapper;
 import com.korit.feelioapi.global.exception.BusinessException;
 import com.korit.feelioapi.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -23,11 +26,21 @@ import java.util.List;
 public class GoalService {
 
     private final GoalMapper goalMapper;
+    private final TransactionMapper transactionMapper;
 
     @Transactional(readOnly = true)
     public GoalListResponse getGoals(Long userId) {
         List<GoalResponse> goals = goalMapper.findGoalsByUserId(userId).stream()
-                .map(GoalResponse::of)
+                .map(goal -> {
+                    TransactionSearchCondition condition = new TransactionSearchCondition(null, null, null, null, null, null, null, goal.getStartDate());
+                    TransactionTotalDto totals = transactionMapper.calculateTotals(userId, condition);
+                    
+                    int netSavings = totals.totalIncome() - totals.totalExpense();
+                    int finalCurrentAmount = (goal.getCurrentAmount() != null ? goal.getCurrentAmount() : 0) + netSavings;
+                    goal.setCurrentAmount(Math.max(0, finalCurrentAmount));
+                    
+                    return GoalResponse.of(goal);
+                })
                 .toList();
         return new GoalListResponse(goals);
     }
@@ -41,6 +54,7 @@ public class GoalService {
         goal.setUserId(userId);
         goal.setName(request.name());
         goal.setTargetAmount(request.targetAmount());
+        goal.setCurrentAmount(request.currentAmount() != null ? request.currentAmount() : 0);
         goal.setStartDate(request.startDate());
         goal.setDueDate(request.dueDate());
         goal.setIsMain(request.mainFlag());
@@ -59,6 +73,7 @@ public class GoalService {
         goal.setGoalId(goalId);
         goal.setName(request.name());
         goal.setTargetAmount(request.targetAmount());
+        goal.setCurrentAmount(request.currentAmount() != null ? request.currentAmount() : 0);
         goal.setStartDate(request.startDate());
         goal.setDueDate(request.dueDate());
         goal.setIsMain(request.mainFlag());
