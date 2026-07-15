@@ -7,6 +7,7 @@ import com.korit.feelioapi.domain.user.dto.UpdateSettingsRequest;
 import com.korit.feelioapi.domain.user.dto.UserResponse;
 import com.korit.feelioapi.domain.user.dto.WithdrawRequest;
 import com.korit.feelioapi.domain.user.dto.WithdrawResponse;
+import com.korit.feelioapi.domain.user.dto.OnboardingRequest;
 import com.korit.feelioapi.domain.user.service.UserService;
 import com.korit.feelioapi.global.response.ApiResponse;
 import jakarta.validation.Valid;
@@ -43,10 +44,11 @@ public class UserController {
         return ApiResponse.success(userService.updateNickname(userId, request.nickname()));
     }
 
-    /** PATCH /api/users/me/onboarding — 온보딩 완료 처리(바디 없음). */
+    /** PATCH /api/users/me/onboarding — 온보딩 완료 처리(A6-1). */
     @PatchMapping("/me/onboarding")
-    public ApiResponse<OnboardingResponse> completeOnboarding(@AuthenticationPrincipal Long userId) {
-        return ApiResponse.success(userService.completeOnboarding(userId));
+    public ApiResponse<OnboardingResponse> completeOnboarding(@AuthenticationPrincipal Long userId,
+                                                              @Valid @RequestBody OnboardingRequest request) {
+        return ApiResponse.success(userService.completeOnboarding(userId, request.totalAsset()));
     }
 
     /** PATCH /api/users/me/settings — 테마 설정 부분 수정. */

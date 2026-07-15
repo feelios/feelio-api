@@ -12,6 +12,7 @@ public record UserResponse(
         String email,
         String profileImageUrl,
         String provider,
+        Long totalAsset,
         boolean onboardingDone,
         String themeMode,
         String auroraTheme
@@ -23,6 +24,7 @@ public record UserResponse(
                 user.getEmail(),
                 user.getProfileImageUrl(),
                 provider,
+                user.getTotalAsset(),
                 Boolean.TRUE.equals(user.getOnboardingDone()),
                 user.getThemeMode(),
                 user.getAuroraTheme()

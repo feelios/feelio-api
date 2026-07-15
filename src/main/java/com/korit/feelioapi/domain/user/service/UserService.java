@@ -40,9 +40,9 @@ public class UserService {
     }
 
     @Transactional
-    public OnboardingResponse completeOnboarding(Long userId) {
+    public OnboardingResponse completeOnboarding(Long userId, Long totalAsset) {
         loadUser(userId); // 본인 존재 확인(없으면 NOT_FOUND)
-        userMapper.markOnboardingDone(userId);
+        userMapper.markOnboardingDone(userId, totalAsset);
         return new OnboardingResponse(true);
     }
 

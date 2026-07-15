@@ -11,6 +11,7 @@ CREATE TABLE `users` (
   `nickname` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `email` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `profile_image_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `total_asset` bigint NOT NULL DEFAULT '0',
   `onboarding_done` tinyint(1) NOT NULL DEFAULT '0',
   `theme_mode` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'LIGHT',
   `aurora_theme` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '블루',
