@@ -41,11 +41,11 @@ class SummaryServiceTest {
 
         CalendarSummaryResponse response = summaryService.getCalendarSummary(userId, year, month);
 
-        assertThat(response.days()).hasSize(1);
-        assertThat(response.days().get(0).date()).isEqualTo(LocalDate.of(2026, 7, 1));
-        assertThat(response.days().get(0).dominantEmotion().name()).isEqualTo("스트레스");
-        assertThat(response.days().get(0).transactionCount()).isEqualTo(2);
-        assertThat(response.days().get(0).totalExpense()).isEqualTo(50600L);
+        assertThat(response.getDays()).hasSize(1);
+        assertThat(response.getDays().get(0).getDate()).isEqualTo(LocalDate.of(2026, 7, 1));
+        assertThat(response.getDays().get(0).getDominantEmotion().getName()).isEqualTo("스트레스");
+        assertThat(response.getDays().get(0).getTransactionCount()).isEqualTo(2);
+        assertThat(response.getDays().get(0).getTotalExpense()).isEqualTo(50600L);
 
         verify(summaryMapper).findCalendarSummary(userId, year, month);
     }
@@ -64,10 +64,10 @@ class SummaryServiceTest {
 
         EmotionSummaryResponse response = summaryService.getEmotionSummary(userId, year, month);
 
-        assertThat(response.emotions()).hasSize(1);
-        assertThat(response.emotions().get(0).count()).isEqualTo(6);
-        assertThat(response.prevMonth()).hasSize(1);
-        assertThat(response.prevMonth().get(0).amount()).isEqualTo(98000L);
+        assertThat(response.getEmotions()).hasSize(1);
+        assertThat(response.getEmotions().get(0).getCount()).isEqualTo(6);
+        assertThat(response.getPrevMonth()).hasSize(1);
+        assertThat(response.getPrevMonth().get(0).getAmount()).isEqualTo(98000L);
 
         verify(summaryMapper).findEmotionSummary(userId, 2026, 1);
         verify(summaryMapper).findEmotionSummary(userId, 2025, 12);

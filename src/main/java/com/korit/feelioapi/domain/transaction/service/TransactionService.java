@@ -10,6 +10,8 @@ import com.korit.feelioapi.domain.transaction.dto.TransactionResetResponse;
 import com.korit.feelioapi.domain.transaction.dto.TransactionSearchCondition;
 import com.korit.feelioapi.domain.transaction.dto.TransactionTotalDto;
 import com.korit.feelioapi.domain.transaction.entity.Transaction;
+import com.korit.feelioapi.domain.goal.entity.Goal;
+import com.korit.feelioapi.domain.goal.mapper.GoalMapper;
 import com.korit.feelioapi.domain.transaction.mapper.TransactionMapper;
 import com.korit.feelioapi.global.exception.BusinessException;
 import com.korit.feelioapi.global.exception.ErrorCode;
@@ -24,6 +26,7 @@ import java.util.List;
 public class TransactionService {
 
     private final TransactionMapper transactionMapper;
+    private final GoalMapper goalMapper;
 
     @Transactional(readOnly = true)
     public TransactionListResponse getTransactions(Long userId, TransactionSearchCondition condition) {
@@ -48,6 +51,14 @@ public class TransactionService {
         transaction.setMemo(request.memo());
         transaction.setOccurredAt(request.occurredAt());
 
+        if (request.goalId() != null) {
+            Goal goal = goalMapper.findById(request.goalId());
+            if (goal == null || !goal.getUserId().equals(userId)) {
+                throw new BusinessException(ErrorCode.NOT_FOUND);
+            }
+            transaction.setGoalId(request.goalId());
+        }
+
         transactionMapper.insertTransaction(transaction);
 
         return transactionMapper.findTransactionById(transaction.getTransactionId(), userId);
@@ -71,6 +82,16 @@ public class TransactionService {
         transaction.setAmount(request.amount());
         transaction.setMemo(request.memo());
         transaction.setOccurredAt(request.occurredAt());
+
+        if (request.goalId() != null) {
+            Goal goal = goalMapper.findById(request.goalId());
+            if (goal == null || !goal.getUserId().equals(userId)) {
+                throw new BusinessException(ErrorCode.NOT_FOUND);
+            }
+            transaction.setGoalId(request.goalId());
+        } else {
+            transaction.setGoalId(null);
+        }
         transactionMapper.updateTransaction(transaction);
 
         return transactionMapper.findTransactionById(transactionId, userId);

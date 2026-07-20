@@ -15,6 +15,7 @@ public class Transaction {
     private Integer amount;
     private String memo;
     private LocalDateTime occurredAt;
+    private Long goalId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

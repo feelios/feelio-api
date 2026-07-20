@@ -9,5 +9,6 @@ public record TransactionDto(
         String memo,
         LocalDateTime occurredAt,
         CategoryDto category,
-        EmotionDto emotion
+        EmotionDto emotion,
+        Long goalId
 ) {}

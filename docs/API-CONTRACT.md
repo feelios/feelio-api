@@ -166,11 +166,13 @@ Request:
   "categoryId": 3,
   "emotionId": 4,
   "memo": "달달한 라떼와 케이크",
-  "occurredAt": "2026-07-01T21:30:00"
+  "occurredAt": "2026-07-01T21:30:00",
+  "goalId": 1
 }
 ```
 - 필수: type, amount(>0 정수), categoryId, emotionId, occurredAt
-- memo: 생략 시 **null 저장**(기본 문자열 저장 금지), 최대 200자
+- memo: 생략 시 null 저장, 최대 200자
+- goalId: 선택(null 허용)
 - 서버: transactions 저장(단건)
 
 Response(201) `data`: 생성된 거래 객체. 에러: VALIDATION_ERROR

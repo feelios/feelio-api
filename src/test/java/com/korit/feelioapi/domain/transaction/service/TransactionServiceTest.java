@@ -38,7 +38,7 @@ class TransactionServiceTest {
     @Test
     void 거래_목록과_합계를_조회한다() {
         Long userId = 1L;
-        TransactionSearchCondition condition = new TransactionSearchCondition(2026, 7, null, null, null, null, null);
+        TransactionSearchCondition condition = new TransactionSearchCondition(2026, 7, null, null, null, null, null, null);
         List<TransactionDto> mockTransactions = List.of();
         TransactionTotalDto mockTotals = new TransactionTotalDto(2600000L, 320000L);
 
@@ -58,8 +58,8 @@ class TransactionServiceTest {
     @Test
     void 거래_기록을_생성하고_생성된_객체를_반환한다() {
         Long userId = 1L;
-        TransactionCreateRequest request = new TransactionCreateRequest("EXPENSE", 10000, 2L, 3L, "memo", LocalDateTime.now());
-        TransactionDto mockDto = new TransactionDto(10L, "EXPENSE", 10000, "memo", request.occurredAt(), null, null);
+        TransactionCreateRequest request = new TransactionCreateRequest("EXPENSE", 10000, 2L, 3L, "memo", LocalDateTime.now(), null);
+        TransactionDto mockDto = new TransactionDto(10L, "EXPENSE", 10000, "memo", request.occurredAt(), null, null, null);
 
         doAnswer(invocation -> {
             Transaction t = invocation.getArgument(0);
@@ -100,7 +100,7 @@ class TransactionServiceTest {
         Transaction owned = new Transaction();
         owned.setTransactionId(transactionId);
         owned.setUserId(userId);
-        TransactionDto mockDto = new TransactionDto(transactionId, "EXPENSE", 10000, "memo", LocalDateTime.now(), null, null);
+        TransactionDto mockDto = new TransactionDto(transactionId, "EXPENSE", 10000, "memo", LocalDateTime.now(), null, null, null);
 
         when(transactionMapper.findById(transactionId)).thenReturn(owned);
         when(transactionMapper.findTransactionById(transactionId, userId)).thenReturn(mockDto);
@@ -118,8 +118,8 @@ class TransactionServiceTest {
         Transaction owned = new Transaction();
         owned.setTransactionId(transactionId);
         owned.setUserId(userId);
-        TransactionCreateRequest request = new TransactionCreateRequest("INCOME", 50000, 9L, 1L, "수정메모", LocalDateTime.now());
-        TransactionDto updated = new TransactionDto(transactionId, "INCOME", 50000, "수정메모", request.occurredAt(), null, null);
+        TransactionCreateRequest request = new TransactionCreateRequest("INCOME", 50000, 9L, 1L, "수정메모", LocalDateTime.now(), null);
+        TransactionDto updated = new TransactionDto(transactionId, "INCOME", 50000, "수정메모", request.occurredAt(), null, null, null);
 
         when(transactionMapper.findById(transactionId)).thenReturn(owned);
         when(transactionMapper.findTransactionById(transactionId, userId)).thenReturn(updated);
@@ -136,7 +136,7 @@ class TransactionServiceTest {
     void 거래_수정시_존재하지_않으면_NOT_FOUND() {
         Long userId = 1L;
         Long transactionId = 10L;
-        TransactionCreateRequest request = new TransactionCreateRequest("EXPENSE", 10000, 2L, 3L, "memo", LocalDateTime.now());
+        TransactionCreateRequest request = new TransactionCreateRequest("EXPENSE", 10000, 2L, 3L, "memo", LocalDateTime.now(), null);
 
         when(transactionMapper.findById(transactionId)).thenReturn(null);
 
@@ -154,7 +154,7 @@ class TransactionServiceTest {
         Transaction others = new Transaction();
         others.setTransactionId(transactionId);
         others.setUserId(2L);
-        TransactionCreateRequest request = new TransactionCreateRequest("EXPENSE", 10000, 2L, 3L, "memo", LocalDateTime.now());
+        TransactionCreateRequest request = new TransactionCreateRequest("EXPENSE", 10000, 2L, 3L, "memo", LocalDateTime.now(), null);
 
         when(transactionMapper.findById(transactionId)).thenReturn(others);
 

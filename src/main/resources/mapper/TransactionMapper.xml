@@ -27,6 +27,7 @@
             <arg column="occurred_at" javaType="java.time.LocalDateTime"/>
             <arg javaType="com.korit.feelioapi.domain.transaction.dto.CategoryDto" resultMap="categoryResultMap"/>
             <arg javaType="com.korit.feelioapi.domain.transaction.dto.EmotionDto" resultMap="emotionResultMap"/>
+            <arg column="goal_id" javaType="java.lang.Long"/>
         </constructor>
     </resultMap>
 
@@ -74,7 +75,8 @@
             c.name AS category_name,
             e.emotion_id,
             e.name AS emotion_name,
-            e.color AS emotion_color
+            e.color AS emotion_color,
+            t.goal_id
         FROM transactions t
         LEFT JOIN categories c ON t.category_id = c.category_id
         LEFT JOIN emotions e ON t.emotion_id = e.emotion_id
@@ -99,8 +101,8 @@
     </select>
 
     <insert id="insertTransaction" useGeneratedKeys="true" keyProperty="transactionId">
-        INSERT INTO transactions (user_id, emotion_id, category_id, type, amount, memo, occurred_at)
-        VALUES (#{userId}, #{emotionId}, #{categoryId}, #{type}, #{amount}, #{memo}, #{occurredAt})
+        INSERT INTO transactions (user_id, emotion_id, category_id, type, amount, memo, occurred_at, goal_id)
+        VALUES (#{userId}, #{emotionId}, #{categoryId}, #{type}, #{amount}, #{memo}, #{occurredAt}, #{goalId})
     </insert>
 
     <select id="findTransactionById" resultMap="transactionResultMap">
@@ -114,7 +116,8 @@
             c.name AS category_name,
             e.emotion_id,
             e.name AS emotion_name,
-            e.color AS emotion_color
+            e.color AS emotion_color,
+            t.goal_id
         FROM transactions t
         LEFT JOIN categories c ON t.category_id = c.category_id
         LEFT JOIN emotions e ON t.emotion_id = e.emotion_id
@@ -143,7 +146,8 @@
             type = #{type},
             amount = #{amount},
             memo = #{memo},
-            occurred_at = #{occurredAt}
+            occurred_at = #{occurredAt},
+            goal_id = #{goalId}
         WHERE transaction_id = #{transactionId}
     </update>
 

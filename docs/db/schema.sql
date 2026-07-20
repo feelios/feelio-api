@@ -101,6 +101,7 @@ CREATE TABLE `transactions` (
   `amount` int NOT NULL,
   `memo` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `occurred_at` datetime NOT NULL,
+  `goal_id` bigint DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`transaction_id`),
