@@ -14,6 +14,8 @@ public class Category {
     private Long categoryId;
     private String name;
     private String type;
+    private boolean isFixed;
+    private boolean isBudgetable;
     private int sortOrder;
     private boolean isActive;
 }

@@ -20,6 +20,8 @@ public interface UserMapper {
 
     int markOnboardingDone(@Param("userId") Long userId, @Param("totalAsset") Long totalAsset);
 
+    int addTotalAsset(@Param("userId") Long userId, @Param("amount") int amount);
+
     /** 부분 전송: null 인 컬럼은 건드리지 않는다(동적 SQL). */
     int updateSettings(@Param("userId") Long userId,
                        @Param("themeMode") String themeMode,

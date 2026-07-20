@@ -86,24 +86,28 @@
                    ORDER BY COUNT(*) DESC, SUM(t2.amount) DESC
                    LIMIT 1
                ) AS dominantEmotion,
-               SUM(t.amount) AS currentAmount
+               SUM(t.amount) AS currentAmount,
+               c.is_fixed AS isFixed,
+               c.is_budgetable AS isBudgetable
         FROM transactions t
         JOIN categories c ON t.category_id = c.category_id
         WHERE t.user_id = #{userId} AND t.type = 'EXPENSE'
           AND YEAR(t.occurred_at) = #{year} AND MONTH(t.occurred_at) = #{month}
-        GROUP BY c.category_id, c.name
+        GROUP BY c.category_id, c.name, c.is_fixed, c.is_budgetable
     </select>
 
     <!-- 저번 달 카테고리별 지출 합계 -->
     <select id="findPrevCategoryStats" resultType="com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat">
         SELECT c.category_id AS categoryId,
                c.name AS categoryName,
-               SUM(t.amount) AS prevAmount
+               SUM(t.amount) AS prevAmount,
+               c.is_fixed AS isFixed,
+               c.is_budgetable AS isBudgetable
         FROM transactions t
         JOIN categories c ON t.category_id = c.category_id
         WHERE t.user_id = #{userId} AND t.type = 'EXPENSE'
           AND YEAR(t.occurred_at) = #{year} AND MONTH(t.occurred_at) = #{month}
-        GROUP BY c.category_id, c.name
+        GROUP BY c.category_id, c.name, c.is_fixed, c.is_budgetable
     </select>
 
 </mapper>

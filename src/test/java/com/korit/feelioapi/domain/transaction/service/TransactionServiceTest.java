@@ -59,7 +59,7 @@ class TransactionServiceTest {
     void 거래_기록을_생성하고_생성된_객체를_반환한다() {
         Long userId = 1L;
         TransactionCreateRequest request = new TransactionCreateRequest("EXPENSE", 10000, 2L, 3L, "memo", LocalDateTime.now(), null);
-        TransactionDto mockDto = new TransactionDto(10L, "EXPENSE", 10000, "memo", request.occurredAt(), null, null, null);
+        TransactionDto mockDto = new TransactionDto(10L, "EXPENSE", 10000, "memo", request.occurredAt(), null, null, null, false);
 
         doAnswer(invocation -> {
             Transaction t = invocation.getArgument(0);
@@ -100,7 +100,7 @@ class TransactionServiceTest {
         Transaction owned = new Transaction();
         owned.setTransactionId(transactionId);
         owned.setUserId(userId);
-        TransactionDto mockDto = new TransactionDto(transactionId, "EXPENSE", 10000, "memo", LocalDateTime.now(), null, null, null);
+        TransactionDto mockDto = new TransactionDto(transactionId, "EXPENSE", 10000, "memo", LocalDateTime.now(), null, null, null, false);
 
         when(transactionMapper.findById(transactionId)).thenReturn(owned);
         when(transactionMapper.findTransactionById(transactionId, userId)).thenReturn(mockDto);
@@ -119,7 +119,7 @@ class TransactionServiceTest {
         owned.setTransactionId(transactionId);
         owned.setUserId(userId);
         TransactionCreateRequest request = new TransactionCreateRequest("INCOME", 50000, 9L, 1L, "수정메모", LocalDateTime.now(), null);
-        TransactionDto updated = new TransactionDto(transactionId, "INCOME", 50000, "수정메모", request.occurredAt(), null, null, null);
+        TransactionDto updated = new TransactionDto(transactionId, "INCOME", 50000, "메모", request.occurredAt(), null, null, null, false);
 
         when(transactionMapper.findById(transactionId)).thenReturn(owned);
         when(transactionMapper.findTransactionById(transactionId, userId)).thenReturn(updated);

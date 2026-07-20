@@ -112,15 +112,15 @@ class AnalysisServiceTest {
         // Prev Stats: total expense = 1,000,000
         when(analysisMapper.findPrevCategoryStats(1L, prevYear, prevMonth))
                 .thenReturn(List.of(
-                        new com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat(1L, "식비", 600000L),
-                        new com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat(2L, "쇼핑", 400000L)
+                        new com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat(1L, "식비", 600000L, false, true),
+                        new com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat(2L, "교통", 400000L, false, true)
                 ));
 
         // Current Stats
         when(analysisMapper.findCurrentCategoryStats(1L, currentYear, currentMonth))
                 .thenReturn(List.of(
-                        new com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat(1L, "식비", "보통", 10000L),
-                        new com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat(2L, "쇼핑", "설렘", 5000L)
+                        new com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat(1L, "식비", "기쁨", 10000L, false, true),
+                        new com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat(2L, "교통", "슬픔", 5000L, false, true)
                 ));
 
         // When
@@ -137,7 +137,7 @@ class AnalysisServiceTest {
         assertThat(item1.budget()).isEqualTo(456000L);
 
         com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem item2 = response.budgetItems().get(1);
-        assertThat(item2.name()).isEqualTo("쇼핑");
+        assertThat(item2.name()).isEqualTo("교통");
         assertThat(item2.budget()).isEqualTo(304000L);
     }
 }

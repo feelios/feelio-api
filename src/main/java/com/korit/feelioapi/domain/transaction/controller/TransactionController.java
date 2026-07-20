@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.http.HttpStatus;
 import jakarta.validation.Valid;
 
@@ -101,5 +102,22 @@ public class TransactionController {
             @AuthenticationPrincipal Long userId
     ) {
         return ApiResponse.success(transactionService.resetTransactions(userId));
+    }
+
+    /** GET /api/transactions/dutch-pay/pending — 미정산 더치페이 목록 조회. 인증 필요. */
+    @GetMapping("/dutch-pay/pending")
+    public ApiResponse<TransactionListResponse> getPendingDutchPay(
+            @AuthenticationPrincipal Long userId
+    ) {
+        return ApiResponse.success(transactionService.getPendingDutchPay(userId));
+    }
+
+    /** PATCH /api/transactions/{transactionId}/settle — 더치페이 정산 완료 처리. 인증 필요. */
+    @PatchMapping("/{transactionId}/settle")
+    public ApiResponse<com.korit.feelioapi.domain.transaction.dto.DutchPaySettleResponse> settleDutchPay(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long transactionId
+    ) {
+        return ApiResponse.success(transactionService.settleDutchPay(userId, transactionId));
     }
 }

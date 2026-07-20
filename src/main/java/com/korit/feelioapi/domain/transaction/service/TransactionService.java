@@ -13,6 +13,7 @@ import com.korit.feelioapi.domain.transaction.entity.Transaction;
 import com.korit.feelioapi.domain.goal.entity.Goal;
 import com.korit.feelioapi.domain.goal.mapper.GoalMapper;
 import com.korit.feelioapi.domain.transaction.mapper.TransactionMapper;
+import com.korit.feelioapi.domain.user.mapper.UserMapper;
 import com.korit.feelioapi.global.exception.BusinessException;
 import com.korit.feelioapi.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ public class TransactionService {
 
     private final TransactionMapper transactionMapper;
     private final GoalMapper goalMapper;
+    private final UserMapper userMapper;
 
     @Transactional(readOnly = true)
     public TransactionListResponse getTransactions(Long userId, TransactionSearchCondition condition) {
@@ -126,6 +128,46 @@ public class TransactionService {
     public TransactionResetResponse resetTransactions(Long userId) {
         int deletedCount = transactionMapper.deleteAllTransactionsByUserId(userId);
         return new TransactionResetResponse(deletedCount);
+    }
+
+    @Transactional(readOnly = true)
+    public TransactionListResponse getPendingDutchPay(Long userId) {
+        List<TransactionDto> transactions = transactionMapper.findPendingDutchPay(userId);
+        return new TransactionListResponse(transactions, 0L, 0L);
+    }
+
+    @Transactional
+    public com.korit.feelioapi.domain.transaction.dto.DutchPaySettleResponse settleDutchPay(Long userId, Long transactionId) {
+        Transaction transaction = getOwnedOrThrow(userId, transactionId);
+        
+        if (transaction.isSettled()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+        }
+
+        // 1. 원본 지출 정산 완료 처리
+        transaction.setSettled(true);
+        transactionMapper.updateTransaction(transaction);
+
+        // 2. 신규 정산금(INCOME) 거래 생성
+        Long categoryId = transactionMapper.findCategoryIdByNameAndType("정산금", "INCOME");
+        if (categoryId == null) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR); // 시드 데이터 누락
+        }
+
+        Transaction incomeTransaction = new Transaction();
+        incomeTransaction.setUserId(userId);
+        incomeTransaction.setEmotionId(transaction.getEmotionId());
+        incomeTransaction.setCategoryId(categoryId);
+        incomeTransaction.setType("INCOME");
+        incomeTransaction.setAmount(transaction.getAmount());
+        incomeTransaction.setMemo(transaction.getMemo() + " (정산완료)");
+        incomeTransaction.setOccurredAt(java.time.LocalDateTime.now());
+        transactionMapper.insertTransaction(incomeTransaction);
+
+        // 3. 총자산 증가
+        userMapper.addTotalAsset(userId, transaction.getAmount());
+
+        return new com.korit.feelioapi.domain.transaction.dto.DutchPaySettleResponse(true, incomeTransaction.getTransactionId());
     }
 
     @Transactional(readOnly = true)

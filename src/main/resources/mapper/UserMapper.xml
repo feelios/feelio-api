@@ -37,6 +37,13 @@
         WHERE user_id = #{userId}
     </update>
 
+    <!-- 자산 증가/감소. -->
+    <update id="addTotalAsset">
+        UPDATE users
+        SET total_asset = total_asset + #{amount}
+        WHERE user_id = #{userId}
+    </update>
+
     <!-- 설정 부분 수정: 전송된(null 아닌) 컬럼만 갱신. -->
     <update id="updateSettings">
         UPDATE users

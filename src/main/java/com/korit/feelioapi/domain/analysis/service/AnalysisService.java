@@ -169,21 +169,36 @@ public class AnalysisService {
         Map<Long, Long> prevStatMap = prevStats.stream()
                 .collect(Collectors.toMap(com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat::categoryId, com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat::prevAmount));
 
-        long prevTotalExpense = prevStats.stream().mapToLong(com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat::prevAmount).sum();
+        // 2. Sum up prev variable expenses (isFixed = false, isBudgetable = true)
+        long variablePrevTotalExpense = prevStats.stream()
+                .filter(stat -> !stat.isFixed() && stat.isBudgetable())
+                .mapToLong(com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat::prevAmount)
+                .sum();
 
         List<com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem> budgetItems = new ArrayList<>();
         java.util.Set<Long> processedCategories = new java.util.HashSet<>();
 
         for (com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat currentStat : currentStats) {
             processedCategories.add(currentStat.categoryId());
+            
+            if (!currentStat.isBudgetable()) {
+                continue; // 예산 제외 항목
+            }
+
             Long prevAmount = prevStatMap.getOrDefault(currentStat.categoryId(), 0L);
             long budget = 0L;
-            if (prevTotalExpense > 0) {
-                double reductionRatio = (double) totalRequiredSavings / prevTotalExpense;
-                reductionRatio = Math.min(1.0, reductionRatio);
-                double rawBudget = prevAmount * (1.0 - reductionRatio);
-                budget = Math.round(rawBudget / 1000.0) * 1000L;
+            
+            if (currentStat.isFixed()) {
+                budget = Math.max(prevAmount, currentStat.currentAmount());
+            } else {
+                if (variablePrevTotalExpense > 0) {
+                    double reductionRatio = (double) totalRequiredSavings / variablePrevTotalExpense;
+                    reductionRatio = Math.min(1.0, reductionRatio);
+                    double rawBudget = prevAmount * (1.0 - reductionRatio);
+                    budget = Math.round(rawBudget / 1000.0) * 1000L;
+                }
             }
+
             budgetItems.add(new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem(
                     currentStat.categoryName(),
                     currentStat.dominantEmotion() != null ? currentStat.dominantEmotion() : "보통",
@@ -195,13 +210,22 @@ public class AnalysisService {
 
         for (com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat prevStat : prevStats) {
             if (!processedCategories.contains(prevStat.categoryId())) {
-                long budget = 0L;
-                if (prevTotalExpense > 0) {
-                    double reductionRatio = (double) totalRequiredSavings / prevTotalExpense;
-                    reductionRatio = Math.min(1.0, reductionRatio);
-                    double rawBudget = prevStat.prevAmount() * (1.0 - reductionRatio);
-                    budget = Math.round(rawBudget / 1000.0) * 1000L;
+                if (!prevStat.isBudgetable()) {
+                    continue; // 예산 제외 항목
                 }
+
+                long budget = 0L;
+                if (prevStat.isFixed()) {
+                    budget = prevStat.prevAmount();
+                } else {
+                    if (variablePrevTotalExpense > 0) {
+                        double reductionRatio = (double) totalRequiredSavings / variablePrevTotalExpense;
+                        reductionRatio = Math.min(1.0, reductionRatio);
+                        double rawBudget = prevStat.prevAmount() * (1.0 - reductionRatio);
+                        budget = Math.round(rawBudget / 1000.0) * 1000L;
+                    }
+                }
+
                 budgetItems.add(new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem(
                         prevStat.categoryName() != null ? prevStat.categoryName() : "기타",
                         "보통",
