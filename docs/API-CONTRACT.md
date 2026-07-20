@@ -182,6 +182,35 @@ Response(201) `data`: 생성된 거래 객체. 에러: VALIDATION_ERROR
 ### DELETE /api/transactions/{transactionId} · 인증 필요 → `data`: `{ "deleted": true }` (확인 다이얼로그는 프론트 책임)
 ### DELETE /api/transactions — 전체 초기화 · 인증 필요 → `data`: `{ "deletedCount": 42 }` (프로필>데이터 관리 전용)
 
+### GET /api/transactions/dutch-pay/pending · 인증 필요 — 미정산 더치페이 목록 조회 (F11-4)
+Response `data`:
+```json
+{
+  "transactions": [
+    {
+      "transactionId": 12,
+      "type": "EXPENSE",
+      "amount": 40000,
+      "category": { "categoryId": 99, "name": "더치페이" },
+      "emotion": { "emotionId": 7, "name": "평온", "color": "#83C9B0" },
+      "memo": "고기집 N빵 대납",
+      "occurredAt": "2026-07-20T19:00:00",
+      "isSettled": false
+    }
+  ]
+}
+```
+- 지출 내역 중 카테고리가 '더치페이'이면서 `is_settled = false`인 내역 반환.
+
+### PATCH /api/transactions/{transactionId}/settle · 인증 필요 — 더치페이 정산 완료 처리 (F11-4)
+Request: 바디 없음
+Response(200) `data`: `{ "settled": true, "newIncomeTransactionId": 13 }`
+- 서버 내부 로직: 
+  1. 원본 지출의 `is_settled = true` 업데이트
+  2. 원본 금액만큼의 `INCOME` 타입, '정산금' 카테고리 신규 거래 내역 자동 생성
+  3. 유저의 `totalAsset` 해당 금액만큼 증가
+- 에러: FORBIDDEN(타인 거래), NOT_FOUND, VALIDATION_ERROR(이미 정산된 거래 등)
+
 ## 7. 목표 (Goals)
 
 ### 목표 객체
@@ -200,7 +229,7 @@ Response(201) `data`: 생성된 거래 객체. 에러: VALIDATION_ERROR
 ```
 
 - `GET /api/goals` – data: `{ "goals": [ ] }` (isMain은 항상 최대 1건, currentAmount는 [initialAmount + 해당 goal_id로 기록된 거래액 SUM]으로 자동 계산되어 반환됨)
-- `POST /api/goals` – name, targetAmount(>0) 필수. initialAmount(초기 모은 돈) 설정 가능(기본 0). `isMain: true`면 기존 대표 목표를 일반으로 내림
+- `POST /api/goals` – name, targetAmount(>0), dueDate 필수. initialAmount(초기 모은 돈) 설정 가능(기본 0). `isMain: true`면 기존 대표 목표를 일반으로 내림
 - `PUT /api/goals/{goalId}` – POST와 동일 필드
 - `DELETE /api/goals/{goalId}` → `data`: `{ "deleted": true }`
 - 온보딩 완료: `POST /api/goals`(isMain=true) 성공 → `PATCH /api/users/me/onboarding` 순서 호출

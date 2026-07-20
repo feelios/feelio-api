@@ -36,6 +36,7 @@ public class AnalysisService {
 
     private final AnalysisMapper analysisMapper;
     private final InsightGenerator insightGenerator;
+    private final com.korit.feelioapi.domain.goal.mapper.GoalMapper goalMapper;
 
     @Transactional(readOnly = true)
     public AnalysisResponse getMonthlyAnalysis(Long userId, int year, int month) {
@@ -146,17 +147,43 @@ public class AnalysisService {
         int prevYear = prevDate.getYear();
         int prevMonth = prevDate.getMonthValue();
 
+        // 1. Calculate required savings (S)
+        List<com.korit.feelioapi.domain.goal.entity.Goal> goals = goalMapper.findGoalsByUserId(userId);
+        long totalRequiredSavings = 0;
+        for (com.korit.feelioapi.domain.goal.entity.Goal goal : goals) {
+            if ("ACTIVE".equals(goal.getStatus())) {
+                long remainingAmount = Math.max(0, goal.getTargetAmount() - goal.getCurrentAmount());
+                int monthsToGoal = 1;
+                if (goal.getDueDate() != null) {
+                    monthsToGoal = (goal.getDueDate().getYear() - currentYear) * 12 + (goal.getDueDate().getMonthValue() - currentMonth);
+                }
+                monthsToGoal = Math.max(1, monthsToGoal);
+                long monthlySaving = (long) Math.ceil((double) remainingAmount / monthsToGoal);
+                totalRequiredSavings += monthlySaving;
+            }
+        }
+
         List<com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat> currentStats = analysisMapper.findCurrentCategoryStats(userId, currentYear, currentMonth);
         List<com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat> prevStats = analysisMapper.findPrevCategoryStats(userId, prevYear, prevMonth);
 
         Map<Long, Long> prevStatMap = prevStats.stream()
                 .collect(Collectors.toMap(com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat::categoryId, com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat::prevAmount));
 
+        long prevTotalExpense = prevStats.stream().mapToLong(com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat::prevAmount).sum();
+
         List<com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem> budgetItems = new ArrayList<>();
+        java.util.Set<Long> processedCategories = new java.util.HashSet<>();
 
         for (com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat currentStat : currentStats) {
+            processedCategories.add(currentStat.categoryId());
             Long prevAmount = prevStatMap.getOrDefault(currentStat.categoryId(), 0L);
-            Long budget = prevAmount > 0 ? (long) (prevAmount * 0.95) : 0L;
+            long budget = 0L;
+            if (prevTotalExpense > 0) {
+                double reductionRatio = (double) totalRequiredSavings / prevTotalExpense;
+                reductionRatio = Math.min(1.0, reductionRatio);
+                double rawBudget = prevAmount * (1.0 - reductionRatio);
+                budget = Math.round(rawBudget / 1000.0) * 1000L;
+            }
             budgetItems.add(new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem(
                     currentStat.categoryName(),
                     currentStat.dominantEmotion() != null ? currentStat.dominantEmotion() : "보통",
@@ -164,6 +191,25 @@ public class AnalysisService {
                     prevAmount,
                     budget
             ));
+        }
+
+        for (com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat prevStat : prevStats) {
+            if (!processedCategories.contains(prevStat.categoryId())) {
+                long budget = 0L;
+                if (prevTotalExpense > 0) {
+                    double reductionRatio = (double) totalRequiredSavings / prevTotalExpense;
+                    reductionRatio = Math.min(1.0, reductionRatio);
+                    double rawBudget = prevStat.prevAmount() * (1.0 - reductionRatio);
+                    budget = Math.round(rawBudget / 1000.0) * 1000L;
+                }
+                budgetItems.add(new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem(
+                        prevStat.categoryName() != null ? prevStat.categoryName() : "기타",
+                        "보통",
+                        0L,
+                        prevStat.prevAmount(),
+                        budget
+                ));
+            }
         }
 
         return new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse(budgetItems);

@@ -24,6 +24,8 @@ public record GoalRequest(
         Long initialAmount,
 
         LocalDate startDate,
+
+        @NotNull(message = "마감일은 필수입니다.")
         LocalDate dueDate,
         Boolean isMain
 ) {

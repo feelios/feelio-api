@@ -28,6 +28,7 @@ class AnalysisServiceTest {
 
     @Mock private AnalysisMapper analysisMapper;
     @Mock private InsightGenerator insightGenerator;
+    @Mock private com.korit.feelioapi.domain.goal.mapper.GoalMapper goalMapper;
 
     @InjectMocks private AnalysisService analysisService;
 
@@ -80,5 +81,63 @@ class AnalysisServiceTest {
         assertThat(response.byTimeSlot()).isEmpty();
         assertThat(response.insights()).isEmpty();
         assertThat(response.totalExpense()).isZero();
+    }
+
+    @Test
+    void 모든_활성_목표의_필요저축액을_합산하여_동적_예산을_카테고리별로_분배한다() {
+        // Given
+        java.time.LocalDate now = java.time.LocalDate.now();
+        int currentYear = now.getYear();
+        int currentMonth = now.getMonthValue();
+        
+        java.time.LocalDate prevDate = now.minusMonths(1);
+        int prevYear = prevDate.getYear();
+        int prevMonth = prevDate.getMonthValue();
+
+        com.korit.feelioapi.domain.goal.entity.Goal goal1 = new com.korit.feelioapi.domain.goal.entity.Goal();
+        goal1.setStatus("ACTIVE");
+        goal1.setTargetAmount(120000);
+        goal1.setCurrentAmount(0); // 120,000 required
+        goal1.setDueDate(now.plusMonths(1)); // monthsToGoal = 1 -> 120,000 / month
+
+        com.korit.feelioapi.domain.goal.entity.Goal goal2 = new com.korit.feelioapi.domain.goal.entity.Goal();
+        goal2.setStatus("ACTIVE");
+        goal2.setTargetAmount(240000);
+        goal2.setCurrentAmount(0); // 240,000 required
+        goal2.setDueDate(now.plusMonths(2)); // monthsToGoal = 2 -> 120,000 / month
+
+        // totalRequiredSavings = 240,000
+        when(goalMapper.findGoalsByUserId(1L)).thenReturn(List.of(goal1, goal2));
+
+        // Prev Stats: total expense = 1,000,000
+        when(analysisMapper.findPrevCategoryStats(1L, prevYear, prevMonth))
+                .thenReturn(List.of(
+                        new com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat(1L, "식비", 600000L),
+                        new com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat(2L, "쇼핑", 400000L)
+                ));
+
+        // Current Stats
+        when(analysisMapper.findCurrentCategoryStats(1L, currentYear, currentMonth))
+                .thenReturn(List.of(
+                        new com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat(1L, "식비", "보통", 10000L),
+                        new com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat(2L, "쇼핑", "설렘", 5000L)
+                ));
+
+        // When
+        com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse response = analysisService.getBudgetStatus(1L);
+
+        // Then
+        // reductionRatio = 240,000 / 1,000,000 = 0.24
+        // Category 1: 600,000 * (1 - 0.24) = 600,000 * 0.76 = 456,000
+        // Category 2: 400,000 * (1 - 0.24) = 400,000 * 0.76 = 304,000
+        assertThat(response.budgetItems()).hasSize(2);
+        
+        com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem item1 = response.budgetItems().get(0);
+        assertThat(item1.name()).isEqualTo("식비");
+        assertThat(item1.budget()).isEqualTo(456000L);
+
+        com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem item2 = response.budgetItems().get(1);
+        assertThat(item2.name()).isEqualTo("쇼핑");
+        assertThat(item2.budget()).isEqualTo(304000L);
     }
 }
