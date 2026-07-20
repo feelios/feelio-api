@@ -39,7 +39,8 @@
 | [x] | - | A6-1 | 온보딩 '총자산' 필드 추가 | feat/onboarding-total-asset | 신규 API | Ctrl·Svc·DTO·Mapper | users | 완료 | 온보딩 API 호출 시 사용자의 총자산(totalAsset) 금액 입력받아 DB 저장 |
 | [ ] | - | A6-2 | 거래내역 저축-목표 매핑 (FK) | feat/transaction-goal-mapping | 신규 API | Ctrl·Svc·DTO·Mapper+XML | transactions | 신규 | 카테고리가 '저축'인 지출 생성 시 goal_id(Nullable) 함께 매핑하여 저장 처리 |
 | [x] | - | A6-3 | 목표 달성액(모은 돈) 동적 산출 | feat/goal-amount-dynamic-calc | 신규 API | Ctrl·Svc·Mapper+XML | goals, transactions | 완료 | 목표의 현재 금액을 단순 DB 값이 아닌 `초기금액 + SUM(해당 goal_id 거래액)`으로 산출 반환 |
-| [ ] | - | A6-4 | 동적 예산 분석 로직 개편 | feat/analysis-dynamic-budget | 신규 API | Ctrl·Svc·DTO | goals | 신규 | 기존 5% 로직 폐기, 모든 활성 목표의 월별 필요 저축액을 합산하여 이번 달 최종 예산으로 산출 및 초과/미달 판단 |
+| [x] | - | A6-4 | 동적 예산 분석 로직 개편 | feat/analysis-dynamic-budget | 신규 API | Ctrl·Svc·DTO | goals | 완료 | 기존 5% 로직 폐기, 모든 활성 목표의 월별 필요 저축액을 합산하여 이번 달 최종 예산으로 산출 및 초과/미달 판단 |
+| [ ] | - | A6-5 | 예산 고도화 및 더치페이 정산 API | feat/analysis-dutch-pay | 신규 API | Ctrl·Svc·DTO·Mapper+XML | categories, transactions, users | 신규 | 1. categories 속성(is_fixed, is_budgetable) 세분화 및 예산 분산 산출<br>2. transactions에 is_settled 추가<br>3. 미정산 리스트 조회 및 정산 완료(수입 자동 생성) API 신설 |
 
 ## 병렬 작업 규칙 (Claude ↔ Gemini 충돌 방지)
 - **도메인 단위로 분할**한다. 같은 도메인(auth/users/transactions…) 이슈를 둘이 쪼개 갖지 않는다.
