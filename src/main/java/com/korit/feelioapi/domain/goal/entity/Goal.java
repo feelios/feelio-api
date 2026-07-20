@@ -19,6 +19,7 @@ public class Goal {
     private String name;
     private Integer targetAmount;
     private Integer currentAmount;
+    private Long initialAmount;
     private LocalDate startDate;
     private LocalDate dueDate;
     private Boolean isMain;

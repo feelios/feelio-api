@@ -118,6 +118,7 @@ CREATE TABLE `goals` (
   `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `target_amount` int NOT NULL,
   `current_amount` int NOT NULL DEFAULT '0',
+  `initial_amount` bigint NOT NULL DEFAULT '0',
   `start_date` date DEFAULT NULL,
   `due_date` date DEFAULT NULL,
   `is_main` tinyint(1) NOT NULL DEFAULT '0',

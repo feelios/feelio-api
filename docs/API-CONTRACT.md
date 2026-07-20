@@ -191,6 +191,7 @@ Response(201) `data`: 생성된 거래 객체. 에러: VALIDATION_ERROR
   "name": "제주도 여행",
   "targetAmount": 2000000,
   "currentAmount": 0,
+  "initialAmount": 0,
   "startDate": "2026-07-06",
   "dueDate": "2026-10-31",
   "isMain": true,
@@ -198,8 +199,8 @@ Response(201) `data`: 생성된 거래 객체. 에러: VALIDATION_ERROR
 }
 ```
 
-- `GET /api/goals` – data: `{ "goals": [ ] }` (isMain은 항상 최대 1건, currentAmount는 [초기입력값 + 시작일 이후 누적 순저축액]으로 자동 계산되어 반환됨)
-- `POST /api/goals` – name, targetAmount(>0) 필수. currentAmount(초기 모은 돈) 설정 가능. `isMain: true`면 기존 대표 목표를 일반으로 내리고 트랜잭션으로 묶음
+- `GET /api/goals` – data: `{ "goals": [ ] }` (isMain은 항상 최대 1건, currentAmount는 [initialAmount + 해당 goal_id로 기록된 거래액 SUM]으로 자동 계산되어 반환됨)
+- `POST /api/goals` – name, targetAmount(>0) 필수. initialAmount(초기 모은 돈) 설정 가능(기본 0). `isMain: true`면 기존 대표 목표를 일반으로 내림
 - `PUT /api/goals/{goalId}` – POST와 동일 필드
 - `DELETE /api/goals/{goalId}` → `data`: `{ "deleted": true }`
 - 온보딩 완료: `POST /api/goals`(isMain=true) 성공 → `PATCH /api/users/me/onboarding` 순서 호출

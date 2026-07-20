@@ -38,7 +38,7 @@
 | [x] | - | A5-2 | 반복 소비 패턴 분석 API | feat/recurring-pattern-api | 신규 API | Ctrl·Svc·DTO·Mapper | transactions | 완료 | 동일 감정/시간대/사용처 소비 패턴 반환, 5분 이내 중복 결제 병합 필터링 포함 |
 | [x] | - | A6-1 | 온보딩 '총자산' 필드 추가 | feat/onboarding-total-asset | 신규 API | Ctrl·Svc·DTO·Mapper | users | 완료 | 온보딩 API 호출 시 사용자의 총자산(totalAsset) 금액 입력받아 DB 저장 |
 | [ ] | - | A6-2 | 거래내역 저축-목표 매핑 (FK) | feat/transaction-goal-mapping | 신규 API | Ctrl·Svc·DTO·Mapper+XML | transactions | 신규 | 카테고리가 '저축'인 지출 생성 시 goal_id(Nullable) 함께 매핑하여 저장 처리 |
-| [ ] | - | A6-3 | 목표 달성액(모은 돈) 동적 산출 | feat/goal-amount-dynamic-calc | 신규 API | Ctrl·Svc·Mapper+XML | goals, transactions | 신규 | 목표의 현재 금액을 단순 DB 값이 아닌 `초기금액 + SUM(해당 goal_id 거래액)`으로 산출 반환 |
+| [x] | - | A6-3 | 목표 달성액(모은 돈) 동적 산출 | feat/goal-amount-dynamic-calc | 신규 API | Ctrl·Svc·Mapper+XML | goals, transactions | 완료 | 목표의 현재 금액을 단순 DB 값이 아닌 `초기금액 + SUM(해당 goal_id 거래액)`으로 산출 반환 |
 | [ ] | - | A6-4 | 동적 예산 분석 로직 개편 | feat/analysis-dynamic-budget | 신규 API | Ctrl·Svc·DTO | goals | 신규 | 기존 5% 로직 폐기, 모든 활성 목표의 월별 필요 저축액을 합산하여 이번 달 최종 예산으로 산출 및 초과/미달 판단 |
 
 ## 병렬 작업 규칙 (Claude ↔ Gemini 충돌 방지)
