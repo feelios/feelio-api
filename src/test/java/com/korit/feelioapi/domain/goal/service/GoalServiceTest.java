@@ -30,6 +30,7 @@ import static org.mockito.Mockito.when;
 class GoalServiceTest {
 
     @Mock private GoalMapper goalMapper;
+    @Mock private com.korit.feelioapi.domain.transaction.mapper.TransactionMapper transactionMapper;
 
     @InjectMocks private GoalService goalService;
 
@@ -46,13 +47,16 @@ class GoalServiceTest {
     }
 
     private GoalRequest request(String name, Integer targetAmount, Boolean isMain) {
-        return new GoalRequest(name, targetAmount, null, null, isMain);
+        return new GoalRequest(name, targetAmount, null, null, null, isMain);
     }
 
     @Test
     void 목표_목록을_반환한다() {
         when(goalMapper.findGoalsByUserId(1L))
                 .thenReturn(List.of(goal(1L, 1L, "제주도 여행", true), goal(2L, 1L, "노트북", false)));
+        
+        when(transactionMapper.calculateTotals(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new com.korit.feelioapi.domain.transaction.dto.TransactionTotalDto(0L, 0L));
 
         GoalListResponse response = goalService.getGoals(1L);
 

@@ -12,5 +12,6 @@ public record TransactionCreateRequest(
         @NotNull Long categoryId,
         @NotNull Long emotionId,
         String memo,
-        @NotNull @PastOrPresent LocalDateTime occurredAt
+        @NotNull @PastOrPresent LocalDateTime occurredAt,
+        Long goalId
 ) {}

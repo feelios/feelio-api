@@ -31,12 +31,12 @@
 | [x] | - | A3-5 | 거래 전체 초기화 | feat/tx-reset | §6 | Ctrl·Svc·Mapper | transactions | 완료 | 본인 거래 전체 삭제 → {deletedCount} |
 | [x] | - | A4-1 | 커스텀 카테고리 설정 | feat/custom-category-order | 신규 | Ctrl·Svc·DTO·Entity·Mapper+XML | custom_categories, category_orders | 완료 | 커스텀 카테고리 추가/삭제, 공통+커스텀 통합 정렬 순서 저장 및 반환 |
 | [x] | - | A4-2 | 프론트 연동용 CORS 설정 | feat/cors-credentials | §14 | config | - | 완료 | Allow-Credentials: true 활성화 및 Allow-Origin에 프론트 도메인 매핑 |
-| [ ] | - | A4-3 | AI 멘트 API 설계 및 Mock 연동 | feat/analysis-ai-insights-api | 신규 API | Ctrl·DTO | - | 신규 | `GET /api/analysis/ai-insights` 신설 → 응답 DTO(`aiQuickInsights`, `emotionCards`) 설계 → DB 없이 Mock 객체 반환(200 OK) |
-| [ ] | - | A4-4 | 최근 7개월 지출 추이 API 설계 | feat/analysis-trend-api | 신규 API | Ctrl·Svc·DTO·Mapper | transactions | 신규 | 1. `GET /api/analysis/trend` 엔드포인트 신설.<br>2. 호출 시점 기준 최근 7개월(당월 포함)간 월별 총 지출액 Group By 집계 (데이터 없는 달은 금액 `0`으로 채워 총 7개 요소 반환 보장).<br>3. 당월 및 전월 총 지출액을 비교하여 증감률(%) 계산 후 프론트 규격에 맞춰 JSON 반환. |
-| [ ] | - | A4-5 | 목표 예산 현황 API 설계 | feat/analysis-budget-api | 신규 API | Ctrl·Svc·DTO·Mapper | transactions | 신규 | 1. `GET /api/analysis/budget` 엔드포인트 신설 및 응답 DTO(`budgetItems`) 설계.<br>2. 당월 소비 카테고리 기준 저번 달 지출 금액(`prevAmount`) DB 조회 로직 구현.<br>3. `prevAmount` 값에 `0.95`를 곱해 이번 달 목표 예산을 자동 산출하는 비즈니스 로직 적용.<br>4. 카테고리별 소비 내역에서 지배적 "감정 태그"(예: 스트레스) 추출 및 동반 반환. |
-| [ ] | - | A5-1 | 다중 거래내역 삭제 API | feat/transaction-bulk-delete-api | 신규 API | Ctrl·Svc·Mapper | transactions | 신규 | 다중 거래내역 ID 배열을 받아 DB에서 일괄 삭제 처리 |
-| [ ] | - | A5-2 | 반복 소비 패턴 분석 API | feat/recurring-pattern-api | 신규 API | Ctrl·Svc·DTO·Mapper | transactions | 신규 | 동일 감정/시간대/사용처 소비 패턴 반환, 5분 이내 중복 결제 병합 필터링 포함 |
-| [ ] | - | A6-1 | 온보딩 '총자산' 필드 추가 | feat/onboarding-total-asset | 신규 API | Ctrl·Svc·DTO·Mapper | users | 신규 | 온보딩 API 호출 시 사용자의 총자산(totalAsset) 금액 입력받아 DB 저장 |
+| [x] | - | A4-3 | AI 멘트 API 설계 및 Mock 연동 | feat/analysis-ai-insights-api | 신규 API | Ctrl·DTO | - | 완료 | `GET /api/analysis/ai-insights` 신설 → 응답 DTO(`aiQuickInsights`, `emotionCards`) 설계 → DB 없이 Mock 객체 반환(200 OK) |
+| [x] | - | A4-4 | 최근 7개월 지출 추이 API 설계 | feat/analysis-trend-api | 신규 API | Ctrl·Svc·DTO·Mapper | transactions | 완료 | 1. `GET /api/analysis/trend` 엔드포인트 신설.<br>2. 호출 시점 기준 최근 7개월(당월 포함)간 월별 총 지출액 Group By 집계 (데이터 없는 달은 금액 `0`으로 채워 총 7개 요소 반환 보장).<br>3. 당월 및 전월 총 지출액을 비교하여 증감률(%) 계산 후 프론트 규격에 맞춰 JSON 반환. |
+| [x] | - | A4-5 | 목표 예산 현황 API 설계 | feat/analysis-budget-api | 신규 API | Ctrl·Svc·DTO·Mapper | transactions | 완료 | 1. `GET /api/analysis/budget` 엔드포인트 신설 및 응답 DTO(`budgetItems`) 설계.<br>2. 당월 소비 카테고리 기준 저번 달 지출 금액(`prevAmount`) DB 조회 로직 구현.<br>3. `prevAmount` 값에 `0.95`를 곱해 이번 달 목표 예산을 자동 산출하는 비즈니스 로직 적용.<br>4. 카테고리별 소비 내역에서 지배적 "감정 태그"(예: 스트레스) 추출 및 동반 반환. |
+| [x] | - | A5-1 | 다중 거래내역 삭제 API | feat/transaction-bulk-delete-api | 신규 API | Ctrl·Svc·Mapper | transactions | 완료 | 다중 거래내역 ID 배열을 받아 DB에서 일괄 삭제 처리 |
+| [x] | - | A5-2 | 반복 소비 패턴 분석 API | feat/recurring-pattern-api | 신규 API | Ctrl·Svc·DTO·Mapper | transactions | 완료 | 동일 감정/시간대/사용처 소비 패턴 반환, 5분 이내 중복 결제 병합 필터링 포함 |
+| [x] | - | A6-1 | 온보딩 '총자산' 필드 추가 | feat/onboarding-total-asset | 신규 API | Ctrl·Svc·DTO·Mapper | users | 완료 | 온보딩 API 호출 시 사용자의 총자산(totalAsset) 금액 입력받아 DB 저장 |
 | [ ] | - | A6-2 | 거래내역 저축-목표 매핑 (FK) | feat/transaction-goal-mapping | 신규 API | Ctrl·Svc·DTO·Mapper+XML | transactions | 신규 | 카테고리가 '저축'인 지출 생성 시 goal_id(Nullable) 함께 매핑하여 저장 처리 |
 | [ ] | - | A6-3 | 목표 달성액(모은 돈) 동적 산출 | feat/goal-amount-dynamic-calc | 신규 API | Ctrl·Svc·Mapper+XML | goals, transactions | 신규 | 목표의 현재 금액을 단순 DB 값이 아닌 `초기금액 + SUM(해당 goal_id 거래액)`으로 산출 반환 |
 | [ ] | - | A6-4 | 동적 예산 분석 로직 개편 | feat/analysis-dynamic-budget | 신규 API | Ctrl·Svc·DTO | goals | 신규 | 기존 5% 로직 폐기, 모든 활성 목표의 월별 필요 저축액을 합산하여 이번 달 최종 예산으로 산출 및 초과/미달 판단 |
