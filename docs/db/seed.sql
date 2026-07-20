@@ -18,15 +18,28 @@ INSERT INTO emotions (name, color, character_key, sort_order) VALUES
  ('무덤덤',  '#AEB4C1', 'numb',    8);
 
 -- 카테고리 (EXPENSE 8 + INCOME 3) — sort_order 는 타입별 순번
-INSERT INTO categories (name, type, sort_order) VALUES
- ('식비', 'EXPENSE', 1),
- ('배달', 'EXPENSE', 2),
- ('카페', 'EXPENSE', 3),
- ('교통', 'EXPENSE', 4),
- ('쇼핑', 'EXPENSE', 5),
- ('문화', 'EXPENSE', 6),
- ('건강', 'EXPENSE', 7),
- ('기타', 'EXPENSE', 8),
- ('급여', 'INCOME',  1),
- ('용돈', 'INCOME',  2),
- ('기타', 'INCOME',  3);
+INSERT INTO categories (name, type, is_fixed, is_budgetable, sort_order) VALUES
+ -- 고정비 (EXPENSE)
+ ('주거/통신', 'EXPENSE', 1, 1, 1),
+ ('공과금/세금', 'EXPENSE', 1, 1, 2),
+ ('정기구독', 'EXPENSE', 1, 1, 3),
+ ('보험료', 'EXPENSE', 1, 1, 4),
+ ('대출/이자', 'EXPENSE', 1, 1, 5),
+ -- 예외 (EXPENSE)
+ ('저축', 'EXPENSE', 0, 0, 6),
+ ('더치페이', 'EXPENSE', 0, 0, 7),
+ -- 변동비 (EXPENSE)
+ ('식비', 'EXPENSE', 0, 1, 8),
+ ('배달', 'EXPENSE', 0, 1, 9),
+ ('카페', 'EXPENSE', 0, 1, 10),
+ ('교통', 'EXPENSE', 0, 1, 11),
+ ('쇼핑', 'EXPENSE', 0, 1, 12),
+ ('문화/여가', 'EXPENSE', 0, 1, 13),
+ ('미용/패션', 'EXPENSE', 0, 1, 14),
+ ('건강', 'EXPENSE', 0, 1, 15),
+ ('기타', 'EXPENSE', 0, 1, 16),
+ -- 수입 (INCOME)
+ ('급여', 'INCOME',  0, 1, 1),
+ ('용돈', 'INCOME',  0, 1, 2),
+ ('정산금', 'INCOME',  0, 1, 3),
+ ('기타', 'INCOME',  0, 1, 4);

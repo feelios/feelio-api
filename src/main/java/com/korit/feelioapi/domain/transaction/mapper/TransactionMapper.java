@@ -27,4 +27,7 @@ public interface TransactionMapper {
     List<Transaction> findExpensesForPattern(@Param("userId") Long userId);
 
     int deleteAllTransactionsByUserId(@Param("userId") Long userId);
+
+    List<TransactionDto> findPendingDutchPay(@Param("userId") Long userId);
+    Long findCategoryIdByNameAndType(@Param("name") String name, @Param("type") String type);
 }
