@@ -26,21 +26,11 @@ import java.util.List;
 public class GoalService {
 
     private final GoalMapper goalMapper;
-    private final TransactionMapper transactionMapper;
 
     @Transactional(readOnly = true)
     public GoalListResponse getGoals(Long userId) {
         List<GoalResponse> goals = goalMapper.findGoalsByUserId(userId).stream()
-                .map(goal -> {
-                    TransactionSearchCondition condition = new TransactionSearchCondition(null, null, null, null, null, null, null, goal.getStartDate());
-                    TransactionTotalDto totals = transactionMapper.calculateTotals(userId, condition);
-                    
-                    long netSavings = Math.max(0, totals.totalIncome() - totals.totalExpense());
-                    int finalCurrentAmount = (goal.getCurrentAmount() != null ? goal.getCurrentAmount() : 0) + (int) netSavings;
-                    goal.setCurrentAmount(finalCurrentAmount);
-                    
-                    return GoalResponse.of(goal);
-                })
+                .map(GoalResponse::of)
                 .toList();
         return new GoalListResponse(goals);
     }
@@ -54,7 +44,7 @@ public class GoalService {
         goal.setUserId(userId);
         goal.setName(request.name());
         goal.setTargetAmount(request.targetAmount());
-        goal.setCurrentAmount(request.currentAmount() != null ? request.currentAmount() : 0);
+        goal.setInitialAmount(request.initialAmount() != null ? request.initialAmount() : 0L);
         goal.setStartDate(request.startDate());
         goal.setDueDate(request.dueDate());
         goal.setIsMain(request.mainFlag());
@@ -73,7 +63,7 @@ public class GoalService {
         goal.setGoalId(goalId);
         goal.setName(request.name());
         goal.setTargetAmount(request.targetAmount());
-        goal.setCurrentAmount(request.currentAmount() != null ? request.currentAmount() : 0);
+        goal.setInitialAmount(request.initialAmount() != null ? request.initialAmount() : 0L);
         goal.setStartDate(request.startDate());
         goal.setDueDate(request.dueDate());
         goal.setIsMain(request.mainFlag());
