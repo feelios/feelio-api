@@ -211,6 +211,23 @@ Response(200) `data`: `{ "settled": true, "newIncomeTransactionId": 13 }`
   3. 유저의 `totalAsset` 해당 금액만큼 증가
 - 에러: FORBIDDEN(타인 거래), NOT_FOUND, VALIDATION_ERROR(이미 정산된 거래 등)
 
+### PATCH /api/transactions/{transactionId}/merge · 인증 필요 — 정산받은 금액 병합 처리 (A6-5)
+Request:
+```json
+{
+  "receivedAmount": 15000
+}
+```
+- 필수: receivedAmount(>=0 정수)
+
+Response(200) `data`: 병합된 거래 객체
+- 서버 내부 로직:
+  1. 원본 지출의 `is_settled = false` 여부 확인
+  2. 원본 금액에서 `receivedAmount`를 차감한 `finalAmount` 계산
+  3. `finalAmount <= 0`일 경우 `finalAmount`를 0으로 설정
+  4. 금액을 `finalAmount`로 업데이트하고 `is_settled = true`로 변경 후 객체 반환
+- 에러: FORBIDDEN(타인 거래), NOT_FOUND, VALIDATION_ERROR(이미 정산 완료된 건 등)
+
 ## 7. 목표 (Goals)
 
 ### 목표 객체

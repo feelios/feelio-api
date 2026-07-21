@@ -14,13 +14,6 @@ class DbMigrationTest {
     @Test
     void executeMigration() {
         try {
-            jdbcTemplate.execute("ALTER TABLE transactions ADD COLUMN is_settled TINYINT(1) NOT NULL DEFAULT 0");
-            System.out.println("Added is_settled column successfully.");
-        } catch (Exception e) {
-            System.out.println("is_settled column might already exist: " + e.getMessage());
-        }
-
-        try {
             jdbcTemplate.execute("ALTER TABLE categories ADD COLUMN is_fixed TINYINT(1) NOT NULL DEFAULT 0");
             System.out.println("Added is_fixed column successfully.");
         } catch (Exception e) {

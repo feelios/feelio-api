@@ -61,9 +61,6 @@ public class TransactionService {
             transaction.setGoalId(request.goalId());
         }
 
-        // 더치페이(정산 대기)라면 isSettled = false, 일반 지출/수입이면 isSettled = true (정산 불필요)
-        transaction.setSettled(request.isDutchPay() == null || !request.isDutchPay());
-
         transactionMapper.insertTransaction(transaction);
 
         return transactionMapper.findTransactionById(transaction.getTransactionId(), userId);
@@ -97,9 +94,6 @@ public class TransactionService {
         } else {
             transaction.setGoalId(null);
         }
-        
-        // 더치페이(정산 대기)라면 isSettled = false, 일반 지출/수입이면 isSettled = true (정산 불필요)
-        transaction.setSettled(request.isDutchPay() == null || !request.isDutchPay());
         
         transactionMapper.updateTransaction(transaction);
 
@@ -137,44 +131,19 @@ public class TransactionService {
         return new TransactionResetResponse(deletedCount);
     }
 
-    @Transactional(readOnly = true)
-    public TransactionListResponse getPendingDutchPay(Long userId) {
-        List<TransactionDto> transactions = transactionMapper.findPendingDutchPay(userId);
-        return new TransactionListResponse(transactions, 0L, 0L);
-    }
-
     @Transactional
-    public com.korit.feelioapi.domain.transaction.dto.DutchPaySettleResponse settleDutchPay(Long userId, Long transactionId) {
+    public Object mergeTransaction(Long userId, Long transactionId, Integer receivedAmount) {
         Transaction transaction = getOwnedOrThrow(userId, transactionId);
-        
-        if (transaction.isSettled()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
-        }
 
-        // 1. 원본 지출 정산 완료 처리
-        transaction.setSettled(true);
+        int finalAmount = transaction.getAmount() - receivedAmount;
+        if (finalAmount <= 0) {
+            transaction.setAmount(0);
+        } else {
+            transaction.setAmount(finalAmount);
+        }
         transactionMapper.updateTransaction(transaction);
-
-        // 2. 신규 정산금(INCOME) 거래 생성
-        Long categoryId = transactionMapper.findCategoryIdByNameAndType("정산금", "INCOME");
-        if (categoryId == null) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR); // 시드 데이터 누락
-        }
-
-        Transaction incomeTransaction = new Transaction();
-        incomeTransaction.setUserId(userId);
-        incomeTransaction.setEmotionId(transaction.getEmotionId());
-        incomeTransaction.setCategoryId(categoryId);
-        incomeTransaction.setType("INCOME");
-        incomeTransaction.setAmount(transaction.getAmount());
-        incomeTransaction.setMemo(transaction.getMemo() + " (정산완료)");
-        incomeTransaction.setOccurredAt(java.time.LocalDateTime.now());
-        transactionMapper.insertTransaction(incomeTransaction);
-
-        // 3. 총자산 증가
-        userMapper.addTotalAsset(userId, transaction.getAmount());
-
-        return new com.korit.feelioapi.domain.transaction.dto.DutchPaySettleResponse(true, incomeTransaction.getTransactionId());
+        
+        return transactionMapper.findTransactionById(transactionId, userId);
     }
 
     @Transactional(readOnly = true)
