@@ -104,20 +104,13 @@ public class TransactionController {
         return ApiResponse.success(transactionService.resetTransactions(userId));
     }
 
-    /** GET /api/transactions/dutch-pay/pending — 미정산 더치페이 목록 조회. 인증 필요. */
-    @GetMapping("/dutch-pay/pending")
-    public ApiResponse<TransactionListResponse> getPendingDutchPay(
-            @AuthenticationPrincipal Long userId
-    ) {
-        return ApiResponse.success(transactionService.getPendingDutchPay(userId));
-    }
-
-    /** PATCH /api/transactions/{transactionId}/settle — 더치페이 정산 완료 처리. 인증 필요. */
-    @PatchMapping("/{transactionId}/settle")
-    public ApiResponse<com.korit.feelioapi.domain.transaction.dto.DutchPaySettleResponse> settleDutchPay(
+    /** PATCH /api/transactions/{transactionId}/merge - 정산 금액 병합 (A6-5) */
+    @PatchMapping("/{transactionId}/merge")
+    public ApiResponse<Object> mergeTransaction(
             @AuthenticationPrincipal Long userId,
-            @PathVariable Long transactionId
+            @PathVariable Long transactionId,
+            @Valid @RequestBody com.korit.feelioapi.domain.transaction.dto.TransactionMergeRequest request
     ) {
-        return ApiResponse.success(transactionService.settleDutchPay(userId, transactionId));
+        return ApiResponse.success(transactionService.mergeTransaction(userId, transactionId, request.receivedAmount()));
     }
 }

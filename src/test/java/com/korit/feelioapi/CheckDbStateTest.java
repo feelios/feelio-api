@@ -15,12 +15,6 @@ class CheckDbStateTest {
             Integer total = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM transactions", Integer.class);
             System.out.println("Total transactions: " + total);
             
-            Integer settledCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM transactions WHERE is_settled = 1", Integer.class);
-            System.out.println("Settled transactions: " + settledCount);
-
-            Integer unsettledCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM transactions WHERE is_settled = 0", Integer.class);
-            System.out.println("Unsettled transactions: " + unsettledCount);
-
         } catch (Exception e) {
             System.out.println("Error querying transactions: " + e.getMessage());
             e.printStackTrace();

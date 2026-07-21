@@ -10,6 +10,5 @@ public record TransactionDto(
         LocalDateTime occurredAt,
         CategoryDto category,
         EmotionDto emotion,
-        Long goalId,
-        Boolean isSettled
+        Long goalId
 ) {}
