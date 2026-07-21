@@ -11,5 +11,5 @@ public record TransactionDto(
         CategoryDto category,
         EmotionDto emotion,
         Long goalId,
-        boolean isSettled
+        Boolean isSettled
 ) {}

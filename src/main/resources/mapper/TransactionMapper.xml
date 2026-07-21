@@ -28,7 +28,7 @@
             <arg javaType="com.korit.feelioapi.domain.transaction.dto.CategoryDto" resultMap="categoryResultMap"/>
             <arg javaType="com.korit.feelioapi.domain.transaction.dto.EmotionDto" resultMap="emotionResultMap"/>
             <arg column="goal_id" javaType="java.lang.Long"/>
-            <arg column="is_settled" javaType="boolean"/>
+            <arg column="is_settled" javaType="java.lang.Boolean"/>
         </constructor>
     </resultMap>
 
@@ -182,16 +182,16 @@
     </delete>
 
     <!-- 더치페이 미정산 목록 조회 (A6-5) -->
-    <select id="findPendingDutchPay" resultType="com.korit.feelioapi.domain.transaction.dto.TransactionDto">
-        SELECT t.transaction_id AS transactionId,
-               t.type, t.amount, t.memo, t.occurred_at AS occurredAt,
-               c.category_id AS `category.categoryId`,
-               c.name AS `category.name`,
-               e.emotion_id AS `emotion.emotionId`,
-               e.name AS `emotion.name`,
-               e.color AS `emotion.color`,
-               t.goal_id AS goalId,
-               t.is_settled AS isSettled
+    <select id="findPendingDutchPay" resultMap="transactionResultMap">
+        SELECT t.transaction_id,
+               t.type, t.amount, t.memo, t.occurred_at,
+               c.category_id,
+               c.name AS category_name,
+               e.emotion_id,
+               e.name AS emotion_name,
+               e.color AS emotion_color,
+               t.goal_id,
+               t.is_settled
         FROM transactions t
         JOIN categories c ON t.category_id = c.category_id
         JOIN emotions e ON t.emotion_id = e.emotion_id
