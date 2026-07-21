@@ -61,6 +61,9 @@ public class TransactionService {
             transaction.setGoalId(request.goalId());
         }
 
+        // 더치페이(정산 대기)라면 isSettled = false, 일반 지출/수입이면 isSettled = true (정산 불필요)
+        transaction.setSettled(request.isDutchPay() == null || !request.isDutchPay());
+
         transactionMapper.insertTransaction(transaction);
 
         return transactionMapper.findTransactionById(transaction.getTransactionId(), userId);
@@ -94,6 +97,10 @@ public class TransactionService {
         } else {
             transaction.setGoalId(null);
         }
+        
+        // 더치페이(정산 대기)라면 isSettled = false, 일반 지출/수입이면 isSettled = true (정산 불필요)
+        transaction.setSettled(request.isDutchPay() == null || !request.isDutchPay());
+        
         transactionMapper.updateTransaction(transaction);
 
         return transactionMapper.findTransactionById(transactionId, userId);
