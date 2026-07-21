@@ -196,7 +196,6 @@
         JOIN categories c ON t.category_id = c.category_id
         JOIN emotions e ON t.emotion_id = e.emotion_id
         WHERE t.user_id = #{userId}
-          AND c.name = '더치페이'
           AND t.is_settled = 0
           AND t.type = 'EXPENSE'
         ORDER BY t.occurred_at DESC

@@ -13,5 +13,6 @@ public record TransactionCreateRequest(
         @NotNull Long emotionId,
         String memo,
         @NotNull @PastOrPresent LocalDateTime occurredAt,
-        Long goalId
+        Long goalId,
+        Boolean isDutchPay
 ) {}
