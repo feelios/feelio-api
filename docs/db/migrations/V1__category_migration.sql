@@ -25,8 +25,8 @@ SET t.category_id = c.category_id;
 
 -- 6. 청소 (불필요한 테이블 및 임시 컬럼 삭제)
 DROP TABLE `custom_categories`;
-ALTER TABLE `category_orders` DROP COLUMN `is_custom`;
 ALTER TABLE `category_orders` DROP INDEX `uq_cat_order_user`;
+ALTER TABLE `category_orders` DROP COLUMN `is_custom`;
 ALTER TABLE `category_orders` ADD UNIQUE KEY `uq_cat_order_user` (`user_id`, `type`, `category_id`);
 ALTER TABLE `categories` DROP COLUMN `temp_old_custom_id`;
 
