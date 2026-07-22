@@ -1,7 +1,7 @@
 package com.korit.feelioapi.domain.category.service;
 
 import com.korit.feelioapi.domain.category.dto.*;
-import com.korit.feelioapi.domain.category.entity.CustomCategoryEntity;
+import com.korit.feelioapi.domain.category.entity.CategoryEntity;
 import com.korit.feelioapi.domain.category.mapper.CategoryMapper;
 import com.korit.feelioapi.global.exception.BusinessException;
 import com.korit.feelioapi.global.exception.ErrorCode;
@@ -27,11 +27,11 @@ public class CategoryService {
     public CategoryDto createCustomCategory(Long userId, CustomCategoryCreateRequest request) {
         ensureCategoryOrdersInitialized(userId, request.type());
 
-        CustomCategoryEntity entity = new CustomCategoryEntity(userId, request.name(), request.type());
+        CategoryEntity entity = new CategoryEntity(userId, request.name(), request.type());
         categoryMapper.insertCustomCategory(entity);
-        Long newId = entity.getCustomCategoryId();
+        Long newId = entity.getCategoryId();
 
-        categoryMapper.insertCategoryOrder(userId, newId, true, request.type());
+        categoryMapper.insertCategoryOrder(userId, newId, request.type());
         
         return categoryMapper.findCategoriesWithOrder(userId, request.type()).stream()
                 .filter(c -> Boolean.TRUE.equals(c.isCustom()) && c.categoryId().equals(newId))
@@ -41,16 +41,10 @@ public class CategoryService {
 
     @Transactional
     public Map<String, Boolean> deleteCustomCategory(Long userId, Long customCategoryId) {
-        CustomCategoryEntity category = categoryMapper.findCustomCategoryById(customCategoryId);
-        if (category == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND);
-        }
-        if (!category.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN);
-        }
-
-        categoryMapper.deleteCategoryOrder(userId, customCategoryId, true);
-        categoryMapper.deleteCustomCategory(customCategoryId);
+        // deleteCategoryOrder first
+        categoryMapper.deleteCategoryOrder(userId, customCategoryId);
+        // Soft Delete (updates is_active = 0)
+        categoryMapper.deleteCustomCategory(customCategoryId, userId);
 
         return Map.of("deleted", true);
     }

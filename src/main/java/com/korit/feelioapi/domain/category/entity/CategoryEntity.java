@@ -1,20 +1,21 @@
 package com.korit.feelioapi.domain.category.entity;
 
 import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
+import lombok.AllArgsConstructor;
 
 @Getter
+@Setter
 @NoArgsConstructor
-public class CustomCategoryEntity {
-    private Long customCategoryId;
+@AllArgsConstructor
+public class CategoryEntity {
+    private Long categoryId;
     private Long userId;
     private String name;
     private String type;
-    private LocalDateTime createdAt;
-
-    public CustomCategoryEntity(Long userId, String name, String type) {
+    
+    public CategoryEntity(Long userId, String name, String type) {
         this.userId = userId;
         this.name = name;
         this.type = type;

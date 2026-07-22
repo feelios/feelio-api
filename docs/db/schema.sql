@@ -2,7 +2,7 @@
 -- 실제 운영 DB에서 추출한 스키마의 SSOT 문서. (DB가 이미 생성되어 있음 — 이 파일은 기록용)
 -- 규칙: 이 스키마를 임의로 실행/변경하지 않는다. 변경은 팀 승인 후 별도 진행.
 -- 엔진/charset: InnoDB / utf8mb4 / utf8mb4_unicode_ci
--- 주의: 참조 무결성은 애플리케이션 레벨에서 관리(외래키 제약 미사용).
+-- 변경: 2026-07-22 카테고리 외래키를 제외한 모든 테이블 참조 무결성(FK) 제약 추가.
 -- 계약 §6 "상황(situations, N:M)"은 팀 결정으로 제거됨 → 관련 테이블 없음.
 
 -- 1. users
@@ -183,3 +183,26 @@ CREATE TABLE `category_orders` (
   PRIMARY KEY (`category_order_id`),
   UNIQUE KEY `uq_cat_order_user` (`user_id`, `type`, `category_id`, `is_custom`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ==========================================
+-- 외래키(FOREIGN KEY) 제약 조건 추가
+-- ==========================================
+ALTER TABLE social_accounts ADD CONSTRAINT k_social_users FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE;
+ALTER TABLE 
+efresh_tokens ADD CONSTRAINT k_token_users FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE;
+ALTER TABLE 
+otification_settings ADD CONSTRAINT k_noti_users FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE;
+ALTER TABLE 	erms_agreements ADD CONSTRAINT k_terms_users FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE;
+
+ALTER TABLE goals ADD CONSTRAINT k_goals_users FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE;
+ALTER TABLE monthly_summaries ADD CONSTRAINT k_summary_users FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE;
+ALTER TABLE i_insights ADD CONSTRAINT k_insights_users FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE;
+
+ALTER TABLE custom_categories ADD CONSTRAINT k_custom_cat_users FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE;
+ALTER TABLE category_orders ADD CONSTRAINT k_cat_order_users FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE;
+
+-- transactions 테이블 외래키 (category_id 제외)
+ALTER TABLE 	ransactions ADD CONSTRAINT k_tx_users FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE;
+ALTER TABLE 	ransactions ADD CONSTRAINT k_tx_emotions FOREIGN KEY (emotion_id) REFERENCES emotions (emotion_id);
+ALTER TABLE 	ransactions ADD CONSTRAINT k_tx_goals FOREIGN KEY (goal_id) REFERENCES goals (goal_id) ON DELETE SET NULL;
