@@ -1,7 +1,6 @@
 package com.korit.feelioapi.domain.category.service;
 
 import com.korit.feelioapi.domain.category.dto.*;
-import com.korit.feelioapi.domain.category.entity.CustomCategoryEntity;
 import com.korit.feelioapi.domain.category.mapper.CategoryMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
