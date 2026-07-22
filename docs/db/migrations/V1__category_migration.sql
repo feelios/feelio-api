@@ -30,18 +30,7 @@ ALTER TABLE `category_orders` DROP INDEX `uq_cat_order_user`;
 ALTER TABLE `category_orders` ADD UNIQUE KEY `uq_cat_order_user` (`user_id`, `type`, `category_id`);
 ALTER TABLE `categories` DROP COLUMN `temp_old_custom_id`;
 
--- 7. 외래키(FK) 전체 적용 (Integrity Lock)
+-- 7. 외래키(FK) 신규 적용 (통합된 카테고리 관련 제약만 추가, 기존 FK는 건드리지 않음)
 ALTER TABLE `categories` ADD CONSTRAINT `fk_category_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE CASCADE;
-ALTER TABLE `category_orders` ADD CONSTRAINT `fk_cat_order_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE CASCADE;
 ALTER TABLE `category_orders` ADD CONSTRAINT `fk_cat_order_category` FOREIGN KEY (`category_id`) REFERENCES `categories`(`category_id`) ON DELETE CASCADE;
-ALTER TABLE `social_accounts` ADD CONSTRAINT `fk_social_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE CASCADE;
-ALTER TABLE `refresh_tokens` ADD CONSTRAINT `fk_refresh_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE CASCADE;
-ALTER TABLE `notification_settings` ADD CONSTRAINT `fk_noti_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE CASCADE;
-ALTER TABLE `terms_agreements` ADD CONSTRAINT `fk_terms_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE CASCADE;
-ALTER TABLE `goals` ADD CONSTRAINT `fk_goals_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE CASCADE;
-ALTER TABLE `monthly_summaries` ADD CONSTRAINT `fk_summary_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE CASCADE;
-ALTER TABLE `ai_insights` ADD CONSTRAINT `fk_ai_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE CASCADE;
-ALTER TABLE `transactions` ADD CONSTRAINT `fk_tx_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE CASCADE;
-ALTER TABLE `transactions` ADD CONSTRAINT `fk_tx_emotion` FOREIGN KEY (`emotion_id`) REFERENCES `emotions`(`emotion_id`);
 ALTER TABLE `transactions` ADD CONSTRAINT `fk_tx_category` FOREIGN KEY (`category_id`) REFERENCES `categories`(`category_id`);
-ALTER TABLE `transactions` ADD CONSTRAINT `fk_tx_goal` FOREIGN KEY (`goal_id`) REFERENCES `goals`(`goal_id`) ON DELETE SET NULL;
