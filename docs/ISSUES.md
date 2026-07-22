@@ -41,7 +41,7 @@
 | [x] | - | A6-3 | 목표 달성액(모은 돈) 동적 산출 | feat/goal-amount-dynamic-calc | 신규 API | Ctrl·Svc·Mapper+XML | goals, transactions | 완료 | 목표의 현재 금액을 단순 DB 값이 아닌 `초기금액 + SUM(해당 goal_id 거래액)`으로 산출 반환 |
 | [x] | - | A6-4 | 동적 예산 분석 로직 개편 | feat/analysis-dynamic-budget | 신규 API | Ctrl·Svc·DTO | goals | 완료 | 기존 5% 로직 폐기, 모든 활성 목표의 월별 필요 저축액을 합산하여 이번 달 최종 예산으로 산출 및 초과/미달 판단 |
 | [ ] | - | A6-5 | 거래내역 정산금액 합치기(Merge) API | feat/transaction-merge | 신규 API | Ctrl·Svc·Mapper | transactions | 신규 | 거래내역 수정 모달에서 정산받은 금액(receivedAmount) 입력 시 원본 지출 금액에서 차감하여 단일 거래로 덮어씌우는 물리적 병합 API |
-
+| [x] | - | FIX-1 | OAuth2 Stateless 세션 충돌 및 설정 오류 수정 | fix/oauth2-stateless | §3 | config | - | 완료 | 1. 쿠키 기반 인증 요청 저장소(HttpCookieOAuth2AuthorizationRequestRepository) 구현<br>2. SecurityConfig 권한 및 저장소 주입<br>3. OAuth2SuccessHandler ResponseCookie(SameSite=Lax) 적용<br>4. application.yaml 카카오/네이버 `client_secret_post` 및 `user-name-attribute` 오타 수정 |
 ## 병렬 작업 규칙 (Claude ↔ Gemini 충돌 방지)
 - **도메인 단위로 분할**한다. 같은 도메인(auth/users/transactions…) 이슈를 둘이 쪼개 갖지 않는다.
 - `refresh_tokens`를 공유하는 auth 3종(A1-1/2/3)은 **한 사람**이 맡는다.

@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.http.ResponseCookie;
 
 import java.io.IOException;
 
@@ -44,11 +45,13 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     }
 
     private void addCookie(HttpServletResponse response, String name, String value, long maxAge) {
-        Cookie cookie = new Cookie(name, value);
-        cookie.setPath("/");
-        cookie.setHttpOnly(true);
-        // cookie.setSecure(true); // HTTPS 환경에서만 전송. 로컬 테스트를 위해 임시 주석 처리 가능
-        cookie.setMaxAge((int) maxAge);
-        response.addCookie(cookie);
+        ResponseCookie cookie = ResponseCookie.from(name, value)
+                .path("/")
+                .httpOnly(true)
+                // .secure(true) // HTTPS 환경에서만 전송. 로컬 테스트를 위해 임시 주석 처리 가능
+                .maxAge(maxAge)
+                .sameSite("Lax") // OAuth cross-site 리다이렉트 대응
+                .build();
+        response.addHeader("Set-Cookie", cookie.toString());
     }
 }
