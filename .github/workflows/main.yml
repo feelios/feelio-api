@@ -78,7 +78,7 @@ jobs:
         run: |
           cd Tutoroo_project_back/tutoroo
           docker build -t ${{env.DOCKER_USERNAME}}/spring-app:latest .
-          docker push ${{env.DOCKER_USERNAME}}/springboot-app:latest
+          docker push ${{env.DOCKER_USERNAME}}/spring-app:latest
       # - name: Springboot Docker image push
       #   run: |
       #     echo "${{env.DOCKER_PASSWORD}}" | docker login -u ${{env.DOCKER_USERNAME}} --password-stdin
