@@ -110,7 +110,7 @@ spring:
       on-profile: prod
 
 client:
-  url: https://govfeelio.store
+  url: https://modest-judge.store
 
 cookie:
   # 운영은 https 이므로 반드시 켠다 (평문 http 로 토큰이 새는 것을 막는다).
