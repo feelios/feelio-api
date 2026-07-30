@@ -1,1 +1,92 @@
+name: GCP-VM-CICD
 
+on:
+  push: 
+    branches: [deploy-junil]
+  pull_request: 
+    branches: [deploy-junil]
+
+jobs:
+  build-deploy-junil:
+    runs-on: ubuntu-22.04
+    steps:  
+      - name: "환경변수 세팅"
+        run: |
+          if [ ${{github.ref}} == 'refs/heads/deploy-junil' ]; then
+          
+            echo "GCP_VM_HOST=${{secrets.GCP_VM_HOST_JUNIL}}" >> $GITHUB_ENV
+            echo "GCP_VM_USERNAME=${{secrets.GCP_VM_USERNAME_JUNIL}}" >> $GITHUB_ENV
+            echo "GCP_VM_SSHKEY<<EOF" >> $GITHUB_ENV
+            echo "${{ secrets.GCP_VM_SSHKEY_JUNIL }}" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+            echo "DOCKER_USERNAME=${{secrets.DOCKER_USERNAME_JUNIL}}" >> $GITHUB_ENV
+            echo "DOCKER_PASSWORD=${{secrets.DOCKER_PASSWORD_JUNIL}}" >> $GITHUB_ENV
+            echo "APPLICATION_SECRET=${{secrets.APPLICATION_SECRET_JUNIL}}" >> $GITHUB_ENV
+            echo "REACT_ENV=${{secrets.REACT_ENV_JUNIL}}" >> $GITHUB_ENV
+            
+          # elif [ ${{github.ref}} == 'refs/heads/deploy-junil' ]; then
+          #   echo "TEST=abcdef" >> $GITHUB_ENV
+          fi
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ env.GCP_VM_SSHKEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          
+          # 검증
+          ssh-keygen -l -f ~/.ssh/id_rsa || echo "Invalid key format"
+          
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{github.ref}}
+          
+      - name: Install JDK
+        uses: actions/setup-java@v5.2.0
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Springboot Build
+        run: |
+          cd Tutoroo_project_back/tutoroo
+          echo ${{env.APPLICATION_SECRET}} | base64 --decode > ./src/main/resources/application-secret-prod.yml
+          chmod 777 ./mvnw
+          ./mvnw clean package -Dtestskip
+
+      - name: Springboot Docker image build
+        run: |
+          cd Tutoroo_project_back/tutoroo
+          docker build -t ${{env.DOCKER_USERNAME}}/springboot-app:latest .
+
+      - name: Springboot Docker image push
+        run: |
+          echo "${{env.DOCKER_PASSWORD}}" | docker login -u ${{env.DOCKER_USERNAME}} --password-stdin
+          docker push ${{env.DOCKER_USERNAME}}/springboot-app:latest
+
+      - name: React Docker image build
+        run: |
+          cd Tutoroo_project_front
+          echo ${{env.REACT_ENV}} | base64 --decode > .env
+          docker build -t ${{env.DOCKER_USERNAME}}/react-app:latest .
+
+      - name: React Docker image push
+        run: |
+          docker push ${{env.DOCKER_USERNAME}}/react-app:latest
+
+      - name: GCP SSH REMOTE
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{env.GCP_VM_HOST}}
+          username: ${{env.GCP_VM_USERNAME}}
+          key: ${{env.GCP_VM_SSHKEY}}
+          script: |
+            cd /home/${{env.GCP_VM_USERNAME}}
+            sudo docker compose -f front-compose.yml pull
+            sudo docker compose -f back-compose.yml pull
+            sudo docker compose -f front-compose.yml down
+            sudo docker compose -f front-compose.yml up -d
+            sudo docker compose -f back-compose.yml down
+            sudo docker compose -f back-compose.yml up -d
+
+            
