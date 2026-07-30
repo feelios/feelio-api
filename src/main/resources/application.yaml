@@ -1,6 +1,12 @@
 spring:
-  config:
-    import: optional:secret.yaml
+  profiles:
+    # 프로필을 명시하지 않으면(로컬 실행·테스트) dev 로 동작한다.
+    default: dev
+    # secret 은 application-secret.yaml(gitignore) 의 실제 비밀값 문서.
+    # dev/prod 어느 쪽으로 떠도 함께 활성화되어야 DB_URL·JWT_SECRET 등이 채워진다.
+    group:
+      dev: [dev, secret]
+      prod: [prod, secret]
   application:
     name: feelio-api
 
@@ -68,3 +74,44 @@ jwt:
   secret: ${JWT_SECRET}
   accessTokenTtlSeconds: 3600       # 1h  (계약 §3 기준)
   refreshTokenTtlSeconds: 1209600   # 14d (계약 §3 기준)
+
+# 아래 dev/prod 문서에서 덮어쓴다. 프로필 없이 떠도 값이 비지 않도록 기본값을 둔다.
+client:
+  url: http://localhost:5173
+
+cookie:
+  secure: false
+
+server:
+  port: 8080
+  # nginx 등 리버스 프록시 뒤에서 동작할 때 X-Forwarded-* 헤더를 반영한다.
+  # 없으면 OAuth {baseUrl} 이 내부 http 주소로 잡혀 redirect_uri_mismatch 가 난다.
+  forward-headers-strategy: framework
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+client:
+  url: http://localhost:5173
+
+cookie:
+  # 로컬은 http 라 secure 를 켜면 쿠키가 아예 안 붙는다.
+  secure: false
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+client:
+  url: https://govfeelio.store
+
+cookie:
+  # 운영은 https 이므로 반드시 켠다 (평문 http 로 토큰이 새는 것을 막는다).
+  secure: true

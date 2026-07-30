@@ -1,0 +1,39 @@
+# 도커 빌드 컨텍스트에서 제외할 것들.
+# .gitignore 와 별개로 동작한다 (도커는 .gitignore 를 보지 않는다).
+
+### 시크릿 — 이미지·JAR 에 절대 들어가면 안 된다 ###
+# 리소스 폴더에 있으면 bootJar 가 JAR 안에 그대로 패키징하므로,
+# 컨텍스트 단계에서 잘라내 도커가 파일의 존재조차 모르게 한다.
+# 실제 값은 런타임 환경변수로 주입한다 (docker run --env-file .env)
+src/main/resources/application-secret.yaml
+application-secret.yaml
+.env
+
+### 빌드 산출물 — 컨테이너 안에서 새로 빌드하므로 불필요 ###
+build/
+.gradle/
+out/
+bin/
+
+### JAR — gradle wrapper 만 예외 (gradlew 실행에 필요) ###
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+### VCS · IDE ###
+.git/
+.gitignore
+.gitattributes
+.idea/
+.vscode/
+.claude/
+.gemini/
+*.iml
+*.iws
+*.ipr
+
+### 문서 · 잡파일 ###
+docs/
+*.md
+*.class
+Dockerfile
+.dockerignore

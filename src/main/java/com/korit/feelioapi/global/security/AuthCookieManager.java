@@ -1,9 +1,10 @@
 package com.korit.feelioapi.global.security;
 
 import com.korit.feelioapi.global.security.jwt.JwtProperties;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 
 /**
@@ -21,10 +22,14 @@ public class AuthCookieManager {
 
     private final JwtProperties jwtProperties;
 
+    /** 운영(https)은 true, 로컬(http)은 false. application.yaml 의 프로필별 cookie.secure 를 따른다. */
+    @Value("${cookie.secure}")
+    private boolean secure;
+
     /** 로그인·재발급 성공 시 두 토큰을 각자의 TTL 로 HttpOnly 쿠키에 굽는다. */
     public void writeTokens(HttpServletResponse response, String accessToken, String refreshToken) {
-        addCookie(response, ACCESS_TOKEN_COOKIE, accessToken, (int) jwtProperties.accessTokenTtlSeconds());
-        addCookie(response, REFRESH_TOKEN_COOKIE, refreshToken, (int) jwtProperties.refreshTokenTtlSeconds());
+        addCookie(response, ACCESS_TOKEN_COOKIE, accessToken, jwtProperties.accessTokenTtlSeconds());
+        addCookie(response, REFRESH_TOKEN_COOKIE, refreshToken, jwtProperties.refreshTokenTtlSeconds());
     }
 
     /** 로그아웃 시 두 토큰 쿠키를 즉시 만료시킨다(maxAge=0 → 브라우저가 삭제). */
@@ -33,12 +38,14 @@ public class AuthCookieManager {
         addCookie(response, REFRESH_TOKEN_COOKIE, "", 0);
     }
 
-    private void addCookie(HttpServletResponse response, String name, String value, int maxAge) {
-        Cookie cookie = new Cookie(name, value);
-        cookie.setPath("/");
-        cookie.setHttpOnly(true);
-        // cookie.setSecure(true); // HTTPS 환경에서만 전송. 로컬 테스트를 위해 임시 주석 처리
-        cookie.setMaxAge(maxAge);
-        response.addCookie(cookie);
+    private void addCookie(HttpServletResponse response, String name, String value, long maxAge) {
+        ResponseCookie cookie = ResponseCookie.from(name, value)
+                .path("/")
+                .httpOnly(true)
+                .secure(secure)
+                .maxAge(maxAge)
+                .sameSite("Lax") // OAuth 리다이렉트(top-level navigation)로 쿠키가 실려야 한다
+                .build();
+        response.addHeader("Set-Cookie", cookie.toString());
     }
 }
