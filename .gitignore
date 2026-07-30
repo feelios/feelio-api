@@ -1,5 +1,10 @@
-secret.yaml
+application-secret.yaml
+.env
 HELP.md
+
+### 배포 산출물 · 루트 잡파일 (커밋 금지) ###
+feelio-api-new.jar
+*.class
 
 ### Claude Code (개인 로컬 설정 — 커밋 금지) ###
 .claude/settings.local.json

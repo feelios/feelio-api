@@ -2,17 +2,16 @@ package com.korit.feelioapi.global.security.oauth2;
 
 import com.korit.feelioapi.domain.auth.oauth.CustomOAuth2User;
 import com.korit.feelioapi.domain.auth.service.AuthService;
-import com.korit.feelioapi.global.security.jwt.JwtProperties;
+import com.korit.feelioapi.global.security.AuthCookieManager;
 import com.korit.feelioapi.global.security.jwt.JwtProvider;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
-import org.springframework.http.ResponseCookie;
 
 import java.io.IOException;
 
@@ -21,11 +20,12 @@ import java.io.IOException;
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
     private final JwtProvider jwtProvider;
-    private final JwtProperties jwtProperties;
     private final AuthService authService;
+    private final AuthCookieManager authCookieManager;
 
-    // 프론트엔드 URL. 실제 운영 환경에서는 프로퍼티로 빼는 것이 좋습니다.
-    private static final String REDIRECT_URI = "http://localhost:5173/";
+    // 프론트엔드 URL. 프로필별로 다르므로 application.yaml 의 client.url 을 따른다.
+    @Value("${client.url}")
+    private String clientUrl;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -38,20 +38,10 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         authService.storeRefreshToken(userId, refreshToken);
 
-        addCookie(response, "accessToken", accessToken, jwtProperties.accessTokenTtlSeconds());
-        addCookie(response, "refreshToken", refreshToken, jwtProperties.refreshTokenTtlSeconds());
+        // 쿠키 속성(HttpOnly·Secure·SameSite·TTL)은 AuthCookieManager 를 단일 기준으로 삼는다.
+        // 재발급(AuthController)과 동일한 속성으로 구워야 브라우저가 같은 쿠키로 인식한다.
+        authCookieManager.writeTokens(response, accessToken, refreshToken);
 
-        getRedirectStrategy().sendRedirect(request, response, REDIRECT_URI);
-    }
-
-    private void addCookie(HttpServletResponse response, String name, String value, long maxAge) {
-        ResponseCookie cookie = ResponseCookie.from(name, value)
-                .path("/")
-                .httpOnly(true)
-                // .secure(true) // HTTPS 환경에서만 전송. 로컬 테스트를 위해 임시 주석 처리 가능
-                .maxAge(maxAge)
-                .sameSite("Lax") // OAuth cross-site 리다이렉트 대응
-                .build();
-        response.addHeader("Set-Cookie", cookie.toString());
+        getRedirectStrategy().sendRedirect(request, response, clientUrl);
     }
 }

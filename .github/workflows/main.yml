@@ -22,7 +22,6 @@ jobs:
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_KMJ }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_KMJ }}" >> $GITHUB_ENV
               echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_KMJ }}" >> $GITHUB_ENV
-              echo "REACT_ENV=${{ secrets.REACT_ENV_KMJ }}" >> $GITHUB_ENV
 
             elif [ "${{ github.ref }}" = "refs/heads/deploy-kec" ]; then
           
@@ -34,7 +33,6 @@ jobs:
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_KEC }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_KEC }}" >> $GITHUB_ENV
               echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_KEC }}" >> $GITHUB_ENV
-              echo "REACT_ENV=${{ secrets.REACT_ENV_KEC }}" >> $GITHUB_ENV
 
             elif [ "${{ github.ref }}" = "refs/heads/deploy-npr" ]; then
           
@@ -46,9 +44,6 @@ jobs:
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_NPR }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_NPR }}" >> $GITHUB_ENV
               echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_NPR }}" >> $GITHUB_ENV
-              echo "REACT_ENV=${{ secrets.REACT_ENV_NPR }}" >> $GITHUB_ENV
-
-
             fi
       - name: Setup SSH Key
         run: |
@@ -72,17 +67,11 @@ jobs:
 
       - name: Springboot Build and Docker image build and push
         run: |
-          echo ${{env.APPLICATION_SECRET}} | base64 --decode > ./src/main/resources/application-secret.yml
-
-      - name: Springboot Docker image build
-        run: |
-          cd Tutoroo_project_back/tutoroo
+          echo ${{env.APPLICATION_SECRET}} | base64 --decode > ./src/main/resources/application-secret.yaml
+          echo "${{env.DOCKER_PASSWORD}}" | docker login -u ${{env.DOCKER_USERNAME}} --password-stdin
           docker build -t ${{env.DOCKER_USERNAME}}/spring-app:latest .
           docker push ${{env.DOCKER_USERNAME}}/spring-app:latest
-      # - name: Springboot Docker image push
-      #   run: |
-      #     echo "${{env.DOCKER_PASSWORD}}" | docker login -u ${{env.DOCKER_USERNAME}} --password-stdin
-          
+
 
       - name: GCP SSH REMOTE 원격접속
         uses: appleboy/ssh-action@v1.0.3
