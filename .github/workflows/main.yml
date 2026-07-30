@@ -4,10 +4,10 @@ on:
   push: 
     branches: [deploy-kmj, deploy-kec, deploy-npr]
   pull_request: 
-    branches: [deploy-junil]
+    branches: [deploy-kmj, deploy-kec, deploy-npr]
 
 jobs:
-  build-deploy-junil:
+  build-deploy:
     runs-on: ubuntu-22.04
     steps:  
       - name: "환경변수 세팅"
