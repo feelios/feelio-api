@@ -70,20 +70,20 @@ public class GptInsightCardGenerator implements InsightCardGenerator {
             입력에 주어진 감정 개수와 순서를 그대로 지켜라.
             """;
 
+    /** 모델 응답 파싱 전용. 컨테이너에 ObjectMapper 빈이 없어 직접 만든다(설정도 공유할 필요가 없다). */
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     private final OpenAIClient openAIClient;
     private final RuleBasedInsightCardGenerator fallback;
-    private final ObjectMapper objectMapper;
     private final String model;
     private final Duration timeout;
 
     public GptInsightCardGenerator(OpenAIClient openAIClient,
                                    RuleBasedInsightCardGenerator fallback,
-                                   ObjectMapper objectMapper,
                                    @Value("${openai.model}") String model,
                                    @Value("${openai.timeout-seconds}") long timeoutSeconds) {
         this.openAIClient = openAIClient;
         this.fallback = fallback;
-        this.objectMapper = objectMapper;
         this.model = model;
         this.timeout = Duration.ofSeconds(timeoutSeconds);
     }

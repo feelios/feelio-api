@@ -40,20 +40,20 @@ public class GptInsightGenerator implements InsightGenerator {
     /** 한 달에 보여줄 인사이트 상한. 모델이 과하게 뱉어도 이만큼만 쓴다. */
     private static final int MAX_INSIGHTS = 5;
 
+    /** 모델 응답 파싱 전용. 컨테이너에 ObjectMapper 빈이 없어 직접 만든다(설정도 공유할 필요가 없다). */
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     private final OpenAIClient openAIClient;
     private final RuleBasedInsightGenerator fallbackGenerator;
-    private final ObjectMapper objectMapper;
     private final String model;
     private final Duration timeout;
 
     public GptInsightGenerator(OpenAIClient openAIClient,
                                RuleBasedInsightGenerator fallbackGenerator,
-                               ObjectMapper objectMapper,
                                @Value("${openai.model}") String model,
                                @Value("${openai.timeout-seconds}") long timeoutSeconds) {
         this.openAIClient = openAIClient;
         this.fallbackGenerator = fallbackGenerator;
-        this.objectMapper = objectMapper;
         this.model = model;
         this.timeout = Duration.ofSeconds(timeoutSeconds);
     }
