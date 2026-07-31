@@ -312,7 +312,39 @@ Response(200) `data`:
 - `byCategory`·`byEmotion`·`byTimeSlot`: 지출 기준 집계(금액 `amount`·건수 `count`). 기록 없는 항목은 배열에서 생략.
 - `byEmotion`은 **amount 내림차순** 정렬 → 소비가 가장 몰린 감정이 맨 앞(긍정·부정 무관, "감정소비" 관점의 초점 감정).
 - `byTimeSlot.slot`: `occurred_at` 시(hour) 기준 4구간 — `DAWN`(0–5) · `MORNING`(6–11) · `AFTERNOON`(12–17) · `NIGHT`(18–23). `label`은 한글 표기.
-- `insights`: `ai_insights` 테이블 매핑(`insight_type`→`type`, `content`→`content`), 0..n건. 문구는 감정 중립(긍정 감정도 대상). 인사이트 생성 로직은 A3-2 소관.
+- `insights`: `ai_insights` 테이블 매핑(`insight_type`→`type`, `content`→`content`), 0..n건. 문구는 감정 중립(긍정 감정도 대상).
+  - 저장본이 있으면 그대로 반환하고, 없을 때만 생성해 저장한다. **지난 달 이전은 영구 캐시**, 이번 달만 `feelio.insight.ttl-hours`(기본 6) 경과 시 재생성한다.
+  - 생성기는 `feelio.insight.provider`로 전환한다(`rule` 기본 · `gpt`). GPT 실패·타임아웃 시 규칙기반 결과로 폴백하므로 이 필드 때문에 응답이 실패하지 않는다.
+
+### GET /api/analysis/ai-insights · 인증 필요
+
+- 파라미터 없음. **호출 시점의 당월** 집계로 만든다. 항상 인증 주체 user_id 기준.
+
+Response(200) `data`:
+```json
+{
+  "aiQuickInsights": [
+    { "label": "위험 루트",      "value": "새벽 · 무덤덤 · 패션/미용",       "note": "10건",              "color": "var(--sub)", "type": "default" },
+    { "label": "팩트 리포트",    "value": "이번 달 지출 2,366,868원",        "note": "전월 대비 +32%",     "color": "#E87573",    "type": "fact"    },
+    { "label": "소비 위험도",    "value": "보통",                          "note": "전월과 비슷한 수준",  "color": "#E87573",    "type": "risk"    },
+    { "label": "AI 맞춤 챌린지", "value": "새벽에 '무덤덤' 소비 3일 참아보기", "note": "이번 주",           "color": "var(--sub)", "type": "default" }
+  ],
+  "emotionCards": [
+    { "title": "'무덤덤'일 때의 소비", "desc": "2건, 1,579,394원 썼어요. 이번 달 지출의 67%예요." }
+  ],
+  "evidence": [],
+  "pattern": { "count": 0, "title": null, "emotion": null, "category": null, "time": null, "desc": null }
+}
+```
+- `aiQuickInsights`: **4건 고정**, 순서도 고정(위험 루트 → 팩트 리포트 → 소비 위험도 → AI 맞춤 챌린지).
+  `label`·`color`·`type`은 프론트 표시 규격이므로 서버가 위 값 그대로 내려준다(`type`: `default`·`fact`·`risk` — `risk`는 신호등 UI).
+  화면 배치는 `label`이 좌상단 캡션, `note`가 우상단 태그, `value`가 본문 한 줄이다.
+- **지출 기록이 없으면 `aiQuickInsights`·`emotionCards` 모두 빈 배열**을 반환한다. 빈 상태 표시는 프론트 책임.
+- `위험 루트`: 지출이 가장 큰 `시간대 · 감정 · 카테고리`를 잇는다. `note`는 해당 시간대 건수.
+- `팩트 리포트`: 당월 지출 총액. `note`는 전월 대비 증감률(전월 지출이 0이면 `"전월 기록 없음"`).
+- `소비 위험도`: 전월 대비 증감률 기준 `높음`(+20% 초과) · `보통` · `낮음`(−20% 미만). 전월 지출이 0이면 비교 기준이 없어 `보통`.
+- `emotionCards`: `byEmotion` **상위 3건까지**, 같은 순서. 감정 카드 뒷면 문구이며 앞면(감정명·비율·금액)은 프론트가 §9 `byEmotion`으로 그린다.
+- `evidence`·`pattern`: 이 응답에서는 사용하지 않는다(빈 배열 / `count: 0`). 프론트는 `GET /api/transactions/patterns`에서 받아간다.
 
 ### GET /api/universe/simulation?goalId · 인증 필요
 

@@ -27,7 +27,7 @@ public class AnalysisController {
         return ApiResponse.success(analysisService.getMonthlyAnalysis(userId, year, month));
     }
 
-    /** GET /api/analysis/ai-insights — AI 인사이트 분석 Mock API. */
+    /** GET /api/analysis/ai-insights — 당월 집계 기반 AI 요약 카드·감정 카드 문구 (계약 §9). */
     @GetMapping("/ai-insights")
     public ApiResponse<com.korit.feelioapi.domain.analysis.dto.AiInsightsResponse> getAiInsights(@AuthenticationPrincipal Long userId) {
         return ApiResponse.success(analysisService.getAiInsights(userId));
