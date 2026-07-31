@@ -145,28 +145,38 @@ public class AnalysisService {
      * AI 분석 화면 상단 요약. 이번 달 집계 + 전월 지출 비교로 만든다.
      * evidence·pattern 은 프론트가 /api/transactions/patterns 에서 따로 받아가므로 여기서는 비워 둔다.
      */
-    @Transactional(readOnly = true)
+    /**
+     * 문장 생성이 외부 API(GPT)를 탈 수 있어 @Transactional 을 걸지 않는다(커넥션 점유 방지).
+     * 소비 위험도는 예산 소진율로 자바에서 판정하고, GPT 는 문장만 만든다.
+     */
     public AiInsightsResponse getAiInsights(Long userId) {
         java.time.LocalDate today = java.time.LocalDate.now();
         int year = today.getYear();
         int month = today.getMonthValue();
-        java.time.LocalDate prev = today.minusMonths(1);
 
         List<CategoryStatDto> byCategory = analysisMapper.findExpenseByCategory(userId, year, month);
         List<EmotionStatDto> byEmotion = analysisMapper.findExpenseByEmotion(userId, year, month);
         List<TimeSlotStatDto> byTimeSlot = toTimeSlotDtos(analysisMapper.findExpenseByTimeSlot(userId, year, month));
 
         long currentExpense = analysisMapper.findMonthlyTotals(userId, year, month).totalExpense();
-        long previousExpense = analysisMapper
-                .findMonthlyTotals(userId, prev.getYear(), prev.getMonthValue()).totalExpense();
 
         return AiInsightsResponse.builder()
                 .aiQuickInsights(quickInsightAssembler.assembleQuickInsights(
-                        byEmotion, byCategory, byTimeSlot, currentExpense, previousExpense))
-                .emotionCards(quickInsightAssembler.assembleEmotionCards(byEmotion, currentExpense))
+                        byEmotion, byCategory, byTimeSlot, currentExpense, totalBudget(userId)))
+                .emotionCards(quickInsightAssembler.assembleEmotionCards(byEmotion, byCategory, byTimeSlot))
                 .evidence(List.of())
                 .pattern(AiInsightsResponse.AiPattern.builder().count(0).build())
                 .build();
+    }
+
+    /**
+     * 이번 달 예산 총액(A6-4 동적 예산의 카테고리별 합).
+     * 활성 목표가 없거나 전월 기록이 없으면 0 이 나오고, 그 경우 위험도는 '예산 미설정'으로 처리된다.
+     */
+    private long totalBudget(Long userId) {
+        return getBudgetStatus(userId).budgetItems().stream()
+                .mapToLong(item -> item.budget() == null ? 0L : item.budget())
+                .sum();
     }
 
     @Transactional(readOnly = true)
