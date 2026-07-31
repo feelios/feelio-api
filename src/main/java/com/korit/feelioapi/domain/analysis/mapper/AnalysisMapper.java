@@ -3,7 +3,9 @@ package com.korit.feelioapi.domain.analysis.mapper;
 import com.korit.feelioapi.domain.analysis.dto.AnalysisTotalDto;
 import com.korit.feelioapi.domain.analysis.dto.CategoryStatDto;
 import com.korit.feelioapi.domain.analysis.dto.EmotionStatDto;
+import com.korit.feelioapi.domain.analysis.dto.InsightDto;
 import com.korit.feelioapi.domain.analysis.dto.TimeSlotStat;
+import com.korit.feelioapi.domain.analysis.entity.AiInsight;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -43,4 +45,20 @@ public interface AnalysisMapper {
     List<com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat> findPrevCategoryStats(@Param("userId") Long userId,
                                                                                          @Param("year") int year,
                                                                                          @Param("month") int month);
+
+    /** 저장된 월간 인사이트 조회. 없으면 빈 리스트 — 호출 측이 생성 여부를 판단한다. */
+    List<AiInsight> findInsights(@Param("userId") Long userId,
+                                 @Param("year") int year,
+                                 @Param("month") int month);
+
+    /** 해당 연·월 인사이트 전체 삭제. 재생성 전에 지워 중복이 쌓이지 않게 한다. */
+    int deleteInsights(@Param("userId") Long userId,
+                       @Param("year") int year,
+                       @Param("month") int month);
+
+    /** 생성된 인사이트 일괄 저장. 다중 VALUES 한 문장이라 부분 저장이 남지 않는다. */
+    int insertInsights(@Param("userId") Long userId,
+                       @Param("year") int year,
+                       @Param("month") int month,
+                       @Param("insights") List<InsightDto> insights);
 }
