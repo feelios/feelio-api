@@ -22,6 +22,7 @@ public class User {
     private String themeMode;
     private String auroraTheme;
     private String status;
+    private String fcmToken;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

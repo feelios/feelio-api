@@ -65,6 +65,12 @@ public class UserService {
         return SettingsResponse.of(loadUser(userId));
     }
 
+    @Transactional
+    public void updateFcmToken(Long userId, String fcmToken) {
+        loadUser(userId);
+        userMapper.updateFcmToken(userId, fcmToken);
+    }
+
     /**
      * 회원탈퇴: users 는 status=WITHDRAWN(행 유지), 하위 데이터는 hard delete.
      * terms_agreements 는 법적 보관 목적으로 보존. reason 은 저장 컬럼이 없어 받되 저장하지 않는다.

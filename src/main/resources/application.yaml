@@ -118,3 +118,6 @@ cookie:
 ---
 openai:
   key: ${OPENAI_KEY}
+
+firebase:
+  key-path: classpath:firebase-key.json

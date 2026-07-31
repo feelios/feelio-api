@@ -27,6 +27,8 @@ public interface UserMapper {
                        @Param("themeMode") String themeMode,
                        @Param("auroraTheme") String auroraTheme);
 
+    int updateFcmToken(@Param("userId") Long userId, @Param("fcmToken") String fcmToken);
+
     // --- 회원탈퇴(A3-4) ---
     // users 는 soft(status=WITHDRAWN), 하위 데이터는 hard delete.
     // FK 미사용(참조 무결성=앱 레벨)이라 하위 테이블을 직접 지운다. terms_agreements 는 보존(법적 보관).
