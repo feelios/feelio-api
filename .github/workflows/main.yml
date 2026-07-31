@@ -84,7 +84,7 @@ jobs:
           key: ${{env.GCP_VM_SSHKEY}}
           script: |
             cd /home/${{env.GCP_VM_USERNAME}}
-            echo ${{env.ENV}} | base64 --decode > ./.env
+            sudo echo ${{env.ENV}} | base64 --decode > ./.env
             sudo docker compose -f api-docker-compose.yaml pull
             sudo docker compose -f api-docker-compose.yaml down
             sudo docker compose -f api-docker-compose.yaml up -d
