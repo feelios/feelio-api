@@ -3,13 +3,7 @@ package com.korit.feelioapi.domain.analysis.controller;
 import com.korit.feelioapi.domain.analysis.dto.AnalysisResponse;
 import com.korit.feelioapi.domain.analysis.service.AnalysisService;
 import com.korit.feelioapi.global.response.ApiResponse;
-import com.openai.client.OpenAIClient;
-import com.openai.client.okhttp.OpenAIOkHttpClient;
-import com.openai.models.responses.Response;
-import com.openai.models.responses.ResponseCreateParams;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -50,25 +44,8 @@ public class AnalysisController {
     public ApiResponse<com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse> getBudgetStatus(@AuthenticationPrincipal Long userId) {
         return ApiResponse.success(analysisService.getBudgetStatus(userId));
     }
-    @Value("${openai.key}")
-    private String openAiKey;
-
     @PostMapping("/ai")
-    public ResponseEntity<?> chat(@RequestParam String value) {
-        OpenAIClient client = OpenAIOkHttpClient.builder()
-                .apiKey(openAiKey)
-                .build();
-
-        ResponseCreateParams params =
-                ResponseCreateParams.builder().input(value).model("gpt-4o-mini").build();
-
-        Response response = client.responses().create(params);
-        List<String> outputTexts = response.output().stream()
-                .flatMap(item -> item.message().stream())
-                .flatMap(message -> message.content().stream())
-                .flatMap(content -> content.outputText().stream())
-                .map(outputText -> outputText.text()).toList();
-
-        return ResponseEntity.ok(ApiResponse.success(outputTexts));
+    public ApiResponse<List<String>> chat(@RequestParam String value) {
+        return ApiResponse.success(analysisService.getAiChatResponse(value));
     }
 }
