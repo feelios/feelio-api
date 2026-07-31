@@ -22,6 +22,7 @@ jobs:
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_KMJ }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_KMJ }}" >> $GITHUB_ENV
               echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_KMJ }}" >> $GITHUB_ENV
+              echo "ENV=${{ secrets.ENV_KMJ }}" >> $GITHUB_ENV
 
             elif [ "${{ github.ref }}" = "refs/heads/deploy-kec" ]; then
           
@@ -33,6 +34,7 @@ jobs:
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_KEC }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_KEC }}" >> $GITHUB_ENV
               echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_KEC }}" >> $GITHUB_ENV
+              echo "ENV=${{ secrets.ENV_KEC }}" >> $GITHUB_ENV
 
             elif [ "${{ github.ref }}" = "refs/heads/deploy-npr" ]; then
           
@@ -44,6 +46,7 @@ jobs:
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_NPR }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_NPR }}" >> $GITHUB_ENV
               echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_NPR }}" >> $GITHUB_ENV
+              echo "ENV=${{ secrets.ENV_NPR }}" >> $GITHUB_ENV
             fi
       - name: Setup SSH Key
         run: |
@@ -81,6 +84,7 @@ jobs:
           key: ${{env.GCP_VM_SSHKEY}}
           script: |
             cd /home/${{env.GCP_VM_USERNAME}}
+            echo ${{env.ENV}} | base64 --decode > ./.env
             sudo docker compose -f api-docker-compose.yaml pull
             sudo docker compose -f api-docker-compose.yaml down
             sudo docker compose -f api-docker-compose.yaml up -d
