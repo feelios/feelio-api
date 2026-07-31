@@ -9,6 +9,9 @@ import com.korit.feelioapi.domain.analysis.dto.InsightDto;
 import com.korit.feelioapi.domain.analysis.dto.TimeSlotStat;
 import com.korit.feelioapi.domain.analysis.dto.TimeSlotStatDto;
 import com.korit.feelioapi.domain.analysis.mapper.AnalysisMapper;
+import com.openai.client.OpenAIClient;
+import com.openai.models.responses.Response;
+import com.openai.models.responses.ResponseCreateParams;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +40,7 @@ public class AnalysisService {
     private final AnalysisMapper analysisMapper;
     private final InsightGenerator insightGenerator;
     private final com.korit.feelioapi.domain.goal.mapper.GoalMapper goalMapper;
+    private final OpenAIClient openAIClient;
 
     @Transactional(readOnly = true)
     public AnalysisResponse getMonthlyAnalysis(Long userId, int year, int month) {
@@ -237,5 +241,20 @@ public class AnalysisService {
         }
 
         return new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse(budgetItems);
+    }
+
+    public List<String> getAiChatResponse(String value) {
+        ResponseCreateParams params = ResponseCreateParams.builder()
+                .input(value)
+                .model("gpt-4o-mini")
+                .build();
+
+        Response response = openAIClient.responses().create(params);
+        return response.output().stream()
+                .flatMap(item -> item.message().stream())
+                .flatMap(message -> message.content().stream())
+                .flatMap(content -> content.outputText().stream())
+                .map(outputText -> outputText.text())
+                .toList();
     }
 }

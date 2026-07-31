@@ -5,10 +5,9 @@ import com.korit.feelioapi.domain.analysis.service.AnalysisService;
 import com.korit.feelioapi.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * 분석 API (API-CONTRACT §9). 인증 필요, 토큰 주체 user_id 기준.
@@ -44,5 +43,9 @@ public class AnalysisController {
     @GetMapping("/budget")
     public ApiResponse<com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse> getBudgetStatus(@AuthenticationPrincipal Long userId) {
         return ApiResponse.success(analysisService.getBudgetStatus(userId));
+    }
+    @PostMapping("/ai")
+    public ApiResponse<List<String>> chat(@RequestParam String value) {
+        return ApiResponse.success(analysisService.getAiChatResponse(value));
     }
 }
