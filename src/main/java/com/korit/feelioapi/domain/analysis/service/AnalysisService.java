@@ -49,6 +49,7 @@ public class AnalysisService {
     private final com.korit.feelioapi.domain.goal.mapper.GoalMapper goalMapper;
     private final OpenAIClient openAIClient;
     private final AiInsightStore aiInsightStore;
+    private final AiQuickInsightAssembler quickInsightAssembler;
 
     /** 이번 달 인사이트를 몇 시간 뒤에 다시 만들지. 짧게 잡을수록 GPT 호출이 늘어난다. */
     @Value("${feelio.insight.ttl-hours:6}")
@@ -140,16 +141,31 @@ public class AnalysisService {
         return result;
     }
 
+    /**
+     * AI 분석 화면 상단 요약. 이번 달 집계 + 전월 지출 비교로 만든다.
+     * evidence·pattern 은 프론트가 /api/transactions/patterns 에서 따로 받아가므로 여기서는 비워 둔다.
+     */
     @Transactional(readOnly = true)
     public AiInsightsResponse getAiInsights(Long userId) {
-        // [F7-3 테스트용] Empty State (데이터 없음) 반환
+        java.time.LocalDate today = java.time.LocalDate.now();
+        int year = today.getYear();
+        int month = today.getMonthValue();
+        java.time.LocalDate prev = today.minusMonths(1);
+
+        List<CategoryStatDto> byCategory = analysisMapper.findExpenseByCategory(userId, year, month);
+        List<EmotionStatDto> byEmotion = analysisMapper.findExpenseByEmotion(userId, year, month);
+        List<TimeSlotStatDto> byTimeSlot = toTimeSlotDtos(analysisMapper.findExpenseByTimeSlot(userId, year, month));
+
+        long currentExpense = analysisMapper.findMonthlyTotals(userId, year, month).totalExpense();
+        long previousExpense = analysisMapper
+                .findMonthlyTotals(userId, prev.getYear(), prev.getMonthValue()).totalExpense();
+
         return AiInsightsResponse.builder()
-                .aiQuickInsights(List.of()) // 빈 배열
-                .emotionCards(List.of())   // 빈 배열
-                .evidence(List.of())       // 빈 배열
-                .pattern(AiInsightsResponse.AiPattern.builder()
-                        .count(0) // 0으로 설정하여 빈 상태 트리거
-                        .build())
+                .aiQuickInsights(quickInsightAssembler.assembleQuickInsights(
+                        byEmotion, byCategory, byTimeSlot, currentExpense, previousExpense))
+                .emotionCards(quickInsightAssembler.assembleEmotionCards(byEmotion, currentExpense))
+                .evidence(List.of())
+                .pattern(AiInsightsResponse.AiPattern.builder().count(0).build())
                 .build();
     }
 

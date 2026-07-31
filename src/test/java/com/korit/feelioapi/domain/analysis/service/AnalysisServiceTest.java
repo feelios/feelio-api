@@ -37,6 +37,7 @@ class AnalysisServiceTest {
     @Mock private com.korit.feelioapi.domain.goal.mapper.GoalMapper goalMapper;
     @Mock private com.openai.client.OpenAIClient openAIClient;
     @Mock private AiInsightStore aiInsightStore;
+    @Mock private AiQuickInsightAssembler quickInsightAssembler;
 
     @InjectMocks private AnalysisService analysisService;
 
