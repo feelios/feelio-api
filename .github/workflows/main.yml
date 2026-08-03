@@ -3,7 +3,7 @@ name: GCP-VM-CICD
 on:
   push: 
     branches: [deploy-kmj, deploy-kec, deploy-npr]
-  # PR???????�기???�데?�는 ?�러 방�?�??�해 주석 처리
+  # PR을 열 때 생기는 쓸데없는 에러 방지를 위해 주석 처리
   # pull_request: 
   #   branches: [deploy-kmj, deploy-kec, deploy-npr]
 
@@ -11,7 +11,7 @@ jobs:
   build-deploy:
     runs-on: ubuntu-22.04
     steps:  
-      - name: "?�경변???�팅"
+      - name: "환경변수 세팅"
         run: |
             if [ "${{ github.ref }}" = "refs/heads/deploy-kmj" ]; then
               echo "GCP_VM_HOST=${{ secrets.GCP_VM_HOST_KMJ }}" >> $GITHUB_ENV
@@ -24,7 +24,7 @@ jobs:
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_KMJ }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_KMJ }}" >> $GITHUB_ENV
               
-              # �?문자??짤림 방�? (?�전 ?�치 추�?)
+              # ⭐ 문자열 짤림 방지 (안전 장치 추가)
               echo "APPLICATION_SECRET<<EOF" >> $GITHUB_ENV
               echo "${{ secrets.APPLICATION_SECRET_KMJ }}" >> $GITHUB_ENV
               echo "EOF" >> $GITHUB_ENV
@@ -86,7 +86,7 @@ jobs:
           echo "${{ env.GCP_VM_SSHKEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           
-          # 검�?
+          # 검증
           ssh-keygen -l -f ~/.ssh/id_rsa || echo "Invalid key format"
           
       - name: Checkout
@@ -96,16 +96,12 @@ jobs:
         run: |
           echo "${{env.APPLICATION_SECRET}}" | base64 --decode > ./src/main/resources/application-secret.yaml
           echo "${{env.FIREBASE_KEY}}" | base64 --decode > ./src/main/resources/firebase-key.json
-          echo "--- application-secret.yaml contents ---"
-          cat ./src/main/resources/application-secret.yaml
-          echo "--- end ---"
-          ls -la ./src/main/resources/
           
           echo "${{env.DOCKER_PASSWORD}}" | docker login -u ${{env.DOCKER_USERNAME}} --password-stdin
           docker build -t ${{env.DOCKER_USERNAME}}/spring-app:latest .
           docker push ${{env.DOCKER_USERNAME}}/spring-app:latest
 
-      - name: GCP SSH REMOTE ?�격?�속
+      - name: GCP SSH REMOTE 원격접속
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{env.GCP_VM_HOST}}
@@ -119,4 +115,3 @@ jobs:
             sudo docker compose -f api-docker-compose.yaml pull
             sudo docker compose -f api-docker-compose.yaml down
             sudo docker compose -f api-docker-compose.yaml up -d
-
