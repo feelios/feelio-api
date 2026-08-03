@@ -42,6 +42,18 @@
 | [x] | - | A6-4 | 동적 예산 분석 로직 개편 | feat/analysis-dynamic-budget | 신규 API | Ctrl·Svc·DTO | goals | 완료 | 기존 5% 로직 폐기, 모든 활성 목표의 월별 필요 저축액을 합산하여 이번 달 최종 예산으로 산출 및 초과/미달 판단 |
 | [ ] | - | A6-5 | 거래내역 정산금액 합치기(Merge) API | feat/transaction-merge | 신규 API | Ctrl·Svc·Mapper | transactions | 신규 | 거래내역 수정 모달에서 정산받은 금액(receivedAmount) 입력 시 원본 지출 금액에서 차감하여 단일 거래로 덮어씌우는 물리적 병합 API |
 | [x] | - | FIX-1 | OAuth2 Stateless 세션 충돌 및 설정 오류 수정 | fix/oauth2-stateless | §3 | config | - | 완료 | 1. 쿠키 기반 인증 요청 저장소(HttpCookieOAuth2AuthorizationRequestRepository) 구현<br>2. SecurityConfig 권한 및 저장소 주입<br>3. OAuth2SuccessHandler ResponseCookie(SameSite=Lax) 적용<br>4. application.yaml 카카오/네이버 `client_secret_post` 및 `user-name-attribute` 오타 수정 |
+| [ ] | 108 | A7-1 | 홈 화면 AI 멘트 — 계약 확정 및 구현 | feat/summary-ai-comment | §8(수정 필요) | (문서)→Ctrl·Svc·DTO | transactions(집계) | 보류 | **계약에 텍스트 필드가 없어 확정이 선행.** 붙일 위치(기존 응답 필드 vs 신규 엔드포인트)·멘트 성격·갱신 주기·저장 위치를 프론트와 합의해 §8 갱신 후 구현. AI 실패·지연이 홈 로딩을 막지 않을 것 |
+| [ ] | 106 | A7-2 | AI 분석 인사이트 GPT 연동 | feat/analysis-gpt-insights | §9 | Svc·Entity·Mapper+XML | ai_insights | 신규 | `InsightGenerator` GPT 구현체 추가 → `insights[]`를 GPT 생성으로 전환하고 `ai_insights`에 저장(최초 조회 시 생성, 이후 DB 조회). Mock 상태인 `/api/analysis/ai-insights` 실구현. GPT 실패 시 규칙기반 폴백 |
+| [ ] | 107 | A7-3 | 평행우주 narration GPT 연동 | feat/universe-gpt-narration | §9 | Svc·DTO | goals, transactions | 신규 | `scenarios[].narration`을 템플릿에서 GPT 생성으로 전환. **숫자 필드는 계약 §9 계산식 그대로 두고 문장만 생성.** GPT 실패 시 기존 템플릿 폴백 |
+| [ ] | - | A8-1 | FCM 웹 푸시 서버 연동 | feat/fcm-push | - | Svc·Ctrl·DB | users | 신규 | FCM 토큰 저장 및 Firebase Admin SDK를 활용한 결제 직후 data-only 푸시 발송 |
+| [ ] | - | A7-4 | 분석 리포트 API 뼈대 및 소비위험도 로직 | feat/analysis-report-skeleton | - | Ctrl·Svc | transactions | 신규 | GET /api/analysis/ai-report 엔드포인트 생성, 예산 대비 지출 비율 기반 소비위험도 로직 구현 및 AI 응답용 Mock 데이터 반환 |
+| [ ] | - | A7-5 | [MZ 팩트 폭격기] 페르소나 연동 | feat/fact-report-ai | - | Svc | - | 신규 | FactReportService 신설, 예산 상태(초과/절약/0원)에 따른 팩트 폭격/칭찬 프롬프트 적용 및 데이터 반환 |
+| [ ] | - | A7-6 | [챌린지 마스터] 맞춤 챌린지 연동 | feat/challenge-ai | - | Svc | - | 신규 | ChallengeService 신설, 주간 과소비 루트 기반 현실적 미션 1개 생성 프롬프트 적용 |
+| [ ] | - | A7-7 | [다정한 심리 상담사] 감정소비 분석 연동 | feat/emotion-analysis-ai | - | Svc | - | 신규 | EmotionAnalysisService 신설, 감정-소비 매핑 기반 3단계 포맷(발견/의미/조언) 분석 프롬프트 적용 및 최종 응답 조립 |
+
+> **A7 = AI 연동 (마일스톤 7).** 세 이슈 공통: AI 호출 실패·타임아웃이 화면 장애로 이어지지 않도록 폴백을 반드시 둔다.
+> A7-2를 먼저 진행해 폴백·설정 구조를 잡고, A7-3이 그 구조를 재사용하는 순서를 권한다. A7-1은 계약 확정 전까지 `blocked`.
+
 ## 병렬 작업 규칙 (Claude ↔ Gemini 충돌 방지)
 - **도메인 단위로 분할**한다. 같은 도메인(auth/users/transactions…) 이슈를 둘이 쪼개 갖지 않는다.
 - `refresh_tokens`를 공유하는 auth 3종(A1-1/2/3)은 **한 사람**이 맡는다.

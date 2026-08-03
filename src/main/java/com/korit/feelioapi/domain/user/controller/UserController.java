@@ -4,6 +4,7 @@ import com.korit.feelioapi.domain.user.dto.OnboardingResponse;
 import com.korit.feelioapi.domain.user.dto.SettingsResponse;
 import com.korit.feelioapi.domain.user.dto.UpdateNicknameRequest;
 import com.korit.feelioapi.domain.user.dto.UpdateSettingsRequest;
+import com.korit.feelioapi.domain.user.dto.UpdateFcmTokenRequest;
 import com.korit.feelioapi.domain.user.dto.UserResponse;
 import com.korit.feelioapi.domain.user.dto.WithdrawRequest;
 import com.korit.feelioapi.domain.user.dto.WithdrawResponse;
@@ -63,5 +64,13 @@ public class UserController {
     public ApiResponse<WithdrawResponse> withdraw(@AuthenticationPrincipal Long userId,
                                                   @RequestBody(required = false) WithdrawRequest request) {
         return ApiResponse.success(userService.withdraw(userId, request));
+    }
+
+    /** POST /api/users/me/fcm-token — FCM 토큰 저장. */
+    @org.springframework.web.bind.annotation.PostMapping("/me/fcm-token")
+    public ApiResponse<Boolean> updateFcmToken(@AuthenticationPrincipal Long userId,
+                                               @Valid @RequestBody UpdateFcmTokenRequest request) {
+        userService.updateFcmToken(userId, request.getFcmToken());
+        return ApiResponse.success(true);
     }
 }
