@@ -16,39 +16,72 @@ jobs:
             if [ "${{ github.ref }}" = "refs/heads/deploy-kmj" ]; then
               echo "GCP_VM_HOST=${{ secrets.GCP_VM_HOST_KMJ }}" >> $GITHUB_ENV
               echo "GCP_VM_USERNAME=${{ secrets.GCP_VM_USERNAME_KMJ }}" >> $GITHUB_ENV
+              
               echo "GCP_VM_SSHKEY<<EOF" >> $GITHUB_ENV
               echo "${{ secrets.GCP_VM_SSHKEY_KMJ }}" >> $GITHUB_ENV
               echo "EOF" >> $GITHUB_ENV
+              
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_KMJ }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_KMJ }}" >> $GITHUB_ENV
-              echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_KMJ }}" >> $GITHUB_ENV
-              echo "ENV=${{ secrets.ENV_KMJ }}" >> $GITHUB_ENV
-              # ⭐ 파이어베이스 키 추가
-              echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_KMJ }}" >> $GITHUB_ENV
+              
+              # ⭐ 문자열 짤림 방지 (안전 장치 추가)
+              echo "APPLICATION_SECRET<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.APPLICATION_SECRET_KMJ }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
+              
+              echo "ENV<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.ENV_KMJ }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
+              
+              echo "FIREBASE_KEY<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.FIREBASE_KEY_KMJ }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
 
             elif [ "${{ github.ref }}" = "refs/heads/deploy-kec" ]; then
               echo "GCP_VM_HOST=${{ secrets.GCP_VM_HOST_KEC }}" >> $GITHUB_ENV
               echo "GCP_VM_USERNAME=${{ secrets.GCP_VM_USERNAME_KEC }}" >> $GITHUB_ENV
+              
               echo "GCP_VM_SSHKEY<<EOF" >> $GITHUB_ENV
               echo "${{ secrets.GCP_VM_SSHKEY_KEC }}" >> $GITHUB_ENV
               echo "EOF" >> $GITHUB_ENV
+              
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_KEC }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_KEC }}" >> $GITHUB_ENV
-              echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_KEC }}" >> $GITHUB_ENV
-              echo "ENV=${{ secrets.ENV_KEC }}" >> $GITHUB_ENV
-              echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_KEC }}" >> $GITHUB_ENV
+              
+              echo "APPLICATION_SECRET<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.APPLICATION_SECRET_KEC }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
+              
+              echo "ENV<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.ENV_KEC }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
+              
+              echo "FIREBASE_KEY<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.FIREBASE_KEY_KEC }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
 
             elif [ "${{ github.ref }}" = "refs/heads/deploy-npr" ]; then
               echo "GCP_VM_HOST=${{ secrets.GCP_VM_HOST_NPR }}" >> $GITHUB_ENV
               echo "GCP_VM_USERNAME=${{ secrets.GCP_VM_USERNAME_NPR }}" >> $GITHUB_ENV
+              
               echo "GCP_VM_SSHKEY<<EOF" >> $GITHUB_ENV
               echo "${{ secrets.GCP_VM_SSHKEY_NPR }}" >> $GITHUB_ENV
               echo "EOF" >> $GITHUB_ENV
+              
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_NPR }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_NPR }}" >> $GITHUB_ENV
-              echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_NPR }}" >> $GITHUB_ENV
-              echo "ENV=${{ secrets.ENV_NPR }}" >> $GITHUB_ENV
-              echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_NPR }}" >> $GITHUB_ENV
+              
+              echo "APPLICATION_SECRET<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.APPLICATION_SECRET_NPR }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
+              
+              echo "ENV<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.ENV_NPR }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
+              
+              echo "FIREBASE_KEY<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.FIREBASE_KEY_NPR }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
             fi
             
       - name: Setup SSH Key
@@ -63,12 +96,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
           
-      # - name: Install JDK docker에서 넣어놓음
-      #   uses: actions/setup-java@v5.2.0
-      #   with:
-      #     java-version: '21'
-      #     distribution: 'temurin'
-
       - name: Springboot Build and Docker image build and push
         run: |
           # 문자열 에러를 방지하기 위해 큰따옴표를 씌웠습니다.
