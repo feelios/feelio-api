@@ -1,4 +1,5 @@
 application-secret.yaml
+firebase-key.json
 .env
 HELP.md
 
