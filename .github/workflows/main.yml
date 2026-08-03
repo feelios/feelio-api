@@ -3,7 +3,7 @@ name: GCP-VM-CICD
 on:
   push: 
     branches: [deploy-kmj, deploy-kec, deploy-npr]
-  # PR을 열 때 생기는 쓸데없는 에러 방지를 위해 주석 처리
+  # 💡 PR을 열었을 때 불필요한 에러(빨간 엑스)가 발생하는 것을 방지하기 위해 PR 트리거는 주석 처리했습니다!
   # pull_request: 
   #   branches: [deploy-kmj, deploy-kec, deploy-npr]
 
@@ -24,60 +24,39 @@ jobs:
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_KMJ }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_KMJ }}" >> $GITHUB_ENV
               
-              # ⭐ 문자열 짤림 방지 (안전 장치 추가)
-              echo "APPLICATION_SECRET<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.APPLICATION_SECRET_KMJ }}" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
-              
-              echo "ENV<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.ENV_KMJ }}" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
-              
-              echo "FIREBASE_KEY<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.FIREBASE_KEY_KMJ }}" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
+              echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_KMJ }}" >> $GITHUB_ENV
+              echo "ENV=${{ secrets.ENV_KMJ }}" >> $GITHUB_ENV
+              echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_KMJ }}" >> $GITHUB_ENV
 
             elif [ "${{ github.ref }}" = "refs/heads/deploy-kec" ]; then
               echo "GCP_VM_HOST=${{ secrets.GCP_VM_HOST_KEC }}" >> $GITHUB_ENV
               echo "GCP_VM_USERNAME=${{ secrets.GCP_VM_USERNAME_KEC }}" >> $GITHUB_ENV
+              
               echo "GCP_VM_SSHKEY<<EOF" >> $GITHUB_ENV
               echo "${{ secrets.GCP_VM_SSHKEY_KEC }}" >> $GITHUB_ENV
               echo "EOF" >> $GITHUB_ENV
+              
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_KEC }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_KEC }}" >> $GITHUB_ENV
               
-              echo "APPLICATION_SECRET<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.APPLICATION_SECRET_KEC }}" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
-              
-              echo "ENV<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.ENV_KEC }}" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
-              
-              echo "FIREBASE_KEY<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.FIREBASE_KEY_KEC }}" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
+              echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_KEC }}" >> $GITHUB_ENV
+              echo "ENV=${{ secrets.ENV_KEC }}" >> $GITHUB_ENV
+              echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_KEC }}" >> $GITHUB_ENV
 
             elif [ "${{ github.ref }}" = "refs/heads/deploy-npr" ]; then
               echo "GCP_VM_HOST=${{ secrets.GCP_VM_HOST_NPR }}" >> $GITHUB_ENV
               echo "GCP_VM_USERNAME=${{ secrets.GCP_VM_USERNAME_NPR }}" >> $GITHUB_ENV
+              
               echo "GCP_VM_SSHKEY<<EOF" >> $GITHUB_ENV
               echo "${{ secrets.GCP_VM_SSHKEY_NPR }}" >> $GITHUB_ENV
               echo "EOF" >> $GITHUB_ENV
+              
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_NPR }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_NPR }}" >> $GITHUB_ENV
               
-              echo "APPLICATION_SECRET<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.APPLICATION_SECRET_NPR }}" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
-              
-              echo "ENV<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.ENV_NPR }}" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
-              
-              echo "FIREBASE_KEY<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.FIREBASE_KEY_NPR }}" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
+              echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_NPR }}" >> $GITHUB_ENV
+              echo "ENV=${{ secrets.ENV_NPR }}" >> $GITHUB_ENV
+              echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_NPR }}" >> $GITHUB_ENV
             fi
             
       - name: Setup SSH Key
@@ -91,11 +70,11 @@ jobs:
           
       - name: Checkout
         uses: actions/checkout@v4
-
+          
       - name: Springboot Build and Docker image build and push
         run: |
-          echo "${{env.APPLICATION_SECRET}}" | base64 --decode > ./src/main/resources/application-secret.yaml
-          echo "${{env.FIREBASE_KEY}}" | base64 --decode > ./src/main/resources/firebase-key.json
+          echo ${{env.APPLICATION_SECRET}} | base64 --decode > ./src/main/resources/application-secret.yaml
+          echo ${{env.FIREBASE_KEY}} | base64 --decode > ./src/main/resources/firebase-key.json
           
           echo "${{env.DOCKER_PASSWORD}}" | docker login -u ${{env.DOCKER_USERNAME}} --password-stdin
           docker build -t ${{env.DOCKER_USERNAME}}/spring-app:latest .
@@ -110,7 +89,8 @@ jobs:
           script: |
             cd /home/${{env.GCP_VM_USERNAME}}
             
-            echo "${{env.ENV}}" | base64 --decode > .env
+            # sudo echo 대신 일반 echo 사용 (권한 에러 방지)
+            echo ${{env.ENV}} | base64 --decode > .env
             
             sudo docker compose -f api-docker-compose.yaml pull
             sudo docker compose -f api-docker-compose.yaml down
