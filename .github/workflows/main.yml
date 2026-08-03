@@ -24,18 +24,9 @@ jobs:
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_KMJ }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_KMJ }}" >> $GITHUB_ENV
               
-              # ⭐ 문자열 짤림 방지 (안전 장치 추가)
-              echo "APPLICATION_SECRET<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.APPLICATION_SECRET_KMJ }}" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
-              
-              echo "ENV<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.ENV_KMJ }}" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
-              
-              echo "FIREBASE_KEY<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.FIREBASE_KEY_KMJ }}" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
+              echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_KMJ }}" >> $GITHUB_ENV
+              echo "ENV=${{ secrets.ENV_KMJ }}" >> $GITHUB_ENV
+              echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_KMJ }}" >> $GITHUB_ENV
 
             elif [ "${{ github.ref }}" = "refs/heads/deploy-kec" ]; then
               echo "GCP_VM_HOST=${{ secrets.GCP_VM_HOST_KEC }}" >> $GITHUB_ENV
@@ -48,17 +39,9 @@ jobs:
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_KEC }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_KEC }}" >> $GITHUB_ENV
               
-              echo "APPLICATION_SECRET<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.APPLICATION_SECRET_KEC }}" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
-              
-              echo "ENV<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.ENV_KEC }}" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
-              
-              echo "FIREBASE_KEY<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.FIREBASE_KEY_KEC }}" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
+              echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_KEC }}" >> $GITHUB_ENV
+              echo "ENV=${{ secrets.ENV_KEC }}" >> $GITHUB_ENV
+              echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_KEC }}" >> $GITHUB_ENV
 
             elif [ "${{ github.ref }}" = "refs/heads/deploy-npr" ]; then
               echo "GCP_VM_HOST=${{ secrets.GCP_VM_HOST_NPR }}" >> $GITHUB_ENV
@@ -71,17 +54,9 @@ jobs:
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_NPR }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_NPR }}" >> $GITHUB_ENV
               
-              echo "APPLICATION_SECRET<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.APPLICATION_SECRET_NPR }}" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
-              
-              echo "ENV<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.ENV_NPR }}" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
-              
-              echo "FIREBASE_KEY<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.FIREBASE_KEY_NPR }}" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
+              echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_NPR }}" >> $GITHUB_ENV
+              echo "ENV=${{ secrets.ENV_NPR }}" >> $GITHUB_ENV
+              echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_NPR }}" >> $GITHUB_ENV
             fi
             
       - name: Setup SSH Key
@@ -98,11 +73,8 @@ jobs:
           
       - name: Springboot Build and Docker image build and push
         run: |
-          # 문자열 에러를 방지하기 위해 큰따옴표를 씌웠습니다.
-          echo "${{env.APPLICATION_SECRET}}" | base64 --decode > ./src/main/resources/application-secret.yaml
-          
-          # ⭐ 백엔드에 Firebase 키 파일을 생성해주는 결정적인 코드!
-          echo "${{env.FIREBASE_KEY}}" | base64 --decode > ./src/main/resources/firebase-key.json
+          echo ${{env.APPLICATION_SECRET}} | base64 --decode > ./src/main/resources/application-secret.yaml
+          echo ${{env.FIREBASE_KEY}} | base64 --decode > ./src/main/resources/firebase-key.json
           
           echo "${{env.DOCKER_PASSWORD}}" | docker login -u ${{env.DOCKER_USERNAME}} --password-stdin
           docker build -t ${{env.DOCKER_USERNAME}}/spring-app:latest .
@@ -118,7 +90,7 @@ jobs:
             cd /home/${{env.GCP_VM_USERNAME}}
             
             # sudo echo 대신 일반 echo 사용 (권한 에러 방지)
-            echo "${{env.ENV}}" | base64 --decode > .env
+            echo ${{env.ENV}} | base64 --decode > .env
             
             sudo docker compose -f api-docker-compose.yaml pull
             sudo docker compose -f api-docker-compose.yaml down
