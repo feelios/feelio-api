@@ -26,6 +26,12 @@ public interface AnalysisMapper {
                                                 @Param("year") int year,
                                                 @Param("month") int month);
 
+    List<CategoryStatDto> findWeeklyExpenseByCategory(
+            @Param("userId") Long userId,
+            @Param("startAt") java.time.LocalDateTime startAt,
+            @Param("endAt") java.time.LocalDateTime endAt
+    );
+
     List<EmotionStatDto> findExpenseByEmotion(@Param("userId") Long userId,
                                               @Param("year") int year,
                                               @Param("month") int month);

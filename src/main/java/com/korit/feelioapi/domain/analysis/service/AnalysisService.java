@@ -52,6 +52,7 @@ public class AnalysisService {
     private final AiInsightStore aiInsightStore;
     private final AiQuickInsightAssembler quickInsightAssembler;
     private final FactReportService factReportService;
+    private final ChallengeService challengeService;
 
     /** 이번 달 인사이트를 몇 시간 뒤에 다시 만들지. 짧게 잡을수록 GPT 호출이 늘어난다. */
     @Value("${feelio.insight.ttl-hours:6}")
@@ -187,6 +188,10 @@ public class AnalysisService {
                 .findFirst()
                 .map(CategoryStatDto::name)
                 .orElse(null);
+        java.time.LocalDateTime weeklyStart = today.minusDays(6).atStartOfDay();
+        java.time.LocalDateTime weeklyEnd = today.plusDays(1).atStartOfDay();
+        List<CategoryStatDto> weeklyCategories = analysisMapper.findWeeklyExpenseByCategory(
+                userId, weeklyStart, weeklyEnd);
         double usageRate = budget > 0
                 ? Math.round(totalExpense * 1000.0 / budget) / 10.0
                 : 0.0;
@@ -200,7 +205,7 @@ public class AnalysisService {
                 ConsumptionRisk.of(totalExpense, budget).name(),
                 new AiReportResponseDto.AiContent(
                         factReportService.generate(spendStatus, totalExpense, budget, topCategory),
-                        "맞춤 챌린지를 준비 중이에요.",
+                        challengeService.generate(weeklyCategories),
                         "감정 소비 분석을 준비 중이에요."
                 )
         );

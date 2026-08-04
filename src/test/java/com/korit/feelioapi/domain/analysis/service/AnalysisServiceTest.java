@@ -41,6 +41,7 @@ class AnalysisServiceTest {
     @Mock private AiInsightStore aiInsightStore;
     @Mock private AiQuickInsightAssembler quickInsightAssembler;
     @Mock private FactReportService factReportService;
+    @Mock private ChallengeService challengeService;
 
     @InjectMocks private AnalysisService analysisService;
 
@@ -260,6 +261,12 @@ class AnalysisServiceTest {
                 .thenReturn(List.of(new CategoryStatDto(3L, "카페", "EXPENSE", 200000L, 8L)));
         when(factReportService.generate(SpendStatus.NO_BUDGET, 250000L, 0L, "카페"))
                 .thenReturn("예산부터 잡으면 지갑도 방향을 찾겠는데?");
+        List<CategoryStatDto> weeklyCategories = List.of(
+                new CategoryStatDto(5L, "배달", "EXPENSE", 120000L, 4L));
+        when(analysisMapper.findWeeklyExpenseByCategory(
+                eq(1L), any(java.time.LocalDateTime.class), any(java.time.LocalDateTime.class)))
+                .thenReturn(weeklyCategories);
+        when(challengeService.generate(weeklyCategories)).thenReturn("이번 주 배달은 2번까지만 주문하기");
 
         AiReportResponseDto response = analysisService.getAiReport(1L);
 
@@ -268,9 +275,10 @@ class AnalysisServiceTest {
         assertThat(response.budgetUsageRate()).isZero();
         assertThat(response.consumptionRisk()).isEqualTo("GREEN");
         assertThat(response.ai().fact()).isEqualTo("예산부터 잡으면 지갑도 방향을 찾겠는데?");
-        assertThat(response.ai().challenge()).isEqualTo("맞춤 챌린지를 준비 중이에요.");
+        assertThat(response.ai().challenge()).isEqualTo("이번 주 배달은 2번까지만 주문하기");
         assertThat(response.ai().emotion()).isEqualTo("감정 소비 분석을 준비 중이에요.");
         verifyNoInteractions(openAIClient);
         verify(factReportService).generate(SpendStatus.NO_BUDGET, 250000L, 0L, "카페");
+        verify(challengeService).generate(weeklyCategories);
     }
 }

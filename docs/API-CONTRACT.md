@@ -373,7 +373,7 @@ Response(200) `data`:
   "consumptionRisk": "YELLOW",
   "ai": {
     "fact": "이번 달 카페 지출 폼 미쳤다, 지갑도 카페인 과다 섭취 중이네.",
-    "challenge": "맞춤 챌린지를 준비 중이에요.",
+    "challenge": "이번 주 배달은 2번까지만 주문하기",
     "emotion": "감정 소비 분석을 준비 중이에요."
   }
 }
@@ -383,7 +383,9 @@ Response(200) `data`:
 - 지출이 없거나 예산을 산출할 수 없으면 `budgetUsageRate: 0.0`, `consumptionRisk: GREEN`이다.
 - `ai.fact`: 예산 상태·당월 지출·최대 지출 카테고리를 반영한 MZ 팩트 폭격기 한 문장이다.
   `feelio.insight.provider=gpt`일 때 GPT를 호출하고, 비활성화·실패·타임아웃·빈 응답 시 `"팩트 분석을 준비 중이에요."`로 폴백한다.
-- `ai.challenge`·`ai.emotion`: 후속 AI 연동을 위한 고정 뼈대이며 현재는 준비 중 문구를 반환한다.
+- `ai.challenge`: 오늘을 포함한 최근 7일의 카테고리별 지출(금액·건수)을 반영한 측정 가능한 미션 한 문장이다.
+  `feelio.insight.provider=gpt`일 때 GPT를 호출하고, 기록 없음·비활성화·실패·타임아웃·빈 응답 시 `"맞춤 챌린지를 준비 중이에요."`로 폴백한다.
+- `ai.emotion`: 후속 AI 연동을 위한 고정 뼈대이며 현재는 준비 중 문구를 반환한다.
 
 ### GET /api/universe/simulation?goalId · 인증 필요
 
