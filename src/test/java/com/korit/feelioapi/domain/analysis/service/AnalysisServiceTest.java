@@ -40,6 +40,7 @@ class AnalysisServiceTest {
     @Mock private com.openai.client.OpenAIClient openAIClient;
     @Mock private AiInsightStore aiInsightStore;
     @Mock private AiQuickInsightAssembler quickInsightAssembler;
+    @Mock private FactReportService factReportService;
 
     @InjectMocks private AnalysisService analysisService;
 
@@ -255,6 +256,10 @@ class AnalysisServiceTest {
                 .thenReturn(List.of());
         when(analysisMapper.findPrevCategoryStats(1L, previousMonth.getYear(), previousMonth.getMonthValue()))
                 .thenReturn(List.of());
+        when(analysisMapper.findExpenseByCategory(1L, today.getYear(), today.getMonthValue()))
+                .thenReturn(List.of(new CategoryStatDto(3L, "카페", "EXPENSE", 200000L, 8L)));
+        when(factReportService.generate(SpendStatus.NO_BUDGET, 250000L, 0L, "카페"))
+                .thenReturn("예산부터 잡으면 지갑도 방향을 찾겠는데?");
 
         AiReportResponseDto response = analysisService.getAiReport(1L);
 
@@ -262,9 +267,10 @@ class AnalysisServiceTest {
         assertThat(response.totalBudget()).isZero();
         assertThat(response.budgetUsageRate()).isZero();
         assertThat(response.consumptionRisk()).isEqualTo("GREEN");
-        assertThat(response.ai().fact()).isEqualTo("팩트 분석을 준비 중이에요.");
+        assertThat(response.ai().fact()).isEqualTo("예산부터 잡으면 지갑도 방향을 찾겠는데?");
         assertThat(response.ai().challenge()).isEqualTo("맞춤 챌린지를 준비 중이에요.");
         assertThat(response.ai().emotion()).isEqualTo("감정 소비 분석을 준비 중이에요.");
         verifyNoInteractions(openAIClient);
+        verify(factReportService).generate(SpendStatus.NO_BUDGET, 250000L, 0L, "카페");
     }
 }
