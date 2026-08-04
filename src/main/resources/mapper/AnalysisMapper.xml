@@ -110,4 +110,33 @@
         GROUP BY c.category_id, c.name, c.is_fixed, c.is_budgetable
     </select>
 
+    <!-- 저장된 월간 인사이트 조회. idx_ai_user_ym(user_id, year, month) 를 그대로 타는 조건이다.
+         created_at 은 이번 달 인사이트의 재생성 판단에 쓴다.
+         year·month 는 MySQL 함수명과 겹쳐 백틱으로 감싼다. -->
+    <select id="findInsights" resultType="com.korit.feelioapi.domain.analysis.entity.AiInsight">
+        SELECT insight_id, user_id, `year`, `month`, insight_type, content, created_at
+        FROM ai_insights
+        WHERE user_id = #{userId}
+          AND `year` = #{year}
+          AND `month` = #{month}
+        ORDER BY insight_id
+    </select>
+
+    <!-- 재생성 전 기존 행 제거. AiInsightStore 에서 insertInsights 와 한 트랜잭션으로 묶인다. -->
+    <delete id="deleteInsights">
+        DELETE FROM ai_insights
+        WHERE user_id = #{userId}
+          AND `year` = #{year}
+          AND `month` = #{month}
+    </delete>
+
+    <!-- 인사이트 일괄 저장. 다중 VALUES 한 문장이라 일부만 저장되는 상태가 남지 않는다. -->
+    <insert id="insertInsights">
+        INSERT INTO ai_insights (user_id, `year`, `month`, insight_type, content)
+        VALUES
+        <foreach collection="insights" item="insight" separator=",">
+            (#{userId}, #{year}, #{month}, #{insight.type}, #{insight.content})
+        </foreach>
+    </insert>
+
 </mapper>

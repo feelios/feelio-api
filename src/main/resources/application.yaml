@@ -118,6 +118,16 @@ cookie:
 ---
 openai:
   key: ${OPENAI_KEY}
+  # 파인튜닝 모델은 ID 가 ft:gpt-4o-mini-...:org::xxxx 형태라 설정으로 뺀다.
+  model: ${OPENAI_MODEL:gpt-4o-mini}
+  timeout-seconds: ${OPENAI_TIMEOUT_SECONDS:20}
+
+feelio:
+  insight:
+    # 인사이트 생성기. rule = 규칙기반(기본·호출 없음), gpt = OpenAI 호출.
+    provider: ${INSIGHT_PROVIDER:rule}
+    # 이번 달 인사이트 재생성 주기(시간). 지난 달 이전은 이 값과 무관하게 영구 캐시된다.
+    ttl-hours: ${INSIGHT_TTL_HOURS:6}
 
 firebase:
   key-path: classpath:firebase-key.json
