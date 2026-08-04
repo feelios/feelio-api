@@ -1,6 +1,7 @@
 package com.korit.feelioapi.domain.analysis.service;
 
 import com.korit.feelioapi.domain.analysis.dto.AiInsightsResponse;
+import com.korit.feelioapi.domain.analysis.dto.AiReportResponseDto;
 import com.korit.feelioapi.domain.analysis.dto.AnalysisResponse;
 import com.korit.feelioapi.domain.analysis.dto.AnalysisTotalDto;
 import com.korit.feelioapi.domain.analysis.dto.CategoryStatDto;
@@ -167,6 +168,36 @@ public class AnalysisService {
                 .evidence(List.of())
                 .pattern(AiInsightsResponse.AiPattern.builder().count(0).build())
                 .build();
+    }
+
+    /**
+     * AI 연동 전에도 프론트가 사용할 수 있는 분석 리포트 뼈대.
+     * 위험도는 순수 자바 계산이며 OpenAI 클라이언트를 호출하지 않는다.
+     */
+    public AiReportResponseDto getAiReport(Long userId) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        int year = today.getYear();
+        int month = today.getMonthValue();
+
+        long totalExpense = analysisMapper.findMonthlyTotals(userId, year, month).totalExpense();
+        long budget = totalBudget(userId);
+        double usageRate = budget > 0
+                ? Math.round(totalExpense * 1000.0 / budget) / 10.0
+                : 0.0;
+
+        return new AiReportResponseDto(
+                year,
+                month,
+                totalExpense,
+                budget,
+                usageRate,
+                ConsumptionRisk.of(totalExpense, budget).name(),
+                new AiReportResponseDto.AiContent(
+                        "팩트 분석을 준비 중이에요.",
+                        "맞춤 챌린지를 준비 중이에요.",
+                        "감정 소비 분석을 준비 중이에요."
+                )
+        );
     }
 
     /**

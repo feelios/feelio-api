@@ -1,6 +1,7 @@
 package com.korit.feelioapi.domain.analysis.service;
 
 import com.korit.feelioapi.domain.analysis.dto.AnalysisResponse;
+import com.korit.feelioapi.domain.analysis.dto.AiReportResponseDto;
 import com.korit.feelioapi.domain.analysis.dto.AnalysisTotalDto;
 import com.korit.feelioapi.domain.analysis.dto.CategoryStatDto;
 import com.korit.feelioapi.domain.analysis.dto.EmotionStatDto;
@@ -28,6 +29,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class AnalysisServiceTest {
@@ -239,5 +241,30 @@ class AnalysisServiceTest {
         com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem item2 = response.budgetItems().get(1);
         assertThat(item2.name()).isEqualTo("교통");
         assertThat(item2.budget()).isEqualTo(304000L);
+    }
+
+    @Test
+    void AI를_호출하지_않고_분석_리포트_뼈대를_반환한다() {
+        LocalDate today = LocalDate.now();
+        LocalDate previousMonth = today.minusMonths(1);
+
+        when(analysisMapper.findMonthlyTotals(1L, today.getYear(), today.getMonthValue()))
+                .thenReturn(new AnalysisTotalDto(0L, 250000L));
+        when(goalMapper.findGoalsByUserId(1L)).thenReturn(List.of());
+        when(analysisMapper.findCurrentCategoryStats(1L, today.getYear(), today.getMonthValue()))
+                .thenReturn(List.of());
+        when(analysisMapper.findPrevCategoryStats(1L, previousMonth.getYear(), previousMonth.getMonthValue()))
+                .thenReturn(List.of());
+
+        AiReportResponseDto response = analysisService.getAiReport(1L);
+
+        assertThat(response.totalExpense()).isEqualTo(250000L);
+        assertThat(response.totalBudget()).isZero();
+        assertThat(response.budgetUsageRate()).isZero();
+        assertThat(response.consumptionRisk()).isEqualTo("GREEN");
+        assertThat(response.ai().fact()).isEqualTo("팩트 분석을 준비 중이에요.");
+        assertThat(response.ai().challenge()).isEqualTo("맞춤 챌린지를 준비 중이에요.");
+        assertThat(response.ai().emotion()).isEqualTo("감정 소비 분석을 준비 중이에요.");
+        verifyNoInteractions(openAIClient);
     }
 }

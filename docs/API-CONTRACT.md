@@ -358,6 +358,31 @@ Response(200) `data`:
 - `emotionCards`: `byEmotion` **상위 3건까지**, 같은 순서. 감정 카드 뒷면 문구이며 앞면(감정명·비율·금액)은 프론트가 §9 `byEmotion`으로 그린다.
 - `evidence`·`pattern`: 이 응답에서는 사용하지 않는다(빈 배열 / `count: 0`). 프론트는 `GET /api/transactions/patterns`에서 받아간다.
 
+### GET /api/analysis/ai-report · 인증 필요
+
+- 파라미터 없음. 호출 시점의 당월 지출과 동적 예산으로 계산하며, AI 모델은 호출하지 않는다.
+
+Response(200) `data`:
+```json
+{
+  "year": 2026,
+  "month": 8,
+  "totalExpense": 720000,
+  "totalBudget": 1000000,
+  "budgetUsageRate": 72.0,
+  "consumptionRisk": "YELLOW",
+  "ai": {
+    "fact": "팩트 분석을 준비 중이에요.",
+    "challenge": "맞춤 챌린지를 준비 중이에요.",
+    "emotion": "감정 소비 분석을 준비 중이에요."
+  }
+}
+```
+
+- `consumptionRisk`: 예산 소진율 90% 이상 `RED`, 70% 이상 90% 미만 `YELLOW`, 70% 미만 `GREEN`.
+- 지출이 없거나 예산을 산출할 수 없으면 `budgetUsageRate: 0.0`, `consumptionRisk: GREEN`이다.
+- `ai`의 세 필드는 후속 AI 연동을 위한 고정 뼈대이며 현재는 위 준비 중 문구를 반환한다.
+
 ### GET /api/universe/simulation?goalId · 인증 필요
 
 - **goalId 필수**. 해당 목표에 대해 두 미래 시나리오(현재 소비 유지 / 소비를 줄임)를 비교한다.
