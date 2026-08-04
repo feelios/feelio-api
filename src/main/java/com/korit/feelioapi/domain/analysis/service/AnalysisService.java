@@ -51,6 +51,7 @@ public class AnalysisService {
     private final OpenAIClient openAIClient;
     private final AiInsightStore aiInsightStore;
     private final AiQuickInsightAssembler quickInsightAssembler;
+    private final FactReportService factReportService;
 
     /** 이번 달 인사이트를 몇 시간 뒤에 다시 만들지. 짧게 잡을수록 GPT 호출이 늘어난다. */
     @Value("${feelio.insight.ttl-hours:6}")
@@ -181,6 +182,11 @@ public class AnalysisService {
 
         long totalExpense = analysisMapper.findMonthlyTotals(userId, year, month).totalExpense();
         long budget = totalBudget(userId);
+        SpendStatus spendStatus = SpendStatus.of(totalExpense, budget);
+        String topCategory = analysisMapper.findExpenseByCategory(userId, year, month).stream()
+                .findFirst()
+                .map(CategoryStatDto::name)
+                .orElse(null);
         double usageRate = budget > 0
                 ? Math.round(totalExpense * 1000.0 / budget) / 10.0
                 : 0.0;
@@ -193,7 +199,7 @@ public class AnalysisService {
                 usageRate,
                 ConsumptionRisk.of(totalExpense, budget).name(),
                 new AiReportResponseDto.AiContent(
-                        "팩트 분석을 준비 중이에요.",
+                        factReportService.generate(spendStatus, totalExpense, budget, topCategory),
                         "맞춤 챌린지를 준비 중이에요.",
                         "감정 소비 분석을 준비 중이에요."
                 )
