@@ -19,11 +19,12 @@ public class FCMService {
         try {
             Message message = Message.builder()
                     .setToken(token)
-                    .setNotification(Notification.builder()
-                            .setTitle(title)
-                            .setBody(body)
+                    .putData("title", title)
+                    .putData("body", body)
+                    .putData("url", url != null ? url : "/record")
+                    .setWebpushConfig(com.google.firebase.messaging.WebpushConfig.builder()
+                            .putHeader("Urgency", "high")
                             .build())
-                    .putData("url", url != null ? url : "/")
                     .build();
 
             String response = FirebaseMessaging.getInstance().send(message);
