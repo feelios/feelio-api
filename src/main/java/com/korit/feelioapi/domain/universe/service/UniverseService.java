@@ -12,7 +12,6 @@ import com.korit.feelioapi.global.exception.BusinessException;
 import com.korit.feelioapi.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.YearMonth;
 import java.util.List;
@@ -29,8 +28,13 @@ public class UniverseService {
     private static final double REDUCTION_RATE = 0.5;
 
     private final UniverseMapper universeMapper;
+    private final ScenarioNarrator scenarioNarrator;
 
-    @Transactional(readOnly = true)
+    /**
+     * 트랜잭션을 걸지 않는다 — 문장 생성이 GPT 호출을 포함할 수 있어(A7-3), 트랜잭션으로 감싸면
+     * 외부 호출이 끝날 때까지 DB 커넥션을 쥐고 있게 된다(풀 크기 5). 조회는 모두 읽기 전용이라
+     * 매퍼 호출이 각자 커넥션을 빌렸다 바로 반납하는 편이 낫다.
+     */
     public UniverseResponse simulate(Long userId, Long goalId) {
         if (goalId == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "goalId는 필수입니다.");
@@ -59,53 +63,45 @@ public class UniverseService {
         long reducedExpense = Math.max(0L, expense - Math.round(focusAmount * REDUCTION_RATE));
         long remaining = (long) goal.targetAmount() - goal.currentAmount();
 
-        ScenarioDto current = buildScenario("CURRENT", "지금처럼 쓴다면", income, expense, remaining, null);
+        Projection current = project(income, expense, remaining);
+        Projection reduced = project(income, reducedExpense, remaining);
+
+        // 숫자를 모두 확정한 뒤 문장을 한 번에 받는다. 두 문장은 서로를 참조해야(몇 개월 빨라지는지) 자연스럽다.
+        List<String> narrations = scenarioNarrator.narrate(new NarrationContext(
+                goal.name(),
+                focusEmotion == null ? null : focusEmotion.name(),
+                current.months(),
+                reduced.months()));
+
+        ScenarioDto currentScenario = new ScenarioDto("CURRENT", "지금처럼 쓴다면",
+                expense, current.saving(), current.months(), current.achieveDate(), narrations.get(0));
+
         String reducedTitle = (focusEmotion != null ? focusEmotion.name() : "감정") + " 소비를 줄이면";
-        ScenarioDto reduced = buildScenario("REDUCED", reducedTitle, income, reducedExpense, remaining,
-                current.monthsToGoal());
+        ScenarioDto reducedScenario = new ScenarioDto("REDUCED", reducedTitle,
+                reducedExpense, reduced.saving(), reduced.months(), reduced.achieveDate(), narrations.get(1));
 
         GoalSummaryDto goalDto = new GoalSummaryDto(
                 goal.goalId(), goal.name(), goal.targetAmount(), goal.currentAmount());
 
         return new UniverseResponse(goalDto, income, expense, focusEmotion, REDUCTION_RATE,
-                List.of(current, reduced));
+                List.of(currentScenario, reducedScenario));
     }
 
-    /** 시나리오 계산: 월 저축 = 수입 − 지출(≥0), 도달 개월 = ceil(남은액/저축), 저축 ≤ 0 이면 도달 불가(null). */
-    private ScenarioDto buildScenario(String key, String title, long income, long monthlyExpense,
-                                      long remaining, Integer currentMonths) {
+    /** 시나리오의 숫자 부분. months·achieveDate 는 도달 불가(월 저축 ≤ 0) 시 null. */
+    private record Projection(long saving, Integer months, String achieveDate) {
+    }
+
+    /** 계약 §9: 월 저축 = 수입 − 지출(≥0), 도달 개월 = ceil(남은액/저축), 저축 ≤ 0 이면 도달 불가(null). */
+    private Projection project(long income, long monthlyExpense, long remaining) {
         long saving = Math.max(0L, income - monthlyExpense);
 
-        Integer months;
-        String achieveDate;
         if (remaining <= 0) {
-            months = 0;
-            achieveDate = YearMonth.now().toString();
-        } else if (saving <= 0) {
-            months = null;
-            achieveDate = null;
-        } else {
-            months = (int) Math.ceil((double) remaining / saving);
-            achieveDate = YearMonth.now().plusMonths(months).toString();
+            return new Projection(saving, 0, YearMonth.now().toString());
         }
-
-        return new ScenarioDto(key, title, monthlyExpense, saving, months, achieveDate,
-                narrate(key, months, currentMonths));
-    }
-
-    private String narrate(String key, Integer months, Integer currentMonths) {
-        if (months != null && months == 0) {
-            return "이미 목표 금액을 모았어요.";
+        if (saving <= 0) {
+            return new Projection(saving, null, null);
         }
-        boolean isReduced = "REDUCED".equals(key);
-        if (months == null) {
-            return isReduced ? "지출을 더 줄이면 목표에 다가갈 수 있어요."
-                    : "지금 소비 흐름으로는 목표 도달이 어려워요. 조금 줄여볼까요?";
-        }
-        if (isReduced && currentMonths != null && currentMonths > months) {
-            return String.format("이렇게 줄이면 약 %d개월 뒤 도착, %d개월 빨라져요.",
-                    months, currentMonths - months);
-        }
-        return String.format("지금 속도라면 약 %d개월 뒤 목표에 닿아요.", months);
+        int months = (int) Math.ceil((double) remaining / saving);
+        return new Projection(saving, months, YearMonth.now().plusMonths(months).toString());
     }
 }

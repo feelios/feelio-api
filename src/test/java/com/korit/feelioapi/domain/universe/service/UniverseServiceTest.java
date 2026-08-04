@@ -11,20 +11,33 @@ import com.korit.feelioapi.global.exception.BusinessException;
 import com.korit.feelioapi.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class UniverseServiceTest {
 
     @Mock private UniverseMapper universeMapper;
+
+    /**
+     * 문장 생성은 A7-3 에서 ScenarioNarrator 로 분리됐다. 여기서는 실물(규칙기반)을 넣어
+     * 기존 시나리오 계산 결과가 그대로인지 함께 확인한다 — mock 을 넣으면 narration 이 null 이 된다.
+     */
+    @Spy private ScenarioNarrator scenarioNarrator = new RuleBasedScenarioNarrator();
 
     @InjectMocks private UniverseService universeService;
 
@@ -113,5 +126,53 @@ class UniverseServiceTest {
         assertThatThrownBy(() -> universeService.simulate(100L, 1L))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.FORBIDDEN);
+    }
+
+    // --- A7-3: narration 생성 분리 ---
+
+    @Test
+    void 계산된_개월수가_문장생성기로_그대로_넘어간다() {
+        ScenarioNarrator narrator = mock(ScenarioNarrator.class);
+        when(narrator.narrate(any())).thenReturn(List.of("현행 문장", "감축 문장"));
+
+        when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 20_000_000, 0));
+        when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
+        when(universeMapper.findMonthlyTotals(100L, 2026, 7))
+                .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
+        when(universeMapper.findFocusEmotion(100L, 2026, 7))
+                .thenReturn(new FocusEmotionDto(2L, "설렘", "#F28AB7", 1_000_000L));
+
+        UniverseResponse res = new UniverseService(universeMapper, narrator).simulate(100L, 1L);
+
+        ArgumentCaptor<NarrationContext> captor = ArgumentCaptor.forClass(NarrationContext.class);
+        verify(narrator).narrate(captor.capture());
+        NarrationContext context = captor.getValue();
+
+        // 숫자는 서비스가 계산해 넘긴다. 모델이 다시 계산하면 화면 숫자와 어긋난다.
+        assertThat(context.goalName()).isEqualTo("제주도 여행");
+        assertThat(context.focusEmotionName()).isEqualTo("설렘");
+        assertThat(context.currentMonths()).isEqualTo(20);
+        assertThat(context.reducedMonths()).isEqualTo(14);
+
+        // 돌려받은 문장이 CURRENT·REDUCED 순서대로 붙는다.
+        assertThat(res.scenarios().get(0).narration()).isEqualTo("현행 문장");
+        assertThat(res.scenarios().get(1).narration()).isEqualTo("감축 문장");
+    }
+
+    @Test
+    void 규칙기반_문장은_A7_3_이전과_같다() {
+        when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 20_000_000, 0));
+        when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
+        when(universeMapper.findMonthlyTotals(100L, 2026, 7))
+                .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
+        when(universeMapper.findFocusEmotion(100L, 2026, 7))
+                .thenReturn(new FocusEmotionDto(2L, "설렘", "#F28AB7", 1_000_000L));
+
+        UniverseResponse res = universeService.simulate(100L, 1L);
+
+        assertThat(res.scenarios().get(0).narration())
+                .isEqualTo("지금 속도라면 약 20개월 뒤 목표에 닿아요.");
+        assertThat(res.scenarios().get(1).narration())
+                .isEqualTo("이렇게 줄이면 약 14개월 뒤 도착, 6개월 빨라져요.");
     }
 }

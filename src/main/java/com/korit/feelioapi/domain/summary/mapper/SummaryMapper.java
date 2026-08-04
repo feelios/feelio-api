@@ -20,4 +20,10 @@ public interface SummaryMapper {
             @Param("year") Integer year,
             @Param("month") Integer month
     );
+
+    long findMonthlyExpense(
+            @Param("userId") Long userId,
+            @Param("year") Integer year,
+            @Param("month") Integer month
+    );
 }

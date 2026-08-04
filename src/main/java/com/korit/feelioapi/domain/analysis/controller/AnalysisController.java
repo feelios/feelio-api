@@ -1,6 +1,7 @@
 package com.korit.feelioapi.domain.analysis.controller;
 
 import com.korit.feelioapi.domain.analysis.dto.AnalysisResponse;
+import com.korit.feelioapi.domain.analysis.dto.AiReportResponseDto;
 import com.korit.feelioapi.domain.analysis.service.AnalysisService;
 import com.korit.feelioapi.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,12 @@ public class AnalysisController {
     @GetMapping("/ai-insights")
     public ApiResponse<com.korit.feelioapi.domain.analysis.dto.AiInsightsResponse> getAiInsights(@AuthenticationPrincipal Long userId) {
         return ApiResponse.success(analysisService.getAiInsights(userId));
+    }
+
+    /** GET /api/analysis/ai-report — AI 연동 전 분석 리포트 뼈대와 소비 위험도. */
+    @GetMapping("/ai-report")
+    public ApiResponse<AiReportResponseDto> getAiReport(@AuthenticationPrincipal Long userId) {
+        return ApiResponse.success(analysisService.getAiReport(userId));
     }
 
     /** GET /api/analysis/trend — 최근 7개월 지출 추이. */

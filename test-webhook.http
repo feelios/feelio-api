@@ -1,0 +1,19 @@
+### 스타벅스 결제 테스트 쏘기
+POST http://localhost:8080/api/webhooks/card-payment
+Content-Type: application/json
+
+{
+  "merchant": "스타벅스",
+  "amount": 4500,
+  "userId": 35
+}
+
+### GS25 결제 테스트 쏘기
+POST http://localhost:8080/api/webhooks/card-payment
+Content-Type: application/json
+
+{
+  "merchant": "GS25",
+  "amount": 1500,
+  "userId": 35
+}
