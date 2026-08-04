@@ -32,6 +32,20 @@
         ORDER BY amount DESC
     </select>
 
+    <!-- 최근 7일 챌린지 입력: 기간은 호출 측에서 [startAt, endAt)으로 고정한다. -->
+    <select id="findWeeklyExpenseByCategory" resultType="com.korit.feelioapi.domain.analysis.dto.CategoryStatDto">
+        SELECT c.category_id AS categoryId, c.name AS name, c.type AS type,
+               SUM(t.amount) AS amount, COUNT(*) AS count
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.category_id
+        WHERE t.user_id = #{userId}
+          AND t.type = 'EXPENSE'
+          AND t.occurred_at &gt;= #{startAt}
+          AND t.occurred_at &lt; #{endAt}
+        GROUP BY c.category_id, c.name, c.type
+        ORDER BY amount DESC
+    </select>
+
     <!-- 감정별 지출: 금액 내림차순(§9 — 소비 몰린 감정 우선). -->
     <select id="findExpenseByEmotion" resultType="com.korit.feelioapi.domain.analysis.dto.EmotionStatDto">
         SELECT e.emotion_id AS emotionId, e.name AS name, e.color AS color,
