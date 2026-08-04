@@ -42,6 +42,7 @@ class AnalysisServiceTest {
     @Mock private AiQuickInsightAssembler quickInsightAssembler;
     @Mock private FactReportService factReportService;
     @Mock private ChallengeService challengeService;
+    @Mock private EmotionAnalysisService emotionAnalysisService;
 
     @InjectMocks private AnalysisService analysisService;
 
@@ -267,6 +268,17 @@ class AnalysisServiceTest {
                 eq(1L), any(java.time.LocalDateTime.class), any(java.time.LocalDateTime.class)))
                 .thenReturn(weeklyCategories);
         when(challengeService.generate(weeklyCategories)).thenReturn("이번 주 배달은 2번까지만 주문하기");
+        List<EmotionStatDto> monthlyEmotions = List.of(
+                new EmotionStatDto(4L, "스트레스", "#A68BEA", 180000L, 5L));
+        when(analysisMapper.findExpenseByEmotion(1L, today.getYear(), today.getMonthValue()))
+                .thenReturn(monthlyEmotions);
+        when(analysisMapper.findExpenseByTimeSlot(1L, today.getYear(), today.getMonthValue()))
+                .thenReturn(List.of(new TimeSlotStat("NIGHT", 190000L, 6L)));
+        String emotionAnalysis = "① 발견: 스트레스 소비가 밤에 두드러졌어요. "
+                + "② 의미: 지친 마음을 달래려는 선택이었을 수 있어요. "
+                + "③ 조언: 결제 전 5분만 마음을 살펴보세요.";
+        when(emotionAnalysisService.generate(monthlyEmotions, "카페", "밤"))
+                .thenReturn(emotionAnalysis);
 
         AiReportResponseDto response = analysisService.getAiReport(1L);
 
@@ -276,9 +288,10 @@ class AnalysisServiceTest {
         assertThat(response.consumptionRisk()).isEqualTo("GREEN");
         assertThat(response.ai().fact()).isEqualTo("예산부터 잡으면 지갑도 방향을 찾겠는데?");
         assertThat(response.ai().challenge()).isEqualTo("이번 주 배달은 2번까지만 주문하기");
-        assertThat(response.ai().emotion()).isEqualTo("감정 소비 분석을 준비 중이에요.");
+        assertThat(response.ai().emotion()).isEqualTo(emotionAnalysis);
         verifyNoInteractions(openAIClient);
         verify(factReportService).generate(SpendStatus.NO_BUDGET, 250000L, 0L, "카페");
         verify(challengeService).generate(weeklyCategories);
+        verify(emotionAnalysisService).generate(monthlyEmotions, "카페", "밤");
     }
 }
