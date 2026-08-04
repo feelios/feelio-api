@@ -53,6 +53,7 @@ public class AnalysisService {
     private final AiQuickInsightAssembler quickInsightAssembler;
     private final FactReportService factReportService;
     private final ChallengeService challengeService;
+    private final EmotionAnalysisService emotionAnalysisService;
 
     /** 이번 달 인사이트를 몇 시간 뒤에 다시 만들지. 짧게 잡을수록 GPT 호출이 늘어난다. */
     @Value("${feelio.insight.ttl-hours:6}")
@@ -184,9 +185,15 @@ public class AnalysisService {
         long totalExpense = analysisMapper.findMonthlyTotals(userId, year, month).totalExpense();
         long budget = totalBudget(userId);
         SpendStatus spendStatus = SpendStatus.of(totalExpense, budget);
-        String topCategory = analysisMapper.findExpenseByCategory(userId, year, month).stream()
+        List<CategoryStatDto> monthlyCategories = analysisMapper.findExpenseByCategory(userId, year, month);
+        String topCategory = monthlyCategories.stream()
                 .findFirst()
                 .map(CategoryStatDto::name)
+                .orElse(null);
+        List<EmotionStatDto> monthlyEmotions = analysisMapper.findExpenseByEmotion(userId, year, month);
+        String topTimeSlot = toTimeSlotDtos(analysisMapper.findExpenseByTimeSlot(userId, year, month)).stream()
+                .max(java.util.Comparator.comparingLong(TimeSlotStatDto::amount))
+                .map(TimeSlotStatDto::label)
                 .orElse(null);
         java.time.LocalDateTime weeklyStart = today.minusDays(6).atStartOfDay();
         java.time.LocalDateTime weeklyEnd = today.plusDays(1).atStartOfDay();
@@ -206,7 +213,7 @@ public class AnalysisService {
                 new AiReportResponseDto.AiContent(
                         factReportService.generate(spendStatus, totalExpense, budget, topCategory),
                         challengeService.generate(weeklyCategories),
-                        "감정 소비 분석을 준비 중이에요."
+                        emotionAnalysisService.generate(monthlyEmotions, topCategory, topTimeSlot)
                 )
         );
     }

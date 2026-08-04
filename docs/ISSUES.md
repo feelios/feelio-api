@@ -49,7 +49,7 @@
 | [x] | 114 | A7-4 | 분석 리포트 API 뼈대 및 소비위험도 로직 | feat/analysis-api-skeleton | §9 | Ctrl·Svc·DTO | transactions | 완료 | `GET /api/analysis/ai-report` → 예산 소진율 기반 `RED/YELLOW/GREEN` 소비 위험도와 팩트·챌린지·감정 Mock 문구 반환. AI 호출 없음 |
 | [x] | 115 | A7-5 | [MZ 팩트 폭격기] 페르소나 연동 | feat/fact-bomber-ai | §9 | Svc | - | 완료 | `FactReportService` 신설 → 예산 상태·당월 지출·최대 지출 카테고리 기반 GPT 프롬프트. `ai-report.ai.fact`에 병합하고 비활성화·AI 실패 시 준비 중 문구 폴백 |
 | [x] | 116 | A7-6 | [챌린지 마스터] 맞춤 챌린지 연동 | feat/challenge-master-ai | §9 | Svc·Mapper+XML | transactions | 완료 | `ChallengeService` 신설 → 최근 7일 카테고리별 지출 기반 측정 가능한 GPT 미션 생성. `ai-report.ai.challenge`에 병합하고 기록 없음·비활성화·AI 실패 시 준비 중 문구 폴백 |
-| [ ] | - | A7-7 | [다정한 심리 상담사] 감정소비 분석 연동 | feat/emotion-analysis-ai | - | Svc | - | 신규 | EmotionAnalysisService 신설, 감정-소비 매핑 기반 3단계 포맷(발견/의미/조언) 분석 프롬프트 적용 및 최종 응답 조립 |
+| [x] | 117 | A7-7 | [다정한 심리 상담사] 감정소비 분석 연동 | feat/emotion-counselor-ai | §9 | Svc | - | 완료 | `EmotionAnalysisService` 신설 → 당월 감정별 지출·대표 카테고리·시간대 기반 발견→의미→조언 3단계 GPT 분석. `ai-report.ai.emotion`에 병합하고 기록 없음·비활성화·AI 실패·형식 오류 시 준비 중 문구 폴백 |
 
 > **A7 = AI 연동 (마일스톤 7).** 세 이슈 공통: AI 호출 실패·타임아웃이 화면 장애로 이어지지 않도록 폴백을 반드시 둔다.
 > A7-2를 먼저 진행해 폴백·설정 구조를 잡고, A7-3이 그 구조를 재사용하는 순서를 권한다. A7-1은 계약 확정 전까지 `blocked`.
