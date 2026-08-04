@@ -128,3 +128,6 @@ feelio:
     provider: ${INSIGHT_PROVIDER:rule}
     # 이번 달 인사이트 재생성 주기(시간). 지난 달 이전은 이 값과 무관하게 영구 캐시된다.
     ttl-hours: ${INSIGHT_TTL_HOURS:6}
+
+firebase:
+  key-path: classpath:firebase-key.json

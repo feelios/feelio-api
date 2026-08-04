@@ -339,6 +339,8 @@ public class AnalysisService {
 
     public List<String> getAiChatResponse(String value) {
         ResponseCreateParams params = ResponseCreateParams.builder()
+                .instructions("너") //뭘까? :
+                .temperature(0.0) //고정된 답변을 하도록
                 .input(value)
                 .model("gpt-4o-mini")
                 .build();
