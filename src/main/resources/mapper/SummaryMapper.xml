@@ -78,4 +78,13 @@
         ORDER BY count DESC, amount DESC
     </select>
 
+    <select id="findMonthlyExpense" resultType="long">
+        SELECT COALESCE(SUM(t.amount), 0)
+        FROM transactions t
+        WHERE t.user_id = #{userId}
+          AND YEAR(t.occurred_at) = #{year}
+          AND MONTH(t.occurred_at) = #{month}
+          AND t.type = 'EXPENSE'
+    </select>
+
 </mapper>

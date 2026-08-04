@@ -2,6 +2,7 @@ package com.korit.feelioapi.domain.summary.controller;
 
 import com.korit.feelioapi.domain.summary.dto.CalendarSummaryResponse;
 import com.korit.feelioapi.domain.summary.dto.EmotionSummaryResponse;
+import com.korit.feelioapi.domain.summary.dto.SummaryAiCommentResponse;
 import com.korit.feelioapi.domain.summary.service.SummaryService;
 import com.korit.feelioapi.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -36,5 +37,13 @@ public class SummaryController {
             @RequestParam Integer month
     ) {
         return ApiResponse.success(summaryService.getEmotionSummary(userId, year, month));
+    }
+
+    /** GET /api/summary/ai-comment — 홈과 독립적으로 늦게 채우는 당월 소비 AI 멘트. */
+    @GetMapping("/ai-comment")
+    public ApiResponse<SummaryAiCommentResponse> getAiComment(
+            @AuthenticationPrincipal Long userId
+    ) {
+        return ApiResponse.success(summaryService.getAiComment(userId));
     }
 }
