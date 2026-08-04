@@ -5,6 +5,7 @@ import com.korit.feelioapi.domain.summary.dto.CalendarSummaryResponse;
 import com.korit.feelioapi.domain.summary.dto.EmotionDto;
 import com.korit.feelioapi.domain.summary.dto.EmotionSummaryDto;
 import com.korit.feelioapi.domain.summary.dto.EmotionSummaryResponse;
+import com.korit.feelioapi.domain.summary.dto.SummaryAiCommentResponse;
 import com.korit.feelioapi.domain.summary.mapper.SummaryMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +25,9 @@ class SummaryServiceTest {
 
     @Mock
     private SummaryMapper summaryMapper;
+
+    @Mock
+    private SummaryAiCommentGenerator aiCommentGenerator;
 
     @InjectMocks
     private SummaryService summaryService;
@@ -71,5 +75,41 @@ class SummaryServiceTest {
 
         verify(summaryMapper).findEmotionSummary(userId, 2026, 1);
         verify(summaryMapper).findEmotionSummary(userId, 2025, 12);
+    }
+
+    @Test
+    void 당월과_전월_지출로_홈_AI_멘트를_생성한다() {
+        Long userId = 2L;
+        LocalDate today = LocalDate.now();
+        LocalDate previousMonth = today.minusMonths(1);
+
+        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(300000L);
+        when(summaryMapper.findMonthlyExpense(userId, previousMonth.getYear(), previousMonth.getMonthValue()))
+                .thenReturn(400000L);
+        when(aiCommentGenerator.generate(today.getYear(), today.getMonthValue(), 300000L, 400000L))
+                .thenReturn("지난달보다 지출이 줄었어요.");
+
+        SummaryAiCommentResponse response = summaryService.getAiComment(userId);
+
+        assertThat(response.comment()).isEqualTo("지난달보다 지출이 줄었어요.");
+        verify(aiCommentGenerator).generate(today.getYear(), today.getMonthValue(), 300000L, 400000L);
+    }
+
+    @Test
+    void 당월_지출이_없으면_AI를_호출하지_않고_빈_멘트를_반환한다() {
+        Long userId = 3L;
+        LocalDate today = LocalDate.now();
+        LocalDate previousMonth = today.minusMonths(1);
+
+        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(0L);
+        when(summaryMapper.findMonthlyExpense(userId, previousMonth.getYear(), previousMonth.getMonthValue()))
+                .thenReturn(150000L);
+
+        SummaryAiCommentResponse response = summaryService.getAiComment(userId);
+
+        assertThat(response.comment()).isNull();
+        org.mockito.Mockito.verifyNoInteractions(aiCommentGenerator);
     }
 }
