@@ -27,6 +27,9 @@ jobs:
               echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_KMJ }}" >> $GITHUB_ENV
               echo "ENV=${{ secrets.ENV_KMJ }}" >> $GITHUB_ENV
               echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_KMJ }}" >> $GITHUB_ENV
+              
+              echo "OPENAI_KEY=${{ secrets.OPENAI_KEY_KMJ }}" >> $GITHUB_ENV
+              echo "INSIGHT_PROVIDER=${{ secrets.INSIGHT_PROVIDER }}" >> $GITHUB_ENV
 
             elif [ "${{ github.ref }}" = "refs/heads/deploy-kec" ]; then
               echo "GCP_VM_HOST=${{ secrets.GCP_VM_HOST_KEC }}" >> $GITHUB_ENV
@@ -42,6 +45,9 @@ jobs:
               echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_KEC }}" >> $GITHUB_ENV
               echo "ENV=${{ secrets.ENV_KEC }}" >> $GITHUB_ENV
               echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_KEC }}" >> $GITHUB_ENV
+              
+              echo "OPENAI_KEY=${{ secrets.OPENAI_KEY_KEC }}" >> $GITHUB_ENV
+              echo "INSIGHT_PROVIDER=${{ secrets.INSIGHT_PROVIDER }}" >> $GITHUB_ENV
 
             elif [ "${{ github.ref }}" = "refs/heads/deploy-npr" ]; then
               echo "GCP_VM_HOST=${{ secrets.GCP_VM_HOST_NPR }}" >> $GITHUB_ENV
@@ -57,6 +63,9 @@ jobs:
               echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_NPR }}" >> $GITHUB_ENV
               echo "ENV=${{ secrets.ENV_NPR }}" >> $GITHUB_ENV
               echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_NPR }}" >> $GITHUB_ENV
+              
+              echo "OPENAI_KEY=${{ secrets.OPENAI_KEY_NPR }}" >> $GITHUB_ENV
+              echo "INSIGHT_PROVIDER=${{ secrets.INSIGHT_PROVIDER }}" >> $GITHUB_ENV
             fi
             
       - name: Setup SSH Key
@@ -91,6 +100,10 @@ jobs:
             
             # sudo echo 대신 일반 echo 사용 (권한 에러 방지)
             echo ${{env.ENV}} | base64 --decode > .env
+            
+            # AI 통신을 위한 환경변수 주입
+            echo "OPENAI_KEY=${{env.OPENAI_KEY}}" >> .env
+            echo "INSIGHT_PROVIDER=${{env.INSIGHT_PROVIDER}}" >> .env
             
             sudo docker compose -f api-docker-compose.yaml pull
             sudo docker compose -f api-docker-compose.yaml down
