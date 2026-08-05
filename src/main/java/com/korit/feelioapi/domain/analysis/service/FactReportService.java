@@ -31,15 +31,18 @@ public class FactReportService {
             """;
 
     private final OpenAIClient openAIClient;
+    private final RuleBasedInsightCardGenerator fallback;
     private final String model;
     private final Duration timeout;
     private final String provider;
 
     public FactReportService(OpenAIClient openAIClient,
+                             RuleBasedInsightCardGenerator fallback,
                              @Value("${openai.model}") String model,
                              @Value("${openai.timeout-seconds}") long timeoutSeconds,
                              @Value("${feelio.insight.provider:rule}") String provider) {
         this.openAIClient = openAIClient;
+        this.fallback = fallback;
         this.model = model;
         this.timeout = Duration.ofSeconds(timeoutSeconds);
         this.provider = provider;
@@ -47,7 +50,7 @@ public class FactReportService {
 
     public String generate(SpendStatus status, long expense, long budget, String topCategory) {
         if (!"gpt".equalsIgnoreCase(provider)) {
-            return FALLBACK_MESSAGE;
+            return fallback.factReport(status, topCategory, expense);
         }
 
         try {
@@ -68,13 +71,13 @@ public class FactReportService {
                     .collect(Collectors.joining())
                     .trim();
             if (text.isBlank()) {
-                return FALLBACK_MESSAGE;
+                return fallback.factReport(status, topCategory, expense);
             }
             String sanitized = stripQuotes(text);
             return sanitized.length() <= MAX_LENGTH ? sanitized : sanitized.substring(0, MAX_LENGTH);
         } catch (Exception e) {
-            log.warn("팩트 폭격기 생성 실패. 준비 중 문구로 대체한다.", e);
-            return FALLBACK_MESSAGE;
+            log.warn("팩트 폭격기 생성 실패. 룰 기반 폴백으로 대체한다.", e);
+            return fallback.factReport(status, topCategory, expense);
         }
     }
 
