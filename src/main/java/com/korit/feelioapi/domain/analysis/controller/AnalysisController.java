@@ -28,6 +28,11 @@ public class AnalysisController {
         return ApiResponse.success(analysisService.getMonthlyAnalysis(userId, year, month));
     }
 
+    @GetMapping("/debug/insights")
+    public ApiResponse<List<com.korit.feelioapi.domain.analysis.entity.AiInsight>> debugInsights(@RequestParam Long userId, @RequestParam int year, @RequestParam int month) {
+        return ApiResponse.success(analysisService.debugInsights(userId, year, month));
+    }
+
     /** GET /api/analysis/ai-insights — 당월 집계 기반 AI 요약 카드·감정 카드 문구 (계약 §9). */
     @GetMapping("/ai-insights")
     public ApiResponse<com.korit.feelioapi.domain.analysis.dto.AiInsightsResponse> getAiInsights(@AuthenticationPrincipal Long userId) {

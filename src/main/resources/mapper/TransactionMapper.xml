@@ -28,6 +28,8 @@
             <arg javaType="com.korit.feelioapi.domain.transaction.dto.CategoryDto" resultMap="categoryResultMap"/>
             <arg javaType="com.korit.feelioapi.domain.transaction.dto.EmotionDto" resultMap="emotionResultMap"/>
             <arg column="goal_id" javaType="java.lang.Long"/>
+            <arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="updated_at" javaType="java.time.LocalDateTime"/>
         </constructor>
     </resultMap>
 
@@ -76,7 +78,9 @@
             e.emotion_id,
             e.name AS emotion_name,
             e.color AS emotion_color,
-            t.goal_id
+            t.goal_id,
+            t.created_at,
+            t.updated_at
         FROM transactions t
         LEFT JOIN categories c ON t.category_id = c.category_id
         LEFT JOIN emotions e ON t.emotion_id = e.emotion_id
@@ -101,8 +105,8 @@
     </select>
 
     <insert id="insertTransaction" useGeneratedKeys="true" keyProperty="transactionId">
-        INSERT INTO transactions (user_id, emotion_id, category_id, type, amount, memo, occurred_at, goal_id)
-        VALUES (#{userId}, #{emotionId}, #{categoryId}, #{type}, #{amount}, #{memo}, #{occurredAt}, #{goalId})
+        INSERT INTO transactions (user_id, emotion_id, category_id, type, amount, memo, occurred_at, goal_id, created_at, updated_at)
+        VALUES (#{userId}, #{emotionId}, #{categoryId}, #{type}, #{amount}, #{memo}, #{occurredAt}, #{goalId}, #{createdAt}, #{updatedAt})
     </insert>
 
     <select id="findTransactionById" resultMap="transactionResultMap">
@@ -117,7 +121,9 @@
             e.emotion_id,
             e.name AS emotion_name,
             e.color AS emotion_color,
-            t.goal_id
+            t.goal_id,
+            t.created_at,
+            t.updated_at
         FROM transactions t
         LEFT JOIN categories c ON t.category_id = c.category_id
         LEFT JOIN emotions e ON t.emotion_id = e.emotion_id
@@ -147,7 +153,8 @@
             amount = #{amount},
             memo = #{memo},
             occurred_at = #{occurredAt},
-            goal_id = #{goalId}
+            goal_id = #{goalId},
+            updated_at = #{updatedAt}
         WHERE transaction_id = #{transactionId}
     </update>
 
