@@ -100,6 +100,7 @@ jobs:
             
             # sudo echo 대신 일반 echo 사용 (권한 에러 방지)
             echo ${{env.ENV}} | base64 --decode > .env
+            echo "" >> .env
             
             # AI 통신을 위한 환경변수 주입
             echo "OPENAI_KEY=${{env.OPENAI_KEY}}" >> .env
