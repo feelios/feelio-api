@@ -58,13 +58,23 @@ public interface AnalysisMapper {
                                  @Param("month") int month);
 
     /** 해당 연·월 인사이트 전체 삭제. 재생성 전에 지워 중복이 쌓이지 않게 한다. */
-    int deleteInsights(@Param("userId") Long userId,
-                       @Param("year") int year,
-                       @Param("month") int month);
+    void deleteInsights(@Param("userId") Long userId,
+                        @Param("year") int year,
+                        @Param("month") int month);
 
-    /** 생성된 인사이트 일괄 저장. 다중 VALUES 한 문장이라 부분 저장이 남지 않는다. */
-    int insertInsights(@Param("userId") Long userId,
+    void deleteInsightByType(@Param("userId") Long userId,
+                             @Param("year") int year,
+                             @Param("month") int month,
+                             @Param("type") String type);
+
+    void insertInsights(@Param("userId") Long userId,
+                        @Param("year") int year,
+                        @Param("month") int month,
+                        @Param("insights") List<InsightDto> insights);
+
+    void insertInsight(@Param("userId") Long userId,
                        @Param("year") int year,
                        @Param("month") int month,
-                       @Param("insights") List<InsightDto> insights);
+                       @Param("type") String type,
+                       @Param("content") String content);
 }
