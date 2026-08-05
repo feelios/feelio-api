@@ -1,4 +1,4 @@
-# Feelio 백엔드 기능 이슈 표 (SSOT)
+﻿# Feelio 백엔드 기능 이슈 표 (SSOT)
 
 > **Claude / Gemini 어떤 도구로 작업하든 이 표를 공통 기준으로 삼는다.**
 > 이슈 코드(예: A1-1)로 브랜치·계약섹션·슬롯·테이블·완료기준을 확정한다.
@@ -44,16 +44,16 @@
 | [x] | - | FIX-1 | OAuth2 Stateless 세션 충돌 및 설정 오류 수정 | fix/oauth2-stateless | §3 | config | - | 완료 | 1. 쿠키 기반 인증 요청 저장소(HttpCookieOAuth2AuthorizationRequestRepository) 구현<br>2. SecurityConfig 권한 및 저장소 주입<br>3. OAuth2SuccessHandler ResponseCookie(SameSite=Lax) 적용<br>4. application.yaml 카카오/네이버 `client_secret_post` 및 `user-name-attribute` 오타 수정 |
 | [x] | 108 | A7-1 | 홈 화면 AI 멘트 — 계약 확정 및 구현 | feat/summary-ai-comment | §8 | Ctrl·Svc·DTO·Mapper | transactions(집계) | 완료 | `GET /api/summary/ai-comment` 분리 → 당월·전월 지출 비교 멘트, 사용자별 일 1회 메모리 캐시. 거래 없음·GPT 실패 시 `comment: null` 200 응답으로 홈 로딩과 분리 |
 | [x] | 106 | A7-2 | AI 분석 인사이트 GPT 연동 | feat/analysis-gpt-insights | §9 | Svc·Entity·Mapper+XML | ai_insights | 완료 (PR #121) | 1. `InsightCardGenerator` 인터페이스 + 규칙기반·GPT 구현체 2종<br>2. `AiQuickInsightAssembler`로 계약 §9 4건 고정·순서 고정 조립, `SpendStatus`로 전월 대비 소비 위험도<br>3. `AiInsight` 엔티티 + `AiInsightStore` + Mapper XML — `ai_insights` 저장(최초 생성 후 DB 조회, 당월 `INSIGHT_TTL_HOURS` 주기 재생성)<br>4. GPT 실패 시 규칙기반 폴백. **`INSIGHT_PROVIDER` 기본값이 `rule`이라 머지만으로는 GPT가 켜지지 않는다** — 활성화는 배포 `.env`에 `INSIGHT_PROVIDER=gpt` + `OPENAI_KEY` 필요 |
-| [ ] | 107 | A7-3 | 평행우주 narration GPT 연동 | feat/universe-gpt-narration | §9 | Svc·DTO | goals, transactions | 신규 | `scenarios[].narration`을 템플릿에서 GPT 생성으로 전환. **숫자 필드는 계약 §9 계산식 그대로 두고 문장만 생성.** GPT 실패 시 기존 템플릿 폴백 |
-| [ ] | - | A8-1 | FCM 웹 푸시 서버 연동 | feat/fcm-push | - | Svc·Ctrl·DB | users | 신규 | FCM 토큰 저장 및 Firebase Admin SDK를 활용한 결제 직후 data-only 푸시 발송 |
+| [x] | 107 | A7-3 | 평행우주 narration GPT 연동 | feat/universe-gpt-narration | §9 | Svc·DTO | goals, transactions | 신규 | `scenarios[].narration`을 템플릿에서 GPT 생성으로 전환. **숫자 필드는 계약 §9 계산식 그대로 두고 문장만 생성.** GPT 실패 시 기존 템플릿 폴백 |
+| [x] | - | A8-1 | FCM 웹 푸시 서버 연동 | feat/fcm-push | - | Svc·Ctrl·DB | users | 신규 | FCM 토큰 저장 및 Firebase Admin SDK를 활용한 결제 직후 data-only 푸시 발송 |
 | [x] | 114 | A7-4 | 분석 리포트 API 뼈대 및 소비위험도 로직 | feat/analysis-api-skeleton | §9 | Ctrl·Svc·DTO | transactions | 완료 | `GET /api/analysis/ai-report` → 예산 소진율 기반 `RED/YELLOW/GREEN` 소비 위험도와 팩트·챌린지·감정 Mock 문구 반환. AI 호출 없음 |
 | [x] | 115 | A7-5 | [MZ 팩트 폭격기] 페르소나 연동 | feat/fact-bomber-ai | §9 | Svc | - | 완료 | `FactReportService` 신설 → 예산 상태·당월 지출·최대 지출 카테고리 기반 GPT 프롬프트. `ai-report.ai.fact`에 병합하고 비활성화·AI 실패 시 준비 중 문구 폴백 |
 | [x] | 116 | A7-6 | [챌린지 마스터] 맞춤 챌린지 연동 | feat/challenge-master-ai | §9 | Svc·Mapper+XML | transactions | 완료 | `ChallengeService` 신설 → 최근 7일 카테고리별 지출 기반 측정 가능한 GPT 미션 생성. `ai-report.ai.challenge`에 병합하고 기록 없음·비활성화·AI 실패 시 준비 중 문구 폴백 |
 | [x] | 117 | A7-7 | [다정한 심리 상담사] 감정소비 분석 연동 | feat/emotion-counselor-ai | §9 | Svc | - | 완료 | `EmotionAnalysisService` 신설 → 당월 감정별 지출·대표 카테고리·시간대 기반 발견→의미→조언 3단계 GPT 분석. `ai-report.ai.emotion`에 병합하고 기록 없음·비활성화·AI 실패·형식 오류 시 준비 중 문구 폴백 |
-| [ ] | - | A2-1 | AI 팩트 리포트 프롬프트 조정 (강력한 경고 톤) | `feat/ai-fact-report-prompt` | - | - | - | 신규 | 팩트 리포트를 생성하는 AI 프롬프트를 수정하여 지출 위험에 대해 강력하고 직관적인 어조로 변경 |
-| [ ] | - | A2-2 | 홈 화면 말랑이 코멘트용 AI 생성 API 구현 | `feat/home-mallang-ai-api` | - | - | - | 신규 | 홈 말랑이 코멘트용 프롬프트를 추가하여 칭찬/경고 수치 및 독려 멘트를 생성 반환 |
-| [ ] | - | A2-3 | 거래내역 생성 및 수정 시 시간(Time) 바인딩 버그 수정 | `fix/transaction-time-binding` | - | - | - | 신규 | 거래내역 생성/수정 시 createdAt/updatedAt 중 올바른 시간이 반영되고 정확히 반환되는지 점검 및 수정 |
-| [ ] | - | A3-1 | 회원 탈퇴 API(Delete User) 오류 원인 분석 및 수정 | `fix/account-deletion-backend` | - | - | - | 신규 | 계정 탈퇴 시 정상적으로 처리되지 않는 원인을 파악하여 데이터가 안전하게 삭제되도록 API 수정 |
+| [ ] | - | A8-2 | AI 팩트 리포트 프롬프트 조정 (강력한 경고 톤) | `feat/ai-fact-report-prompt` | - | - | - | 신규 | 팩트 리포트를 생성하는 AI 프롬프트를 수정하여 지출 위험에 대해 강력하고 직관적인 어조로 변경 |
+| [ ] | - | A8-3 | 홈 화면 말랑이 코멘트용 AI 생성 API 구현 | `feat/home-mallang-ai-api` | - | - | - | 신규 | 홈 말랑이 코멘트용 프롬프트를 추가하여 칭찬/경고 수치 및 독려 멘트를 생성 반환 |
+| [ ] | - | A8-4 | 거래내역 생성 및 수정 시 시간(Time) 바인딩 버그 수정 | `fix/transaction-time-binding` | - | - | - | 신규 | 거래내역 생성/수정 시 createdAt/updatedAt 중 올바른 시간이 반영되고 정확히 반환되는지 점검 및 수정 |
+| [ ] | - | A8-5 | 회원 탈퇴 API(Delete User) 오류 원인 분석 및 수정 | `fix/account-deletion-backend` | - | - | - | 신규 | 계정 탈퇴 시 정상적으로 처리되지 않는 원인을 파악하여 데이터가 안전하게 삭제되도록 API 수정 |
 
 > **A7 = AI 연동 (마일스톤 7).** 세 이슈 공통: AI 호출 실패·타임아웃이 화면 장애로 이어지지 않도록 폴백을 반드시 둔다.
 > A7-2를 먼저 진행해 폴백·설정 구조를 잡고, A7-3이 그 구조를 재사용하는 순서를 권한다. A7-1은 계약 확정 전까지 `blocked`.
