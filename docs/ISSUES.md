@@ -50,6 +50,10 @@
 | [x] | 115 | A7-5 | [MZ 팩트 폭격기] 페르소나 연동 | feat/fact-bomber-ai | §9 | Svc | - | 완료 | `FactReportService` 신설 → 예산 상태·당월 지출·최대 지출 카테고리 기반 GPT 프롬프트. `ai-report.ai.fact`에 병합하고 비활성화·AI 실패 시 준비 중 문구 폴백 |
 | [x] | 116 | A7-6 | [챌린지 마스터] 맞춤 챌린지 연동 | feat/challenge-master-ai | §9 | Svc·Mapper+XML | transactions | 완료 | `ChallengeService` 신설 → 최근 7일 카테고리별 지출 기반 측정 가능한 GPT 미션 생성. `ai-report.ai.challenge`에 병합하고 기록 없음·비활성화·AI 실패 시 준비 중 문구 폴백 |
 | [x] | 117 | A7-7 | [다정한 심리 상담사] 감정소비 분석 연동 | feat/emotion-counselor-ai | §9 | Svc | - | 완료 | `EmotionAnalysisService` 신설 → 당월 감정별 지출·대표 카테고리·시간대 기반 발견→의미→조언 3단계 GPT 분석. `ai-report.ai.emotion`에 병합하고 기록 없음·비활성화·AI 실패·형식 오류 시 준비 중 문구 폴백 |
+| [ ] | - | A2-1 | AI 팩트 리포트 프롬프트 조정 (강력한 경고 톤) | `feat/ai-fact-report-prompt` | - | - | - | 신규 | 팩트 리포트를 생성하는 AI 프롬프트를 수정하여 지출 위험에 대해 강력하고 직관적인 어조로 변경 |
+| [ ] | - | A2-2 | 홈 화면 말랑이 코멘트용 AI 생성 API 구현 | `feat/home-mallang-ai-api` | - | - | - | 신규 | 홈 말랑이 코멘트용 프롬프트를 추가하여 칭찬/경고 수치 및 독려 멘트를 생성 반환 |
+| [ ] | - | A2-3 | 거래내역 생성 및 수정 시 시간(Time) 바인딩 버그 수정 | `fix/transaction-time-binding` | - | - | - | 신규 | 거래내역 생성/수정 시 createdAt/updatedAt 중 올바른 시간이 반영되고 정확히 반환되는지 점검 및 수정 |
+| [ ] | - | A3-1 | 회원 탈퇴 API(Delete User) 오류 원인 분석 및 수정 | `fix/account-deletion-backend` | - | - | - | 신규 | 계정 탈퇴 시 정상적으로 처리되지 않는 원인을 파악하여 데이터가 안전하게 삭제되도록 API 수정 |
 
 > **A7 = AI 연동 (마일스톤 7).** 세 이슈 공통: AI 호출 실패·타임아웃이 화면 장애로 이어지지 않도록 폴백을 반드시 둔다.
 > A7-2를 먼저 진행해 폴백·설정 구조를 잡고, A7-3이 그 구조를 재사용하는 순서를 권한다. A7-1은 계약 확정 전까지 `blocked`.
