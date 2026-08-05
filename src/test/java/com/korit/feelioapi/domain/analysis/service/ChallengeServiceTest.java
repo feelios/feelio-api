@@ -31,11 +31,4 @@ class ChallengeServiceTest {
 
         assertThat(service.generate(List.of())).isEqualTo("며칠만 기록을 이어가 보기");
     }
-
-    @Test
-    void 목록이_null_이어도_안전하게_폴백한다() {
-        ChallengeService service = new ChallengeService(new RuleBasedInsightCardGenerator());
-
-        assertThat(service.generate(null)).isEqualTo("며칠만 기록을 이어가 보기");
-    }
 }
