@@ -18,11 +18,11 @@ public class RuleBasedInsightCardGenerator implements InsightCardGenerator {
         return switch (status) {
             case ZERO -> "이번 달은 아직 지출 기록이 없어요.";
             case OVER -> topCategory == null
-                    ? String.format("이번 달 지출 %,d원. 예산이 거의 다 찼어요.", expense)
-                    : String.format("'%s'에서 많이 나갔어요. 이번 달 지출 %,d원.", topCategory, expense);
-            case WARNING -> String.format("이번 달 지출 %,d원. 예산의 70%%를 넘겼어요.", expense);
-            case SAVING -> String.format("이번 달 지출 %,d원. 예산 안에서 잘 가고 있어요.", expense);
-            case NO_BUDGET -> String.format("이번 달 지출 %,d원.", expense);
+                    ? "예산이 거의 다 찼어요. 지출을 점검해보세요."
+                    : String.format("'%s'에서 유독 지출이 많았어요.", topCategory);
+            case WARNING -> "예산의 70%를 넘겼어요. 주의가 필요해요.";
+            case SAVING -> "예산 안에서 안정적으로 소비하고 있어요.";
+            case NO_BUDGET -> "꾸준히 기록을 남겨 예산 관리를 시작해보세요.";
         };
     }
 
