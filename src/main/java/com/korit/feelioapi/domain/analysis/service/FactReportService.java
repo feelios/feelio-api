@@ -21,24 +21,27 @@ public class FactReportService {
     private static final Logger log = LoggerFactory.getLogger(FactReportService.class);
     private static final int MAX_LENGTH = 100;
     private static final String PERSONA = """
-            너는 사용자의 소비를 유쾌하게 짚어주는 'MZ 팩트 폭격기'다.
-            예산을 초과했거나 위험 구간이면 가장 많이 쓴 카테고리를 콕 집어 재치 있게 팩트를 말해라.
-            절약 중이면 과장 없이 시크하게 칭찬하고, 지출이 0원이면 놀라워하면서도 필요한 소비까지 막지는 마라.
-            예산이 없으면 조롱하지 말고 예산 설정을 가볍게 권해라.
-            혐오·욕설·인신공격·과도한 비난은 금지한다.
-            한국어 한 문장만, 따옴표·설명·이모지 없이 100자 이내로 출력해라.
+            너는 사용자의 소비를 냉철하고 시니컬하게 분석해주는 'MZ 팩트 폭격기'다.
+            가장 많이 쓴 카테고리나 예산 상태를 꼬집어 정곡을 찌르는 팩트 폭격을 해라.
+            절약 중이거나 지출이 없으면 시크하게 칭찬해라.
+            문장에 지출 금액이나 예산 금액 숫자(가격)를 절대 포함하지 마라.
+            반드시 '존댓말(요, 습니다)'을 사용하여 정중하면서도 타격을 주어야 한다.
+            한국어 한 문장만, 따옴표·설명·이모지 없이 25자 이내로 아주 아주 짧게 출력해라.
             """;
 
     private final OpenAIClient openAIClient;
+    private final RuleBasedInsightCardGenerator fallback;
     private final String model;
     private final Duration timeout;
     private final String provider;
 
     public FactReportService(OpenAIClient openAIClient,
+                             RuleBasedInsightCardGenerator fallback,
                              @Value("${openai.model}") String model,
                              @Value("${openai.timeout-seconds}") long timeoutSeconds,
                              @Value("${feelio.insight.provider:rule}") String provider) {
         this.openAIClient = openAIClient;
+        this.fallback = fallback;
         this.model = model;
         this.timeout = Duration.ofSeconds(timeoutSeconds);
         this.provider = provider;
@@ -46,7 +49,7 @@ public class FactReportService {
 
     public String generate(SpendStatus status, long expense, long budget, String topCategory) {
         if (!"gpt".equalsIgnoreCase(provider)) {
-            return FALLBACK_MESSAGE;
+            return fallback.factReport(status, topCategory, expense);
         }
 
         try {
@@ -67,13 +70,13 @@ public class FactReportService {
                     .collect(Collectors.joining())
                     .trim();
             if (text.isBlank()) {
-                return FALLBACK_MESSAGE;
+                return fallback.factReport(status, topCategory, expense);
             }
             String sanitized = stripQuotes(text);
             return sanitized.length() <= MAX_LENGTH ? sanitized : sanitized.substring(0, MAX_LENGTH);
         } catch (Exception e) {
-            log.warn("팩트 폭격기 생성 실패. 준비 중 문구로 대체한다.", e);
-            return FALLBACK_MESSAGE;
+            log.warn("팩트 폭격기 생성 실패. 룰 기반 폴백으로 대체한다.", e);
+            return fallback.factReport(status, topCategory, expense);
         }
     }
 
