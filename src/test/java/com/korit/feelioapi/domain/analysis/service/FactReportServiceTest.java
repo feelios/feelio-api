@@ -1,6 +1,5 @@
 package com.korit.feelioapi.domain.analysis.service;
 
-import com.korit.feelioapi.domain.analysis.dto.SpendStatus;
 import com.openai.client.OpenAIClient;
 import org.junit.jupiter.api.Test;
 
@@ -16,9 +15,10 @@ class FactReportServiceTest {
         RuleBasedInsightCardGenerator fallback = new RuleBasedInsightCardGenerator();
         FactReportService service = new FactReportService(client, fallback, "gpt-4o-mini", 3L, "rule");
 
-        String result = service.generate(SpendStatus.SAFE, 100000L, 200000L, "식비");
+        String result = service.generate(SpendStatus.SAVING, 100000L, 200000L, "식비");
 
-        assertThat(result).isEqualTo("예산 안에서 잘 쓰고 있어요.");
+        // 폴백 문구는 RuleBasedInsightCardGenerator 가 단일 기준이다. 문자열을 두 곳에 적어두면 어긋난다.
+        assertThat(result).isEqualTo(fallback.factReport(SpendStatus.SAVING, "식비", 100000L));
         verifyNoInteractions(client);
     }
 }

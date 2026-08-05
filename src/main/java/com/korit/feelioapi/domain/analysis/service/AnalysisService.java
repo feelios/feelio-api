@@ -252,7 +252,7 @@ public class AnalysisService {
      * 이번 달 예산 총액(A6-4 동적 예산의 카테고리별 합).
      * 활성 목표가 없거나 전월 기록이 없으면 0 이 나오고, 그 경우 위험도는 '예산 미설정'으로 처리된다.
      */
-    private long totalBudget(Long userId) {
+    public long totalBudget(Long userId) {
         return getBudgetStatus(userId).budgetItems().stream()
                 .mapToLong(item -> item.budget() == null ? 0L : item.budget())
                 .sum();
