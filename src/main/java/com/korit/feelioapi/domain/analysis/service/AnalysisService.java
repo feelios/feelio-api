@@ -203,6 +203,36 @@ public class AnalysisService {
                 ? Math.round(totalExpense * 1000.0 / budget) / 10.0
                 : 0.0;
 
+        List<AiInsight> saved = analysisMapper.findInsights(userId, year, month);
+        boolean isStale = saved.isEmpty() || saved.get(0).getCreatedAt().isBefore(java.time.LocalDateTime.now().minusDays(7));
+        
+        String factText = null;
+        String emotionText = null;
+        
+        if (!isStale) {
+            for (AiInsight insight : saved) {
+                if ("FACT_BOMBER".equals(insight.getInsightType())) factText = insight.getContent();
+                if ("EMO_BOMBER".equals(insight.getInsightType())) emotionText = insight.getContent();
+            }
+        }
+        
+        if (factText == null || emotionText == null || isStale) {
+            if (totalExpense == 0) {
+                factText = FactReportService.FALLBACK_MESSAGE;
+                emotionText = "이번 달 소비 기록이 없어 감정 분석을 건너뜁니다.";
+            } else {
+                factText = factReportService.generate(spendStatus, totalExpense, budget, topCategory);
+                emotionText = emotionAnalysisService.generate(monthlyEmotions, topCategory, topTimeSlot);
+                
+                try {
+                    aiInsightStore.replaceByType(userId, year, month, "FACT_BOMBER", factText);
+                    aiInsightStore.replaceByType(userId, year, month, "EMO_BOMBER", emotionText);
+                } catch (Exception e) {
+                    log.warn("인사이트 개별 저장 실패", e);
+                }
+            }
+        }
+
         return new AiReportResponseDto(
                 year,
                 month,
@@ -211,9 +241,9 @@ public class AnalysisService {
                 usageRate,
                 ConsumptionRisk.of(totalExpense, budget).name(),
                 new AiReportResponseDto.AiContent(
-                        factReportService.generate(spendStatus, totalExpense, budget, topCategory),
+                        factText,
                         challengeService.generate(weeklyCategories),
-                        emotionAnalysisService.generate(monthlyEmotions, topCategory, topTimeSlot)
+                        emotionText
                 )
         );
     }
@@ -387,19 +417,6 @@ public class AnalysisService {
     }
 
     public List<String> getAiChatResponse(String value) {
-        ResponseCreateParams params = ResponseCreateParams.builder()
-                .instructions("너") //뭘까? :
-                .temperature(0.0) //고정된 답변을 하도록
-                .input(value)
-                .model("gpt-4o-mini")
-                .build();
-
-        Response response = openAIClient.responses().create(params);
-        return response.output().stream()
-                .flatMap(item -> item.message().stream())
-                .flatMap(message -> message.content().stream())
-                .flatMap(content -> content.outputText().stream())
-                .map(outputText -> outputText.text())
-                .toList();
+        return List.of("말랑이가 분석 중이에요! (AI 기능 점검 중)");
     }
 }

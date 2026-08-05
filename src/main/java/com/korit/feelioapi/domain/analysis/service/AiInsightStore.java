@@ -29,4 +29,10 @@ public class AiInsightStore {
         analysisMapper.deleteInsights(userId, year, month);
         analysisMapper.insertInsights(userId, year, month, insights);
     }
+
+    @Transactional
+    public void replaceByType(Long userId, int year, int month, String type, String content) {
+        analysisMapper.deleteInsightByType(userId, year, month, type);
+        analysisMapper.insertInsight(userId, year, month, type, content);
+    }
 }
