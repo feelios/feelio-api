@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -61,6 +62,10 @@ public class TransactionService {
             transaction.setGoalId(request.goalId());
         }
 
+        LocalDateTime now = LocalDateTime.now();
+        transaction.setCreatedAt(now);
+        transaction.setUpdatedAt(now);
+
         transactionMapper.insertTransaction(transaction);
 
         return transactionMapper.findTransactionById(transaction.getTransactionId(), userId);
@@ -94,6 +99,8 @@ public class TransactionService {
         } else {
             transaction.setGoalId(null);
         }
+        
+        transaction.setUpdatedAt(LocalDateTime.now());
         
         transactionMapper.updateTransaction(transaction);
 

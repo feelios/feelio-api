@@ -9,7 +9,7 @@ Content-Type: application/json
 {
   "merchant": "스타벅스",
   "amount": 4500,
-  "userId": 35
+  "userId": 43
 }
 
 ### GS25 결제 테스트 쏘기 (로컬)
@@ -19,7 +19,7 @@ Content-Type: application/json
 {
   "merchant": "GS25",
   "amount": 1500,
-  "userId": 35
+  "userId": 43
 }
 
 
@@ -35,5 +35,16 @@ Content-Type: application/json
 {
   "merchant": "스타벅스",
   "amount": 4500,
-  "userId": 35
+  "userId": 43
+}
+
+
+### 스타벅스 결제 테스트 쏘기 (배포 서버)
+POST https://api.feelio.com/api/webhooks/card-payment
+Content-Type: application/json
+
+{
+  "merchant": "지에스",
+  "amount": 3200,
+  "userId": 43
 }
