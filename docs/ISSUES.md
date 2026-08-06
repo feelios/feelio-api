@@ -1,4 +1,4 @@
-﻿| [ ] | #151 | A9-1 | 패턴 분석 데이터 확장 및 AI 위험루트 프롬프트 연계 | eat/pattern-ai-integration | §9 | Svc | - | 신규 | 패턴 응답에 내역 번호 추가 및 AI 위험루트 생성 시 패턴 분석 결과 주입 |
+| [ ] | #151 | A9-1 | 패턴 분석 데이터 확장 및 AI 위험루트 프롬프트 연계 | eat/pattern-ai-integration | §9 | Svc | - | 신규 | 패턴 응답에 내역 번호 추가 및 AI 위험루트 생성 시 패턴 분석 결과 주입 |
 ﻿# Feelio 백엔드 기능 이슈 표 (SSOT)
 
 > **Claude / Gemini 어떤 도구로 작업하든 이 표를 공통 기준으로 삼는다.**
@@ -60,6 +60,7 @@
 | [ ] | 154 | A9-3 | [EDA] 거래 내역 CUD 비동기 이벤트 퍼블리싱 | `feat/pattern-event-publish` | - | Config·Svc | transactions | 대기 | 사용자 응답 속도 보장을 위해 거래 내역 CUD 직후 ApplicationEventPublisher를 통한 이벤트 발행 |
 | [x] | 155 | A9-4 | [EDA] 비동기 AI 분석 및 결과 캐싱 | `feat/pattern-async-caching` | - | Svc | ai_insights | 신규 | @Async 리스너와 이벤트를 활용하여 DB 연산 + GPT 호출 결과를 ai_insights에 캐싱. API는 단 1줄의 캐시 결과만 반환. |
 | [ ] | 160 | A9-5 | 패턴 분석 원본 내역(Evidence) 응답 추가 | `feat/pattern-evidence-ui` | - | DTO | - | 신규 | 프론트엔드 UI용 패턴 원본 내역(Evidence) 데이터를 TransactionPatternResponse DTO에 추가 및 캐싱 시 포함. |
+| [ ] | 167 | A9-6 | AI 감정 분석 카드 백엔드 응답에 고유 식별자(emotion) 추가 | `feat/emotion-card-identifier` | - | DTO | - | 신규 | AI 리포트 반환 시 감정 카드(EmotionCard) DTO에 emotion 필드를 추가하여 앞면-뒷면 매핑 오류 방지 |
 
 > **A7 = AI 연동 (마일스톤 7).** 세 이슈 공통: AI 호출 실패·타임아웃이 화면 장애로 이어지지 않도록 폴백을 반드시 둔다.
 > A7-2를 먼저 진행해 폴백·설정 구조를 잡고, A7-3이 그 구조를 재사용하는 순서를 권한다. A7-1은 계약 확정 전까지 `blocked`.

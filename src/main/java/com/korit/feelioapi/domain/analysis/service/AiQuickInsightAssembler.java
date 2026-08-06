@@ -138,6 +138,7 @@ public class AiQuickInsightAssembler {
         List<EmotionCard> cards = new ArrayList<>();
         for (int i = 0; i < targets.size(); i++) {
             cards.add(EmotionCard.builder()
+                    .emotion(targets.get(i).name())
                     .title(String.format("'%s'일 때의 소비", targets.get(i).name()))
                     .desc(i < analyses.size() ? analyses.get(i) : "")
                     .build());
