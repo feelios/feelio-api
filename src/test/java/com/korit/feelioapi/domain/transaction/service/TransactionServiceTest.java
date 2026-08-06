@@ -46,7 +46,7 @@ class TransactionServiceTest {
     private com.korit.feelioapi.domain.analysis.mapper.AnalysisMapper analysisMapper;
 
     @Mock
-    private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+    private tools.jackson.databind.ObjectMapper objectMapper;
 
     @InjectMocks
     private TransactionService transactionService;

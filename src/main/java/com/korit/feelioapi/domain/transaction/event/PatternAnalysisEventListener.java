@@ -1,6 +1,6 @@
 package com.korit.feelioapi.domain.transaction.event;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.korit.feelioapi.domain.analysis.service.AiInsightStore;
 import com.korit.feelioapi.domain.analysis.service.EmotionAnalysisService;
 import com.korit.feelioapi.domain.meta.entity.Emotion;
