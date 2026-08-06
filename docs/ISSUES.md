@@ -63,6 +63,14 @@
 | [ ] | 167 | A9-6 | AI 감정 분석 카드 백엔드 응답에 고유 식별자(emotion) 추가 | `feat/emotion-card-identifier` | - | DTO | - | 신규 | AI 리포트 반환 시 감정 카드(EmotionCard) DTO에 emotion 필드를 추가하여 앞면-뒷면 매핑 오류 방지 |
 | [ ] | 169 | A10-1 | 로컬 서버 포트 충돌(좀비 프로세스) 운영 가이드 및 재현 방지 대책 | `docs/zombie-process-guide` | - | 운영 | - | 신규 | 홈 화면 500 에러의 근본 원인인 포트 8080 좀비 프로세스 문제를 문서화하고, 로컬 개발 시 재발 방지를 위한 서버 재시작 가이드 정리 |
 | [ ] | 170 | A10-2 | AI 감정 소비 분석 프롬프트 페르소나 및 제약 조건 강화 | `fix/emotion-analysis-persona` | - | Svc | - | 신규 | 감정 분석 AI가 팩트 폭행 컨셉을 준수하도록 System Prompt의 페르소나·규제 강화, 파싱 실패 방지 Fallback 점검 및 응답 안정성 확보 |
+| [ ] | 173 | A10-3 | 배포 워크플로에 앱 기동 헬스체크 추가 | `ci/deploy-healthcheck` | - | CI | - | 신규 | 워크플로가 `docker compose up -d`까지만 확인해 크래시 루프에도 success로 뜬다. 배포 스텝 뒤 헬스체크 재시도를 붙여 기동 실패를 즉시 드러낸다 |
+| [ ] | 174 | A10-4 | 스프링 컨텍스트 로드 스모크 테스트 추가 | `test/context-load-smoke` | - | Test | - | 신규 | 단위 테스트(Mockito)는 컨텍스트를 안 띄워 빈 누락을 못 잡는다. `@SpringBootTest` 스모크 1개로 머지 전에 걸리게 한다 |
+| [ ] | 175 | A10-5 | api-docker-compose.yaml 레포로 이관 | `chore/compose-to-repo` | - | 운영 | - | 신규 | compose·nginx conf가 VM에만 있어 실행 구성을 추적할 수 없다. 레포로 옮기고 시크릿 하드코딩을 제거해 값의 출처를 `.env` 하나로 통일한다 |
+| [ ] | 176 | A10-6 | .dockerignore 브랜치 불일치 정리 | `fix/dockerignore-align` | - | 운영 | - | 신규 | `127556d`가 deploy-kmj에만 있어 환경마다 시크릿 출처가 갈린다. 원래 설계(이미지 제외)로 통일하고 레지스트리 private 전환도 검토 |
+| [ ] | 177 | A10-7 | /login 라우팅으로 에러 JSON이 노출됨 | `fix/login-route-leak` | §3 | 운영·config | - | 신규 | nginx `location /login`이 백엔드로 프록시돼 OAuth 실패 시 안내 화면 대신 UNAUTHORIZED JSON이 그대로 보인다. 경로를 `/login/oauth2/`로 좁히고 SecurityConfig 방어선도 검토 |
+| [ ] | 178 | A10-8 | 토큰 재발급 쿠키 없을 때 500 → 401 | `fix/refresh-missing-cookie` | §3 | Ctrl | - | 신규 | `@CookieValue` required=true라 쿠키가 없으면 INTERNAL_ERROR(500)가 나간다. 계약상 UNAUTHORIZED(401)이며 프론트 인터셉터도 401을 기대한다 |
+| [ ] | 179 | A10-9 | API-CONTRACT 와 코드 불일치 2건 수정 | `docs/contract-sync` | §9 | docs | - | 신규 | 소비 위험도 판정 기준(377행)과 ai-report의 AI 호출 여부(383행)가 현재 코드와 다르다. 낡은 서술이 이슈 작성 근거를 잘못 잡게 한다 |
+| [ ] | 180 | A10-10 | AI 문장 생성 경로 이중화 정리 | `refactor/unify-ai-generator` | §9 | Svc | - | 신규 | `GptInsightCardGenerator`와 `FactReportService`/`ChallengeService`가 같은 성격의 문장을 각각 만든다. 정본을 정하고 나머지를 제거하거나 위임 구조로 정리 |
 
 > **A7 = AI 연동 (마일스톤 7).** 세 이슈 공통: AI 호출 실패·타임아웃이 화면 장애로 이어지지 않도록 폴백을 반드시 둔다.
 > A7-2를 먼저 진행해 폴백·설정 구조를 잡고, A7-3이 그 구조를 재사용하는 순서를 권한다. A7-1은 계약 확정 전까지 `blocked`.
