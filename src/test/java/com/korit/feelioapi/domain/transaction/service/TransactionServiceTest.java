@@ -3,6 +3,7 @@ package com.korit.feelioapi.domain.transaction.service;
 import com.korit.feelioapi.domain.transaction.dto.TransactionCreateRequest;
 import com.korit.feelioapi.domain.transaction.dto.TransactionDto;
 import com.korit.feelioapi.domain.transaction.dto.TransactionListResponse;
+import com.korit.feelioapi.domain.transaction.dto.TransactionPatternDto;
 import com.korit.feelioapi.domain.transaction.dto.TransactionResetResponse;
 import com.korit.feelioapi.domain.transaction.dto.TransactionSearchCondition;
 import com.korit.feelioapi.domain.transaction.dto.TransactionTotalDto;
@@ -40,6 +41,12 @@ class TransactionServiceTest {
 
     @Mock
     private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    private com.korit.feelioapi.domain.analysis.mapper.AnalysisMapper analysisMapper;
+
+    @Mock
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @InjectMocks
     private TransactionService transactionService;
@@ -202,23 +209,21 @@ class TransactionServiceTest {
     }
 
     @Test
-    void getRecurringPatterns_groupsByCategoryAndEmotion() {
+    void getRecurringPatterns_returnsCachedInsight() throws Exception {
         Long userId = 1L;
-        Transaction t1 = new Transaction(); t1.setEmotionId(1L); t1.setCategoryId(2L); t1.setOccurredAt(LocalDateTime.of(2026, 8, 1, 20, 0)); t1.setAmount(10000);
-        Transaction t2 = new Transaction(); t2.setEmotionId(1L); t2.setCategoryId(2L); t2.setOccurredAt(LocalDateTime.of(2026, 8, 3, 21, 0)); t2.setAmount(15000);
-        when(transactionMapper.findExpensesForPattern(userId)).thenReturn(List.of(t1, t2));
+        com.korit.feelioapi.domain.analysis.entity.AiInsight insight = new com.korit.feelioapi.domain.analysis.entity.AiInsight();
+        insight.setContent("{\"count\":2,\"title\":\"Test Pattern\",\"emotion\":\"Happy\",\"category\":\"Food\",\"time\":\"NIGHT\",\"desc\":\"Advice\"}");
         
-        com.korit.feelioapi.domain.meta.entity.Emotion em = new com.korit.feelioapi.domain.meta.entity.Emotion(); em.setEmotionId(1L); em.setName("우울");
-        com.korit.feelioapi.domain.meta.entity.Category cat = new com.korit.feelioapi.domain.meta.entity.Category(); cat.setCategoryId(2L); cat.setName("식비");
-        when(metaMapper.findActiveEmotions()).thenReturn(List.of(em));
-        when(metaMapper.findActiveCategories()).thenReturn(List.of(cat));
-        when(emotionAnalysisService.generatePattern("우울", "식비", "밤", 2)).thenReturn("뼈때리는 조언입니다.");
+        when(analysisMapper.findInsightByType(userId, 0, 0, "PATTERN")).thenReturn(insight);
+        
+        TransactionPatternDto mockDto = new TransactionPatternDto(2, "Test Pattern", "Happy", "Food", "NIGHT", "Advice");
+        when(objectMapper.readValue(insight.getContent(), TransactionPatternDto.class)).thenReturn(mockDto);
 
         var response = transactionService.getRecurringPatterns(userId);
 
         assertThat(response.pattern()).isNotNull();
         assertThat(response.pattern().count()).isEqualTo(2);
-        assertThat(response.pattern().title()).isEqualTo("우울일 때 식비 지출 패턴");
-        assertThat(response.pattern().desc()).isEqualTo("뼈때리는 조언입니다.");
+        assertThat(response.pattern().title()).isEqualTo("Test Pattern");
+        assertThat(response.pattern().desc()).isEqualTo("Advice");
     }
 }
