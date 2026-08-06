@@ -1,4 +1,4 @@
-﻿| [ ] | #151 | A9-1 | 패턴 분석 데이터 확장 및 AI 위험루트 프롬프트 연계 | eat/pattern-ai-integration | §9 | Svc | - | 신규 | 패턴 응답에 내역 번호 추가 및 AI 위험루트 생성 시 패턴 분석 결과 주입 |
+| [ ] | #151 | A9-1 | 패턴 분석 데이터 확장 및 AI 위험루트 프롬프트 연계 | eat/pattern-ai-integration | §9 | Svc | - | 신규 | 패턴 응답에 내역 번호 추가 및 AI 위험루트 생성 시 패턴 분석 결과 주입 |
 ﻿# Feelio 백엔드 기능 이슈 표 (SSOT)
 
 > **Claude / Gemini 어떤 도구로 작업하든 이 표를 공통 기준으로 삼는다.**
@@ -71,6 +71,14 @@
 | [ ] | 178 | A10-8 | 토큰 재발급 쿠키 없을 때 500 → 401 | `fix/refresh-missing-cookie` | §3 | Ctrl | - | 신규 | `@CookieValue` required=true라 쿠키가 없으면 INTERNAL_ERROR(500)가 나간다. 계약상 UNAUTHORIZED(401)이며 프론트 인터셉터도 401을 기대한다 |
 | [ ] | 179 | A10-9 | API-CONTRACT 와 코드 불일치 2건 수정 | `docs/contract-sync` | §9 | docs | - | 신규 | 소비 위험도 판정 기준(377행)과 ai-report의 AI 호출 여부(383행)가 현재 코드와 다르다. 낡은 서술이 이슈 작성 근거를 잘못 잡게 한다 |
 | [ ] | 180 | A10-10 | AI 문장 생성 경로 이중화 정리 | `refactor/unify-ai-generator` | §9 | Svc | - | 신규 | `GptInsightCardGenerator`와 `FactReportService`/`ChallengeService`가 같은 성격의 문장을 각각 만든다. 정본을 정하고 나머지를 제거하거나 위임 구조로 정리 |
+| [ ] | - | A11-1 | 과거 달의 AI 분석 결과 연동 (월별 조회) | `feat/historical-ai-analysis` | - | Svc·Ctrl | - | 신규 | /api/analysis API들에 year, month 파라미터 추가 및 지출 발생 시 해당 월 AI 데이터 갱신 로직 구현 |
+| [ ] | - | A11-2 | 목표 저금 시 예산/총자산 연동 비즈니스 로직 | `feat/goal-saving-asset-deduction` | - | Svc | - | 신규 | 예산 세이브 금액 확인 후 차감, 부족분은 총자산에서 차감하도록 TransactionService 비즈니스 로직 구현 |
+| [ ] | - | A11-3 | 목표 트랜잭션 등록 500 에러 및 유효성 검사 강화 | `fix/goal-transaction-500` | - | Ctrl·Svc | - | 신규 | 카테고리 매핑 누락, goalId 부재 시 발생하는 500 에러 해결 및 예외 상황 400 반환 등 엣지케이스 방어 |
+| [ ] | - | A11-4 | 예산 산출 로직 개편 (성과 기반 보완법 및 저축 불가 엣지 케이스) | `feat/budget-calc-performance-based` | - | Svc | - | 신규 | 전월 절약 항목에만 예산 삭감 적용 (평균의 함정 방지). 원천적으로 저축할 자산/수입이 없는 경우 예산 0원 배정 방지 로직 추가 |
+| [ ] | - | A11-5 | AI API 타임아웃 및 폴백(Fallback) 방어 시스템 구축 | `feat/ai-timeout-fallback` | - | Svc | - | 신규 | OpenAI 등 외부 API 3~5초 응답 지연 시 500 에러 대신 200 OK와 기본 문구(Fallback Text) 반환하는 서킷 브레이커 도입 |
+| [ ] | - | A11-6 | 과거 지출/수입 데이터 CUD 시 총자산 정합성 롤백 및 동기화 | `feat/past-transaction-sync` | - | Svc | - | 신규 | 과거 내역 수정/삭제 시 당시 예산/총자산 변동분을 역산하여 현재 총자산을 안전하게 재계산하는 트랜잭션 이벤트 구축 |
+| [ ] | - | A11-7 | 목표 100% 달성 시 생명주기 상태 변경 및 잉여금 환불 로직 | `feat/goal-lifecycle-completed` | - | Svc | - | 신규 | 목표 금액 100% 도달 시 IN_PROGRESS -> COMPLETED로 전환 및 초과 저축분 총자산 환불 비즈니스 로직 분리 |
+
 
 > **A7 = AI 연동 (마일스톤 7).** 세 이슈 공통: AI 호출 실패·타임아웃이 화면 장애로 이어지지 않도록 폴백을 반드시 둔다.
 > A7-2를 먼저 진행해 폴백·설정 구조를 잡고, A7-3이 그 구조를 재사용하는 순서를 권한다. A7-1은 계약 확정 전까지 `blocked`.
