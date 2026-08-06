@@ -32,6 +32,12 @@ class TransactionServiceTest {
     @Mock
     private TransactionMapper transactionMapper;
 
+    @Mock
+    private com.korit.feelioapi.domain.meta.mapper.MetaMapper metaMapper;
+
+    @Mock
+    private com.korit.feelioapi.domain.analysis.service.EmotionAnalysisService emotionAnalysisService;
+
     @InjectMocks
     private TransactionService transactionService;
 
@@ -190,5 +196,26 @@ class TransactionServiceTest {
         assertThatThrownBy(() -> transactionService.deleteTransaction(userId, transactionId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.FORBIDDEN);
+    }
+
+    @Test
+    void getRecurringPatterns_groupsByCategoryAndEmotion() {
+        Long userId = 1L;
+        Transaction t1 = new Transaction(); t1.setEmotionId(1L); t1.setCategoryId(2L); t1.setOccurredAt(LocalDateTime.of(2026, 8, 1, 20, 0)); t1.setAmount(10000);
+        Transaction t2 = new Transaction(); t2.setEmotionId(1L); t2.setCategoryId(2L); t2.setOccurredAt(LocalDateTime.of(2026, 8, 3, 21, 0)); t2.setAmount(15000);
+        when(transactionMapper.findExpensesForPattern(userId)).thenReturn(List.of(t1, t2));
+        
+        com.korit.feelioapi.domain.meta.entity.Emotion em = new com.korit.feelioapi.domain.meta.entity.Emotion(); em.setEmotionId(1L); em.setName("우울");
+        com.korit.feelioapi.domain.meta.entity.Category cat = new com.korit.feelioapi.domain.meta.entity.Category(); cat.setCategoryId(2L); cat.setName("식비");
+        when(metaMapper.findActiveEmotions()).thenReturn(List.of(em));
+        when(metaMapper.findActiveCategories()).thenReturn(List.of(cat));
+        when(emotionAnalysisService.generatePattern("우울", "식비", "밤", 2)).thenReturn("뼈때리는 조언입니다.");
+
+        var response = transactionService.getRecurringPatterns(userId);
+
+        assertThat(response.pattern()).isNotNull();
+        assertThat(response.pattern().count()).isEqualTo(2);
+        assertThat(response.pattern().title()).isEqualTo("우울일 때 식비 지출 패턴");
+        assertThat(response.pattern().desc()).isEqualTo("뼈때리는 조언입니다.");
     }
 }

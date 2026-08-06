@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
  */
 @Component
 @Primary
-@ConditionalOnProperty(name = "feelio.insight.provider", havingValue = "gpt_deprecated")
+@ConditionalOnProperty(name = "feelio.insight.provider", havingValue = "gpt")
 public class GptInsightGenerator implements InsightGenerator {
 
     private static final Logger log = LoggerFactory.getLogger(GptInsightGenerator.class);
