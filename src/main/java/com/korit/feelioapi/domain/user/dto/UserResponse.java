@@ -17,14 +17,19 @@ public record UserResponse(
         String themeMode,
         String auroraTheme
 ) {
-    public static UserResponse of(User user, String provider) {
+    /**
+     * @param transactionEffect 거래가 자산에 준 변화량(수입 − 지출).
+     *                          users.total_asset 은 온보딩 초기값이라 여기에 더해야 현재 총자산이 된다 (#200).
+     */
+    public static UserResponse of(User user, String provider, long transactionEffect) {
+        long initialAsset = user.getTotalAsset() == null ? 0L : user.getTotalAsset();
         return new UserResponse(
                 user.getUserId(),
                 user.getNickname(),
                 user.getEmail(),
                 user.getProfileImageUrl(),
                 provider,
-                user.getTotalAsset(),
+                initialAsset + transactionEffect,
                 Boolean.TRUE.equals(user.getOnboardingDone()),
                 user.getThemeMode(),
                 user.getAuroraTheme()
