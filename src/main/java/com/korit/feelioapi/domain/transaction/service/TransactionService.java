@@ -178,14 +178,14 @@ public class TransactionService {
     public TransactionPatternResponse getRecurringPatterns(Long userId) {
         com.korit.feelioapi.domain.analysis.entity.AiInsight insight = analysisMapper.findInsightByType(userId, 0, 0, "PATTERN");
         if (insight == null || insight.getContent() == null) {
-            return new TransactionPatternResponse(new TransactionPatternDto(0, null, null, null, null, null));
+            return new TransactionPatternResponse(new TransactionPatternDto(0, null, null, null, null, null, java.util.List.of()), java.util.List.of());
         }
 
         try {
             TransactionPatternDto dto = objectMapper.readValue(insight.getContent(), TransactionPatternDto.class);
-            return new TransactionPatternResponse(dto);
+            return new TransactionPatternResponse(dto, dto.evidence() == null ? java.util.List.of() : dto.evidence());
         } catch (Exception e) {
-            return new TransactionPatternResponse(new TransactionPatternDto(0, null, null, null, null, null));
+            return new TransactionPatternResponse(new TransactionPatternDto(0, null, null, null, null, null, java.util.List.of()), java.util.List.of());
         }
     }
 

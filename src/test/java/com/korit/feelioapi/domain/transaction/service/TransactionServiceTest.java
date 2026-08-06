@@ -212,11 +212,11 @@ class TransactionServiceTest {
     void getRecurringPatterns_returnsCachedInsight() throws Exception {
         Long userId = 1L;
         com.korit.feelioapi.domain.analysis.entity.AiInsight insight = new com.korit.feelioapi.domain.analysis.entity.AiInsight();
-        insight.setContent("{\"count\":2,\"title\":\"Test Pattern\",\"emotion\":\"Happy\",\"category\":\"Food\",\"time\":\"NIGHT\",\"desc\":\"Advice\"}");
+        insight.setContent("{\"count\":2,\"title\":\"Test Pattern\",\"emotion\":\"Happy\",\"category\":\"Food\",\"time\":\"NIGHT\",\"desc\":\"Advice\",\"evidence\":[]}");
         
         when(analysisMapper.findInsightByType(userId, 0, 0, "PATTERN")).thenReturn(insight);
         
-        TransactionPatternDto mockDto = new TransactionPatternDto(2, "Test Pattern", "Happy", "Food", "NIGHT", "Advice");
+        TransactionPatternDto mockDto = new TransactionPatternDto(2, "Test Pattern", "Happy", "Food", "NIGHT", "Advice", java.util.List.of());
         when(objectMapper.readValue(insight.getContent(), TransactionPatternDto.class)).thenReturn(mockDto);
 
         var response = transactionService.getRecurringPatterns(userId);
@@ -225,5 +225,7 @@ class TransactionServiceTest {
         assertThat(response.pattern().count()).isEqualTo(2);
         assertThat(response.pattern().title()).isEqualTo("Test Pattern");
         assertThat(response.pattern().desc()).isEqualTo("Advice");
+        assertThat(response.evidence()).isNotNull();
+        assertThat(response.evidence()).isEmpty();
     }
 }

@@ -180,7 +180,35 @@ Response(201) `data`: 생성된 거래 객체. 에러: VALIDATION_ERROR
 ### GET /api/transactions/{transactionId} · 인증 필요 — 거래 객체 반환 (딥링크 대비용, 목록 재사용 가능하면 생략)
 ### PUT /api/transactions/{transactionId} · 인증 필요 — POST와 동일 필드. 에러: VALIDATION_ERROR·FORBIDDEN·NOT_FOUND
 ### DELETE /api/transactions/{transactionId} · 인증 필요 → `data`: `{ "deleted": true }` (확인 다이얼로그는 프론트 책임)
-### DELETE /api/transactions — 전체 초기화 · 인증 필요 → `data`: `{ "deletedCount": 42 }` (프로필>데이터 관리 전용)
+### DELETE /api/transactions → 지출 초기화 (토큰 필요) · `data`: `{ "deletedCount": 42 }` (모달 추가 예정)
+
+### GET /api/transactions/patterns → 반복 소비 패턴 조회 (토큰 필요)
+Response `data`:
+```json
+{
+  "pattern": {
+    "count": 5,
+    "title": "우울일 때 배달 지출 패턴",
+    "emotion": "우울",
+    "category": "배달",
+    "time": "밤",
+    "desc": "스트레스로 인한 야식이 잦네요."
+  },
+  "evidence": [
+    {
+      "transactionId": 12,
+      "type": "EXPENSE",
+      "amount": 25000,
+      "occurredAt": "2026-08-01T21:00:00",
+      "emotion": { "emotionId": 1, "name": "우울", "color": "#123" },
+      "category": { "categoryId": 2, "name": "배달" }
+    }
+  ]
+}
+```
+- 가장 자주 반복되는(동일 감정+동일 카테고리+동일 시간대) 지출 패턴 1건과 그 원본 거래 내역(evidence)을 반환.
+- 비동기 캐싱(A9-4, A9-5)을 통해 패턴 내역(evidence)은 루트에서 바로 사용 가능.
+- 조건 불충족 시 `pattern.count: 0` 및 빈 `evidence` 배열 반환.
 
 ### GET /api/transactions/dutch-pay/pending · 인증 필요 — 미정산 더치페이 목록 조회 (F11-4)
 Response `data`:
