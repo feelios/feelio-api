@@ -109,3 +109,28 @@ jobs:
             sudo docker compose -f api-docker-compose.yaml pull
             sudo docker compose -f api-docker-compose.yaml down
             sudo docker compose -f api-docker-compose.yaml up -d
+
+            # 기동 확인 (A10-3).
+            # up -d 는 컨테이너를 띄우기만 하고 앱이 실제로 떴는지는 보지 않는다.
+            # 그래서 크래시 루프여도 이 워크플로가 성공으로 끝나고, 서비스는 502 인 채로 남는다.
+            #
+            # /api/users/me 는 인증이 필요하지만 401 이라도 "응답이 온다"는 것 자체가
+            # 스프링 컨텍스트가 뜨고 톰캣이 요청을 받고 있다는 뜻이다.
+            # 반대로 curl 이 000 을 주면 아직 기동 중이거나 죽은 것이다.
+            echo "앱 기동 확인 중..."
+            booted=0
+            for i in $(seq 1 48); do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://localhost:8080/api/users/me || echo 000)
+              if [ "$code" != "000" ]; then
+                echo "기동 확인 — ${i}회차, HTTP $code"
+                booted=1
+                break
+              fi
+              sleep 5
+            done
+
+            if [ "$booted" != "1" ]; then
+              echo "기동 실패 — 240초 안에 HTTP 응답이 없다. 아래 로그를 확인할 것."
+              sudo docker compose -f api-docker-compose.yaml logs --tail 120 api
+              exit 1
+            fi
