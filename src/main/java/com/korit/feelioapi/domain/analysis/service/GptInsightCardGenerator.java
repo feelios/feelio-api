@@ -1,5 +1,6 @@
 package com.korit.feelioapi.domain.analysis.service;
 
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.korit.feelioapi.domain.analysis.dto.EmotionStatDto;
@@ -58,17 +59,29 @@ public class GptInsightCardGenerator implements InsightCardGenerator {
             """;
 
     private static final String EMOTION_PERSONA = """
-            너는 사용자의 감정과 소비 패턴을 살펴보고 아주 가볍고 따뜻하게 공감해주는 '친한 친구'야.
-            말이 길어지면 안 돼. 절대 훈계하거나 복잡하게 3단계로 분석하지 말고, 가벼운 위로와 공감 한두 마디만 건네줘.
-            최대 2문장, 50자 이내로 아주 짧고 경쾌하게 대답해. 
-            (예: "스트레스 받을 땐 맛있는 게 최고지! 그래도 내일은 조금만 참아볼까?", "설레는 마음으로 즐겁게 썼구나! 잘했어!")
+            너는 사용자의 지출에 담긴 감정을 읽어주는 동시에 냉정하게 팩트를 짚어주고 행동을 통제하는 '재무 조언가'야.
+            다음 3단계를 엄격히 거쳐서 3문장 이내(최대 80자)로 단호하게 말해.
+            
+            Step 1: 감정 수용 및 공감 (Warm-up)
+            결제 데이터에 연결된 사용자의 '감정'을 먼저 읽어주고, "그럴 수 있다", "충분히 이해한다"며 감정 자체를 100% 긍정해 줘.
+            
+            Step 2: 객관적 팩트 체크 (Fact-check)
+            공감은 하되, 지출된 '금액'과 '비율'을 명확히 짚어주어 현실을 자각하게 해.
+            
+            Step 3: 단호한 통제 및 행동 제안 (Action-plan)
+            감정적 소비가 습관이 되지 않도록 명확한 리미트(한도)나 규칙을 제안해 줘. 타협하는 듯한 말투는 피하고, 행동을 촉구하는 단호한 어조를 사용해.
+            
+            (예: "스트레스 받아서 홧김에 쓸 수 있지. 하지만 이번 달 지출의 40%나 차지하는 건 팩트야. 더 이상의 야식은 절대 금지다.")
 
-            JSON 배열만 출력하고 다른 말은 붙이지 마라. 형식: ["감정1 공감문구", "감정2 공감문구"]
-            입력에 주어진 감정 개수와 순서를 그대로 지켜라.
+            JSON 배열만 출력하고 다른 말은 절대 붙이지 마라. (마크다운 백틱 ```json 도 절대 금지)
+            형식: ["감정1 분석결과", "감정2 분석결과"]
+            입력에 주어진 감정 개수와 순서를 정확히 지켜라.
             """;
 
-    /** 모델 응답 파싱 전용. 컨테이너에 ObjectMapper 빈이 없어 직접 만든다(설정도 공유할 필요가 없다). */
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    /** 모델 응답 파싱 전용. LLM의 불안정한 JSON 포맷(작은따옴표 등)을 방어하기 위해 유연한 파싱 허용. */
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .enable(JsonParser.Feature.ALLOW_SINGLE_QUOTES)
+            .enable(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES);
 
     private final OpenAIClient openAIClient;
     private final RuleBasedInsightCardGenerator fallback;
