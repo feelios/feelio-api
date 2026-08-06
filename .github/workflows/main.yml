@@ -24,7 +24,7 @@ jobs:
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_KMJ }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_KMJ }}" >> $GITHUB_ENV
               
-              echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_KMJ }}" >> $GITHUB_ENV
+              echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_KMJ_CUSTOM }}" >> $GITHUB_ENV
               echo "ENV=${{ secrets.ENV_KMJ }}" >> $GITHUB_ENV
               echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_KMJ }}" >> $GITHUB_ENV
               
