@@ -33,6 +33,7 @@ public class AiInsightsResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class EmotionCard {
+        private String emotion;
         private String title;
         private String desc;
     }
