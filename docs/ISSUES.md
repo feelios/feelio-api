@@ -54,8 +54,16 @@
 | [ ] | - | A8-2 | AI 팩트 리포트 프롬프트 조정 (강력한 경고 톤) | `feat/ai-fact-report-prompt` | - | - | - | 신규 | 팩트 리포트를 생성하는 AI 프롬프트를 수정하여 지출 위험에 대해 강력하고 직관적인 어조로 변경 |
 | [ ] | - | A8-3 | 홈 화면 말랑이 코멘트용 AI 생성 API 구현 | `feat/home-mallang-ai-api` | - | - | - | 신규 | 홈 말랑이 코멘트용 프롬프트를 추가하여 칭찬/경고 수치 및 독려 멘트를 생성 반환 |
 | [ ] | - | A8-4 | 거래내역 생성 및 수정 시 시간(Time) 바인딩 버그 수정 | `fix/transaction-time-binding` | - | - | - | 신규 | 거래내역 생성/수정 시 createdAt/updatedAt 중 올바른 시간이 반영되고 정확히 반환되는지 점검 및 수정 |
+<<<<<<< Updated upstream
 | [ ] | - | A8-5 | 회원 탈퇴 API(Delete User) 오류 원인 분석 및 수정 | `fix/account-deletion-backend` | - | - | - | 신규 | 계정 탈퇴 시 정상적으로 처리되지 않는 원인을 파악하여 데이터가 안전하게 삭제되도록 API 수정 |
 | [x] | - | A9-1 | 백엔드: 패턴 분석 데이터 확장 및 AI 위험루트 프롬프트 연계 | feat/pattern-ai-integration | - | api | - | 신규 | 패턴 응답에 내역 번호 추가 및 AI 위험루트에 패턴 분석 주 |
+=======
+| [ ] | - | A8-5 | 회원 탈퇴 API(Delete User) 오류 현상 분석 및 수정 | `fix/account-deletion-backend` | - | - | - | 대기 | 계정 탈퇴 시 연관 데이터가 제대로 처리되지 않는 문제를 파악하여 무결성 유지하도록 백엔드 API 수정 |
+| [ ] | - | A9-1 | 패턴 분석 데이터 확장 및 AI 위험루트 프롬프트 연계 | feat/pattern-ai-integration | §9 | Svc | - | 신규 | 패턴 응답에 내역 번호 추가 및 AI 위험루트 생성 시 패턴 분석 결과 주입 
+| [ ] | 153 | A9-2 | [EDA] 패턴 분석용 RDBMS 집계 쿼리 최적화 | `feat/pattern-db-query` | - | Mapper+XML | transactions | 대기 | 메모리 로드 방식 탈피: 시간대·감정·카테고리 기반 GROUP BY 및 원본 내역(evidence) 쿼리 작성 |
+| [ ] | 154 | A9-3 | [EDA] 거래 내역 CUD 비동기 이벤트 퍼블리싱 | `feat/pattern-event-publish` | - | Config·Svc | transactions | 대기 | 사용자 응답 속도 보장을 위해 거래 내역 CUD 직후 ApplicationEventPublisher를 통한 이벤트 발행 |
+| [ ] | 155 | A9-4 | [EDA] 비동기 AI 분석 및 결과 캐싱 | `feat/pattern-async-caching` | - | Svc | ai_insights | 대기 | @Async 리스너에서 이벤트를 수신하여 DB 집계 + GPT 조언을 구한 뒤 ai_insights에 캐싱. API는 단일 캐시 행만 반환. |
+>>>>>>> Stashed changes
 
 > **A7 = AI 연동 (마일스톤 7).** 세 이슈 공통: AI 호출 실패·타임아웃이 화면 장애로 이어지지 않도록 폴백을 반드시 둔다.
 > A7-2를 먼저 진행해 폴백·설정 구조를 잡고, A7-3이 그 구조를 재사용하는 순서를 권한다. A7-1은 계약 확정 전까지 `blocked`.
