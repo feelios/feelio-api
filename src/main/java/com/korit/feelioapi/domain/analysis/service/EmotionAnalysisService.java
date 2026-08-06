@@ -100,4 +100,22 @@ public class EmotionAnalysisService {
         int advice = text.indexOf("③ 조언:");
         return discovery >= 0 && discovery < meaning && meaning < advice;
     }
+
+    public String generatePattern(String emotion, String category, String timeSlot, int count) {
+        if (!"gpt".equalsIgnoreCase(provider)) {
+            return "[" + timeSlot + "] 시간대에 '" + emotion + "' 감정으로 '" + category + "' 지출이 " + count + "건 집중되는 패턴이 감지되었어요. 무의식적인 소비일 수 있으니 주의해 보세요!";
+        }
+        try {
+            ResponseCreateParams params = ResponseCreateParams.builder()
+                    .model(model)
+                    .instructions("당신은 사용자의 소비 패턴을 날카롭게 분석하는 AI입니다. 1문장으로 짧고 뼈때리는 조언을 해주세요.")
+                    .input("감정: " + emotion + ", 카테고리: " + category + ", 시간대: " + timeSlot + ", 반복횟수: " + count)
+                    .build();
+            Response response = openAIClient.responses().create(params, RequestOptions.builder().timeout(timeout).build());
+            String text = response.output().stream().flatMap(i -> i.message().stream()).flatMap(m -> m.content().stream()).flatMap(c -> c.outputText().stream()).map(o -> o.text()).collect(Collectors.joining()).trim();
+            return text;
+        } catch (Exception e) {
+            return "패턴 분석 중 오류가 발생했습니다.";
+        }
+    }
 }
