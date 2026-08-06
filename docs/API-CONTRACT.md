@@ -390,7 +390,7 @@ Response(200) `data`:
     { "label": "AI 맞춤 챌린지", "value": "새벽에 '무덤덤' 소비 3일 참아보기", "note": "이번 주",           "color": "var(--sub)", "type": "default" }
   ],
   "emotionCards": [
-    { "title": "'무덤덤'일 때의 소비", "desc": "2건, 1,579,394원 썼어요. 이번 달 지출의 67%예요." }
+    { "emotion": "무덤덤", "title": "'무덤덤'일 때의 소비", "desc": "2건, 1,579,394원 썼어요. 이번 달 지출의 67%예요." }
   ],
   "evidence": [],
   "pattern": { "count": 0, "title": null, "emotion": null, "category": null, "time": null, "desc": null }
