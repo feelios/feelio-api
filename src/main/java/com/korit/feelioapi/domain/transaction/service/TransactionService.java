@@ -25,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.korit.feelioapi.domain.analysis.mapper.AnalysisMapper;
 import org.springframework.context.ApplicationEventPublisher;
 import com.korit.feelioapi.domain.transaction.event.TransactionChangedEvent;
