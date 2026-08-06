@@ -15,7 +15,13 @@ import java.util.List;
 /**
  * AI 분석 화면 상단 요약 카드(aiQuickInsights)와 감정 카드 뒷면 문구(emotionCards)를 조립한다.
  *
- * 숫자·상태 판정은 여기서 자바로 하고, 문장만 {@link InsightCardGenerator} 에 맡긴다.
+ * 숫자·상태 판정은 여기서 자바로 하고, 문장 생성은 각 정본 서비스에 맡긴다.
+ * - 팩트 리포트  {@link FactReportService}
+ * - 챌린지      {@link ChallengeService}
+ * - 감정 카드    {@link InsightCardGenerator}
+ * 팩트·챌린지는 예전에 InsightCardGenerator 에도 같은 메서드가 있었는데, 프론트가 ai-report 값으로
+ * 덮어써서 그쪽 문장은 화면에 나오지 않았다. 프롬프트가 두 곳에서 따로 관리되던 것을 정리했다(#180).
+ *
  * label·color·type 은 프론트(AnalysisPageDc)가 고정으로 기대하는 값이라 그대로 맞춘다.
  * - label  좌상단 캡션(고정 4종) / note 우상단 태그 / value 본문 한 줄
  * - type   default | fact | risk  (risk 는 신호등 UI)
@@ -29,6 +35,8 @@ public class AiQuickInsightAssembler {
     private static final int EMOTION_CARD_LIMIT = 3;
 
     private final InsightCardGenerator cardGenerator;
+    private final FactReportService factReportService;
+    private final ChallengeService challengeService;
 
     /**
      * 지출 기록이 없으면 빈 리스트를 반환한다.
@@ -37,6 +45,7 @@ public class AiQuickInsightAssembler {
     public List<AiQuickInsight> assembleQuickInsights(List<EmotionStatDto> byEmotion,
                                                       List<CategoryStatDto> byCategory,
                                                       List<TimeSlotStatDto> byTimeSlot,
+                                                      List<CategoryStatDto> weeklyCategories,
                                                       long currentExpense,
                                                       long budget) {
         if (byEmotion.isEmpty() && byCategory.isEmpty() && byTimeSlot.isEmpty()) {
@@ -59,12 +68,12 @@ public class AiQuickInsightAssembler {
                 topTimeSlot != null ? topTimeSlot.count() + "건" : "-",
                 COLOR_SUB, "default"));
         insights.add(card("팩트 리포트",
-                cardGenerator.factReport(status, topCategoryName, currentExpense),
+                factReportService.generate(status, currentExpense, budget, topCategoryName),
                 String.format("이번 달 %,d원", currentExpense),
                 COLOR_POINT, "fact"));
         insights.add(riskLevel(status, currentExpense, budget));
         insights.add(card("AI 맞춤 챌린지",
-                cardGenerator.challenge(route),
+                challengeService.generate(weeklyCategories),
                 "이번 주",
                 COLOR_SUB, "default"));
         return insights;
