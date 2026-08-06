@@ -136,7 +136,18 @@
         ORDER BY insight_id
     </select>
 
-    <!-- 재생성 전 기존 행 제거. AiInsightStore 에서 insertInsights 와 한 트랜잭션으로 묶인다. -->
+    <select id="findInsightByType" resultType="com.korit.feelioapi.domain.analysis.entity.AiInsight">
+        SELECT insight_id, user_id, `year`, `month`, insight_type, content, created_at
+        FROM ai_insights
+        WHERE user_id = #{userId}
+          AND `year` = #{year}
+          AND `month` = #{month}
+          AND insight_type = #{type}
+        ORDER BY insight_id DESC
+        LIMIT 1
+    </select>
+
+    <!-- 기존 해당 연·월 인사이트 모두 삭제 -->
     <delete id="deleteInsights">
         DELETE FROM ai_insights
         WHERE user_id = #{userId}

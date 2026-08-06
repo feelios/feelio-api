@@ -57,7 +57,13 @@ public interface AnalysisMapper {
                                  @Param("year") int year,
                                  @Param("month") int month);
 
-    /** 해당 연·월 인사이트 전체 삭제. 재생성 전에 지워 중복이 쌓이지 않게 한다. */
+    /** 특정 타입의 인사이트 단건 조회 */
+    AiInsight findInsightByType(@Param("userId") Long userId,
+                                @Param("year") int year,
+                                @Param("month") int month,
+                                @Param("type") String type);
+
+    /** 해당 월의 인사이트 모두 삭제. 새 데이터 넣기 전 중복 방지 역할을 한다. */
     void deleteInsights(@Param("userId") Long userId,
                         @Param("year") int year,
                         @Param("month") int month);
