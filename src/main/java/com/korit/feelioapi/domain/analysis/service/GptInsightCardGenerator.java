@@ -33,30 +33,6 @@ public class GptInsightCardGenerator implements InsightCardGenerator {
 
     /** ai_insights.content varchar(500) — 넘으면 저장이 깨진다. */
     private static final int MAX_CONTENT_LENGTH = 500;
-    /** 팩트 리포트·챌린지는 카드 한 줄이라 짧게 자른다. */
-    private static final int MAX_ONE_LINER_LENGTH = 80;
-
-    private static final String FACT_REPORT_PERSONA = """
-            너는 사용자의 지출 내역을 보고 팩트 폭행을 날리거나 시크하게 칭찬해주는 'MZ세대 팩트 폭격기'야.
-            사용자의 예산 대비 지출 상태(초과, 0원, 절약)에 따라 다음 규칙을 반드시 지켜서 한 문장으로 말해줘.
-            1. 지출 초과(Red)일 경우: 가장 많이 초과된 카테고리를 콕 집어서 조롱하거나 유쾌하게 꼽주는 말투를 써.
-               (사용 단어 예시: 지갑다이어트 중이니, 지갑이 redred, 팔랑귀팔랑귀 지갑지갑, 늙킄ㅋㅋㅋ, 배달비 야 호~,
-                하.. 파라파라나 추는게 어떠세요, 지름신 오이데!!, 이번달 폼 미쳤다, 오늘 지갑 운동많이 된다,
-                나 월급 3일찬데, 돈없어서 난감한 팀05 개추)
-            2. 지출 0원일 경우: 비꼬는 말투를 써. (예: 웬일로 안 썼냐 꼭 필요한 건지 모르겠다)
-            3. 절약 중(Green)일 경우: 칭찬하되 아주 쿨하고 시크하게 말해. (예: 좀 치는군 이렇게 가면 흑자겠어, 그대의 소비가 날 웃게한다)
-
-            한 문장만 출력해라. 따옴표·설명·이모지 없이 문장 자체만 써라.
-            """;
-
-    private static final String CHALLENGE_PERSONA = """
-            너는 사용자의 저번 주 '위험 루트(가장 과소비한 패턴)'를 분석하여 이번 주에 실천할 수 있는 맞춤형 챌린지를 생성하는 '챌린지 마스터'야.
-            거창한 목표가 아니라, 일상에서 바로 지킬 수 있는 아주 구체적이고 현실적인 행동 미션을 딱 1개만 제안해줘.
-            (예시: "10시 넘으면 지갑 안 쓰기", "한 달에 배달음식 5번 안으로 시켜 먹기")
-            말투는 간결하고 명확한 미션 형태로 출력해.
-
-            미션 한 줄만 출력해라. 번호·따옴표·설명 없이 미션 자체만 써라.
-            """;
 
     private static final String EMOTION_PERSONA = """
             너는 사용자의 지출에 담긴 감정을 읽어주는 동시에 냉정하게 팩트를 짚어주고 행동을 통제하는 '재무 조언가'야.
@@ -96,45 +72,6 @@ public class GptInsightCardGenerator implements InsightCardGenerator {
         this.fallback = fallback;
         this.model = model;
         this.timeout = Duration.ofSeconds(timeoutSeconds);
-    }
-
-    @Override
-    public String factReport(SpendStatus status, String topCategory, long expense) {
-        String situation = switch (status) {
-            case ZERO -> "상태: 지출 0원";
-            case OVER -> "상태: 예산 초과(Red)\n가장 많이 쓴 카테고리: " + (topCategory == null ? "없음" : topCategory);
-            case WARNING -> "상태: 예산의 70% 이상 사용(Yellow)\n가장 많이 쓴 카테고리: "
-                    + (topCategory == null ? "없음" : topCategory);
-            case SAVING -> "상태: 절약 중(Green)";
-            case NO_BUDGET -> "상태: 예산 미설정";
-        };
-        String input = situation + String.format("%n이번 달 지출: %,d원", expense);
-
-        try {
-            String text = callModel(FACT_REPORT_PERSONA, input);
-            if (!text.isBlank()) {
-                return truncate(stripQuotes(text), MAX_ONE_LINER_LENGTH);
-            }
-        } catch (Exception e) {
-            log.warn("팩트 리포트 생성 실패. 규칙기반으로 대체한다.", e);
-        }
-        return fallback.factReport(status, topCategory, expense);
-    }
-
-    @Override
-    public String challenge(String riskRoute) {
-        if (riskRoute == null || riskRoute.isBlank()) {
-            return fallback.challenge(riskRoute);
-        }
-        try {
-            String text = callModel(CHALLENGE_PERSONA, "위험 루트: " + riskRoute);
-            if (!text.isBlank()) {
-                return truncate(stripQuotes(text), MAX_ONE_LINER_LENGTH);
-            }
-        } catch (Exception e) {
-            log.warn("챌린지 생성 실패. 규칙기반으로 대체한다.", e);
-        }
-        return fallback.challenge(riskRoute);
     }
 
     @Override
@@ -205,17 +142,6 @@ public class GptInsightCardGenerator implements InsightCardGenerator {
             }
         }
         return values;
-    }
-
-    /** 모델이 문장을 따옴표로 감싸는 경우가 잦다. 카드에 그대로 노출되면 어색하다. */
-    private String stripQuotes(String value) {
-        String trimmed = value.trim();
-        if (trimmed.length() >= 2
-                && (trimmed.startsWith("\"") && trimmed.endsWith("\"")
-                || trimmed.startsWith("'") && trimmed.endsWith("'"))) {
-            return trimmed.substring(1, trimmed.length() - 1).trim();
-        }
-        return trimmed;
     }
 
     private String truncate(String value, int maxLength) {
