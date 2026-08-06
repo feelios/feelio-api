@@ -54,7 +54,7 @@
         JOIN emotions e ON t.emotion_id = e.emotion_id
         WHERE <include refid="userMonth"/> AND t.type = 'EXPENSE'
         GROUP BY e.emotion_id, e.name, e.color
-        ORDER BY amount DESC
+        ORDER BY count DESC, amount DESC
     </select>
 
     <!-- 시간대별 지출: occurred_at 시(hour) 4구간. label·정렬은 Service 가 부여. -->
