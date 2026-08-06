@@ -25,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.korit.feelioapi.domain.analysis.mapper.AnalysisMapper;
 import org.springframework.context.ApplicationEventPublisher;
 import com.korit.feelioapi.domain.transaction.event.TransactionChangedEvent;
 
@@ -38,6 +40,8 @@ public class TransactionService {
     private final MetaMapper metaMapper;
     private final EmotionAnalysisService emotionAnalysisService;
     private final ApplicationEventPublisher eventPublisher;
+    private final AnalysisMapper analysisMapper;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public TransactionListResponse getTransactions(Long userId, TransactionSearchCondition condition) {
@@ -172,56 +176,17 @@ public class TransactionService {
 
     @Transactional(readOnly = true)
     public TransactionPatternResponse getRecurringPatterns(Long userId) {
-        List<Transaction> expenses = transactionMapper.findExpensesForPattern(userId);
-
-        record PatternKey(Long emotionId, Long categoryId, String timeSlot) {}
-        record PatternVal(int count, int totalAmount) {}
-        
-        java.util.Map<PatternKey, PatternVal> patternsMap = new java.util.HashMap<>();
-        for (Transaction t : expenses) {
-            String timeSlot = getTimeSlot(t.getOccurredAt().getHour());
-            PatternKey key = new PatternKey(t.getEmotionId(), t.getCategoryId(), timeSlot);
-            PatternVal existing = patternsMap.get(key);
-            if (existing == null) {
-                patternsMap.put(key, new PatternVal(1, t.getAmount()));
-            } else {
-                patternsMap.put(key, new PatternVal(existing.count() + 1, existing.totalAmount() + t.getAmount()));
-            }
-        }
-
-        var topEntry = patternsMap.entrySet().stream()
-                .filter(e -> e.getValue().count() >= 2)
-                .max(java.util.Comparator.comparingInt(e -> e.getValue().count()));
-
-        if (topEntry.isEmpty()) {
+        com.korit.feelioapi.domain.analysis.entity.AiInsight insight = analysisMapper.findInsightByType(userId, 0, 0, "PATTERN");
+        if (insight == null || insight.getContent() == null) {
             return new TransactionPatternResponse(new TransactionPatternDto(0, null, null, null, null, null));
         }
 
-        var key = topEntry.get().getKey();
-        int count = topEntry.get().getValue().count();
-
-        java.util.Map<Long, String> emotions = metaMapper.findActiveEmotions().stream()
-                .collect(java.util.stream.Collectors.toMap(com.korit.feelioapi.domain.meta.entity.Emotion::getEmotionId, com.korit.feelioapi.domain.meta.entity.Emotion::getName));
-        java.util.Map<Long, String> categories = metaMapper.findActiveCategories().stream()
-                .collect(java.util.stream.Collectors.toMap(com.korit.feelioapi.domain.meta.entity.Category::getCategoryId, com.korit.feelioapi.domain.meta.entity.Category::getName));
-
-        String emotionName = emotions.getOrDefault(key.emotionId(), "알수없음");
-        String categoryName = categories.getOrDefault(key.categoryId(), "알수없음");
-        
-        String title = emotionName + "일 때 " + categoryName + " 지출 패턴";
-        String timeStr = switch(key.timeSlot()) {
-            case "MORNING" -> "아침";
-            case "AFTERNOON" -> "낮";
-            case "NIGHT" -> "밤";
-            default -> "새벽";
-        };
-        String desc = emotionAnalysisService.generatePattern(emotionName, categoryName, timeStr, count);
-
-        TransactionPatternDto dto = new TransactionPatternDto(
-                count, title, emotionName, categoryName, timeStr, desc
-        );
-
-        return new TransactionPatternResponse(dto);
+        try {
+            TransactionPatternDto dto = objectMapper.readValue(insight.getContent(), TransactionPatternDto.class);
+            return new TransactionPatternResponse(dto);
+        } catch (Exception e) {
+            return new TransactionPatternResponse(new TransactionPatternDto(0, null, null, null, null, null));
+        }
     }
 
     private Transaction cloneTransaction(Transaction t) {
