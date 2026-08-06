@@ -76,7 +76,8 @@ public class PatternAnalysisEventListener {
                     emotionName,
                     categoryName,
                     timeStr,
-                    aiAdvice
+                    aiAdvice,
+                    evidence
             );
 
             // 6. JSON 직렬화 후 저장 (year=0, month=0)
