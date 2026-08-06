@@ -26,6 +26,14 @@ public interface TransactionMapper {
 
     List<Transaction> findExpensesForPattern(@Param("userId") Long userId);
 
+    com.korit.feelioapi.domain.transaction.dto.PatternKeyDto findTopRecurringPattern(@Param("userId") Long userId);
+    List<TransactionDto> findEvidenceForPattern(
+        @Param("userId") Long userId,
+        @Param("emotionId") Long emotionId,
+        @Param("categoryId") Long categoryId,
+        @Param("timeSlot") String timeSlot
+    );
+
     int deleteAllTransactionsByUserId(@Param("userId") Long userId);
 
     List<TransactionDto> findPendingDutchPay(@Param("userId") Long userId);

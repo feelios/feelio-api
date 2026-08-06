@@ -28,6 +28,8 @@
             <arg javaType="com.korit.feelioapi.domain.transaction.dto.CategoryDto" resultMap="categoryResultMap"/>
             <arg javaType="com.korit.feelioapi.domain.transaction.dto.EmotionDto" resultMap="emotionResultMap"/>
             <arg column="goal_id" javaType="java.lang.Long"/>
+            <arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="updated_at" javaType="java.time.LocalDateTime"/>
         </constructor>
     </resultMap>
 
@@ -76,7 +78,9 @@
             e.emotion_id,
             e.name AS emotion_name,
             e.color AS emotion_color,
-            t.goal_id
+            t.goal_id,
+            t.created_at,
+            t.updated_at
         FROM transactions t
         LEFT JOIN categories c ON t.category_id = c.category_id
         LEFT JOIN emotions e ON t.emotion_id = e.emotion_id
@@ -101,8 +105,8 @@
     </select>
 
     <insert id="insertTransaction" useGeneratedKeys="true" keyProperty="transactionId">
-        INSERT INTO transactions (user_id, emotion_id, category_id, type, amount, memo, occurred_at, goal_id)
-        VALUES (#{userId}, #{emotionId}, #{categoryId}, #{type}, #{amount}, #{memo}, #{occurredAt}, #{goalId})
+        INSERT INTO transactions (user_id, emotion_id, category_id, type, amount, memo, occurred_at, goal_id, created_at, updated_at)
+        VALUES (#{userId}, #{emotionId}, #{categoryId}, #{type}, #{amount}, #{memo}, #{occurredAt}, #{goalId}, #{createdAt}, #{updatedAt})
     </insert>
 
     <select id="findTransactionById" resultMap="transactionResultMap">
@@ -117,7 +121,9 @@
             e.emotion_id,
             e.name AS emotion_name,
             e.color AS emotion_color,
-            t.goal_id
+            t.goal_id,
+            t.created_at,
+            t.updated_at
         FROM transactions t
         LEFT JOIN categories c ON t.category_id = c.category_id
         LEFT JOIN emotions e ON t.emotion_id = e.emotion_id
@@ -147,7 +153,8 @@
             amount = #{amount},
             memo = #{memo},
             occurred_at = #{occurredAt},
-            goal_id = #{goalId}
+            goal_id = #{goalId},
+            updated_at = #{updatedAt}
         WHERE transaction_id = #{transactionId}
     </update>
 
@@ -183,6 +190,62 @@
         FROM categories
         WHERE name = #{name} AND type = #{type}
         LIMIT 1
+    </select>
+
+    <select id="findTopRecurringPattern" resultType="com.korit.feelioapi.domain.transaction.dto.PatternKeyDto">
+        SELECT
+            CASE
+                WHEN EXTRACT(HOUR FROM occurred_at) BETWEEN 0 AND 5 THEN 'DAWN'
+                WHEN EXTRACT(HOUR FROM occurred_at) BETWEEN 6 AND 11 THEN 'MORNING'
+                WHEN EXTRACT(HOUR FROM occurred_at) BETWEEN 12 AND 17 THEN 'AFTERNOON'
+                ELSE 'NIGHT'
+            END AS timeSlot,
+            emotion_id AS emotionId,
+            category_id AS categoryId,
+            COUNT(*) AS count,
+            SUM(amount) AS totalAmount
+        FROM transactions
+        WHERE user_id = #{userId}
+          AND type = 'EXPENSE'
+          AND emotion_id IS NOT NULL
+          AND category_id IS NOT NULL
+          AND amount > 0
+        GROUP BY timeSlot, emotionId, categoryId
+        ORDER BY count DESC, totalAmount DESC
+        LIMIT 1
+    </select>
+
+    <select id="findEvidenceForPattern" resultMap="transactionResultMap">
+        SELECT
+            t.transaction_id,
+            t.type,
+            t.amount,
+            t.memo,
+            t.occurred_at,
+            c.category_id,
+            c.name AS category_name,
+            e.emotion_id,
+            e.name AS emotion_name,
+            e.color AS emotion_color,
+            t.goal_id,
+            t.created_at,
+            t.updated_at
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.category_id
+        LEFT JOIN emotions e ON t.emotion_id = e.emotion_id
+        WHERE t.user_id = #{userId}
+          AND t.type = 'EXPENSE'
+          AND t.emotion_id = #{emotionId}
+          AND t.category_id = #{categoryId}
+          AND (
+            CASE
+                WHEN EXTRACT(HOUR FROM t.occurred_at) BETWEEN 0 AND 5 THEN 'DAWN'
+                WHEN EXTRACT(HOUR FROM t.occurred_at) BETWEEN 6 AND 11 THEN 'MORNING'
+                WHEN EXTRACT(HOUR FROM t.occurred_at) BETWEEN 12 AND 17 THEN 'AFTERNOON'
+                ELSE 'NIGHT'
+            END
+          ) = #{timeSlot}
+        ORDER BY t.occurred_at DESC
     </select>
 
 </mapper>

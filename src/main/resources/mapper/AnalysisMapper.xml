@@ -32,6 +32,20 @@
         ORDER BY amount DESC
     </select>
 
+    <!-- 최근 7일 챌린지 입력: 기간은 호출 측에서 [startAt, endAt)으로 고정한다. -->
+    <select id="findWeeklyExpenseByCategory" resultType="com.korit.feelioapi.domain.analysis.dto.CategoryStatDto">
+        SELECT c.category_id AS categoryId, c.name AS name, c.type AS type,
+               SUM(t.amount) AS amount, COUNT(*) AS count
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.category_id
+        WHERE t.user_id = #{userId}
+          AND t.type = 'EXPENSE'
+          AND t.occurred_at &gt;= #{startAt}
+          AND t.occurred_at &lt; #{endAt}
+        GROUP BY c.category_id, c.name, c.type
+        ORDER BY amount DESC
+    </select>
+
     <!-- 감정별 지출: 금액 내림차순(§9 — 소비 몰린 감정 우선). -->
     <select id="findExpenseByEmotion" resultType="com.korit.feelioapi.domain.analysis.dto.EmotionStatDto">
         SELECT e.emotion_id AS emotionId, e.name AS name, e.color AS color,
@@ -109,5 +123,48 @@
           AND YEAR(t.occurred_at) = #{year} AND MONTH(t.occurred_at) = #{month}
         GROUP BY c.category_id, c.name, c.is_fixed, c.is_budgetable
     </select>
+
+    <!-- 저장된 월간 인사이트 조회. idx_ai_user_ym(user_id, year, month) 를 그대로 타는 조건이다.
+         created_at 은 이번 달 인사이트의 재생성 판단에 쓴다.
+         year·month 는 MySQL 함수명과 겹쳐 백틱으로 감싼다. -->
+    <select id="findInsights" resultType="com.korit.feelioapi.domain.analysis.entity.AiInsight">
+        SELECT insight_id, user_id, `year`, `month`, insight_type, content, created_at
+        FROM ai_insights
+        WHERE user_id = #{userId}
+          AND `year` = #{year}
+          AND `month` = #{month}
+        ORDER BY insight_id
+    </select>
+
+    <!-- 재생성 전 기존 행 제거. AiInsightStore 에서 insertInsights 와 한 트랜잭션으로 묶인다. -->
+    <delete id="deleteInsights">
+        DELETE FROM ai_insights
+        WHERE user_id = #{userId}
+          AND `year` = #{year}
+          AND `month` = #{month}
+    </delete>
+
+    <!-- 인사이트 일괄 저장. 다중 VALUES 한 문장이라 일부만 저장되는 상태가 남지 않는다. -->
+    <insert id="insertInsights">
+        INSERT INTO ai_insights (user_id, `year`, `month`, insight_type, content)
+        VALUES
+        <foreach collection="insights" item="insight" separator=",">
+            (#{userId}, #{year}, #{month}, #{insight.type}, #{insight.content})
+        </foreach>
+    </insert>
+
+    <!-- 개별 타입 삭제 및 추가 -->
+    <delete id="deleteInsightByType">
+        DELETE FROM ai_insights
+        WHERE user_id = #{userId}
+          AND `year` = #{year}
+          AND `month` = #{month}
+          AND insight_type = #{type}
+    </delete>
+
+    <insert id="insertInsight">
+        INSERT INTO ai_insights (user_id, `year`, `month`, insight_type, content)
+        VALUES (#{userId}, #{year}, #{month}, #{type}, #{content})
+    </insert>
 
 </mapper>

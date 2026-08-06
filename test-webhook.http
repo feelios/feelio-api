@@ -1,0 +1,50 @@
+### ==========================================
+### 💻 로컬 환경 테스트 (백엔드가 내 PC에서 돌아갈 때)
+### ==========================================
+
+### 스타벅스 결제 테스트 쏘기 (로컬)
+POST http://localhost:8080/api/webhooks/card-payment
+Content-Type: application/json
+
+{
+  "merchant": "스타벅스",
+  "amount": 4500,
+  "userId": 43
+}
+
+### GS25 결제 테스트 쏘기 (로컬)
+POST http://localhost:8080/api/webhooks/card-payment
+Content-Type: application/json
+
+{
+  "merchant": "GS25",
+  "amount": 1500,
+  "userId": 43
+}
+
+
+### ==========================================
+### 🚀 실제 배포 서버 테스트 (서버가 클라우드에 떠 있을 때)
+### ==========================================
+# 주의: 'https://api.feelio.com' 부분을 실제 배포하신 백엔드 도메인으로 바꿔서 쏘세요!
+
+### 스타벅스 결제 테스트 쏘기 (배포 서버)
+POST https://api.feelio.com/api/webhooks/card-payment
+Content-Type: application/json
+
+{
+  "merchant": "스타벅스",
+  "amount": 4500,
+  "userId": 43
+}
+
+
+### 스타벅스 결제 테스트 쏘기 (배포 서버)
+POST https://api.feelio.com/api/webhooks/card-payment
+Content-Type: application/json
+
+{
+  "merchant": "지에스",
+  "amount": 3200,
+  "userId": 43
+}

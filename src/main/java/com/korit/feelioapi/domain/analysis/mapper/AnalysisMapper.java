@@ -3,7 +3,9 @@ package com.korit.feelioapi.domain.analysis.mapper;
 import com.korit.feelioapi.domain.analysis.dto.AnalysisTotalDto;
 import com.korit.feelioapi.domain.analysis.dto.CategoryStatDto;
 import com.korit.feelioapi.domain.analysis.dto.EmotionStatDto;
+import com.korit.feelioapi.domain.analysis.dto.InsightDto;
 import com.korit.feelioapi.domain.analysis.dto.TimeSlotStat;
+import com.korit.feelioapi.domain.analysis.entity.AiInsight;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -24,6 +26,12 @@ public interface AnalysisMapper {
                                                 @Param("year") int year,
                                                 @Param("month") int month);
 
+    List<CategoryStatDto> findWeeklyExpenseByCategory(
+            @Param("userId") Long userId,
+            @Param("startAt") java.time.LocalDateTime startAt,
+            @Param("endAt") java.time.LocalDateTime endAt
+    );
+
     List<EmotionStatDto> findExpenseByEmotion(@Param("userId") Long userId,
                                               @Param("year") int year,
                                               @Param("month") int month);
@@ -43,4 +51,30 @@ public interface AnalysisMapper {
     List<com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat> findPrevCategoryStats(@Param("userId") Long userId,
                                                                                          @Param("year") int year,
                                                                                          @Param("month") int month);
+
+    /** 저장된 월간 인사이트 조회. 없으면 빈 리스트 — 호출 측이 생성 여부를 판단한다. */
+    List<AiInsight> findInsights(@Param("userId") Long userId,
+                                 @Param("year") int year,
+                                 @Param("month") int month);
+
+    /** 해당 연·월 인사이트 전체 삭제. 재생성 전에 지워 중복이 쌓이지 않게 한다. */
+    void deleteInsights(@Param("userId") Long userId,
+                        @Param("year") int year,
+                        @Param("month") int month);
+
+    void deleteInsightByType(@Param("userId") Long userId,
+                             @Param("year") int year,
+                             @Param("month") int month,
+                             @Param("type") String type);
+
+    void insertInsights(@Param("userId") Long userId,
+                        @Param("year") int year,
+                        @Param("month") int month,
+                        @Param("insights") List<InsightDto> insights);
+
+    void insertInsight(@Param("userId") Long userId,
+                       @Param("year") int year,
+                       @Param("month") int month,
+                       @Param("type") String type,
+                       @Param("content") String content);
 }

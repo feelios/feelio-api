@@ -274,6 +274,38 @@ Response `data`:
 ```
 - 지출 기록 기준 집계. 감정 능선(8종 전체 축)·홈 감정 신호(전월 대비)에 사용.
 
+### GET /api/summary/ai-comment · 인증 필요
+
+Response `data`:
+```json
+{ "comment": "이번 달은 지난달보다 지출이 줄었어요. 지금의 흐름을 편안하게 이어가 보세요." }
+```
+
+- 조회일 기준 이번 달 총지출과 전월 총지출을 비교한 홈 소비 총평이다.
+- 홈의 캘린더·감정 요약과 분리 호출하여 AI 지연이 홈 화면 로딩을 막지 않게 한다.
+- 사용자별 하루 1회 생성하며 DB에 저장하지 않는다. 서버 재시작 시 당일에도 다시 생성될 수 있다.
+- 당월 지출이 없거나 GPT가 실패·지연·빈 응답을 반환하면 `comment`는 `null`이며 API 자체는 200 성공한다.
+
+### GET /api/summary/mallang-comment · 인증 필요
+
+Response `data`:
+```json
+{
+  "evaluation": "이번 달 320,000원 썼어. 예산의 78%야.",
+  "encouragement": "이번 주는 배달을 두 번만 시켜볼까?",
+  "status": "WARNING"
+}
+```
+
+- 홈 말랑이가 건네는 코멘트다. `evaluation`(현황 평가)과 `encouragement`(다음 행동 독려) 두 문장으로 나뉜다.
+- `evaluation`에는 **근거 수치를 최소 1개 포함**한다. 예산을 산출할 수 있으면 `지출액 + 소진율`, 없으면 `지출액`만 쓴다.
+- `status`: `ZERO`(지출 없음) · `SAVING`(소진율 70% 미만) · `WARNING`(70% 이상 90% 미만) · `OVER`(90% 이상) · `NO_BUDGET`(활성 목표·전월 기록이 없어 소진율 산출 불가). 말랑이 표정·색을 고르는 데 쓴다.
+- **판정(`status`)은 서버 자바 계산이며 AI가 바꾸지 않는다.** AI는 문장만 만든다. 수치도 집계값을 그대로 쓴다.
+- 예산은 §9 `GET /api/analysis/budget`과 같은 로직(A6-4 동적 예산)으로 구한다.
+- 기존 `GET /api/summary/ai-comment`(전월 대비 총평)와 별개 엔드포인트다. 서로 대체하지 않는다.
+- 사용자별 하루 1회 생성하며 DB에 저장하지 않는다. 서버 재시작 시 당일에도 다시 생성될 수 있다.
+- AI 비활성화·실패·타임아웃·빈 응답이면 규칙기반 문장으로 채워 응답한다. **`evaluation`·`encouragement`는 항상 비어 있지 않으며 API는 200 성공한다.**
+
 ## 9. 분석·평행우주 (3순위 — 스키마 확정, A3-1)
 
 > 스키마 확정 완료. A3-2(analysis)·A3-3(universe)는 아래 응답 형태를 기준으로 구현한다.
@@ -312,7 +344,70 @@ Response(200) `data`:
 - `byCategory`·`byEmotion`·`byTimeSlot`: 지출 기준 집계(금액 `amount`·건수 `count`). 기록 없는 항목은 배열에서 생략.
 - `byEmotion`은 **amount 내림차순** 정렬 → 소비가 가장 몰린 감정이 맨 앞(긍정·부정 무관, "감정소비" 관점의 초점 감정).
 - `byTimeSlot.slot`: `occurred_at` 시(hour) 기준 4구간 — `DAWN`(0–5) · `MORNING`(6–11) · `AFTERNOON`(12–17) · `NIGHT`(18–23). `label`은 한글 표기.
-- `insights`: `ai_insights` 테이블 매핑(`insight_type`→`type`, `content`→`content`), 0..n건. 문구는 감정 중립(긍정 감정도 대상). 인사이트 생성 로직은 A3-2 소관.
+- `insights`: `ai_insights` 테이블 매핑(`insight_type`→`type`, `content`→`content`), 0..n건. 문구는 감정 중립(긍정 감정도 대상).
+  - 저장본이 있으면 그대로 반환하고, 없을 때만 생성해 저장한다. **지난 달 이전은 영구 캐시**, 이번 달만 `feelio.insight.ttl-hours`(기본 6) 경과 시 재생성한다.
+  - 생성기는 `feelio.insight.provider`로 전환한다(`rule` 기본 · `gpt`). GPT 실패·타임아웃 시 규칙기반 결과로 폴백하므로 이 필드 때문에 응답이 실패하지 않는다.
+
+### GET /api/analysis/ai-insights · 인증 필요
+
+- 파라미터 없음. **호출 시점의 당월** 집계로 만든다. 항상 인증 주체 user_id 기준.
+
+Response(200) `data`:
+```json
+{
+  "aiQuickInsights": [
+    { "label": "위험 루트",      "value": "새벽 · 무덤덤 · 패션/미용",       "note": "10건",              "color": "var(--sub)", "type": "default" },
+    { "label": "팩트 리포트",    "value": "이번 달 지출 2,366,868원",        "note": "전월 대비 +32%",     "color": "#E87573",    "type": "fact"    },
+    { "label": "소비 위험도",    "value": "보통",                          "note": "전월과 비슷한 수준",  "color": "#E87573",    "type": "risk"    },
+    { "label": "AI 맞춤 챌린지", "value": "새벽에 '무덤덤' 소비 3일 참아보기", "note": "이번 주",           "color": "var(--sub)", "type": "default" }
+  ],
+  "emotionCards": [
+    { "title": "'무덤덤'일 때의 소비", "desc": "2건, 1,579,394원 썼어요. 이번 달 지출의 67%예요." }
+  ],
+  "evidence": [],
+  "pattern": { "count": 0, "title": null, "emotion": null, "category": null, "time": null, "desc": null }
+}
+```
+- `aiQuickInsights`: **4건 고정**, 순서도 고정(위험 루트 → 팩트 리포트 → 소비 위험도 → AI 맞춤 챌린지).
+  `label`·`color`·`type`은 프론트 표시 규격이므로 서버가 위 값 그대로 내려준다(`type`: `default`·`fact`·`risk` — `risk`는 신호등 UI).
+  화면 배치는 `label`이 좌상단 캡션, `note`가 우상단 태그, `value`가 본문 한 줄이다.
+- **지출 기록이 없으면 `aiQuickInsights`·`emotionCards` 모두 빈 배열**을 반환한다. 빈 상태 표시는 프론트 책임.
+- `위험 루트`: 지출이 가장 큰 `시간대 · 감정 · 카테고리`를 잇는다. `note`는 해당 시간대 건수.
+- `팩트 리포트`: 당월 지출 총액. `note`는 전월 대비 증감률(전월 지출이 0이면 `"전월 기록 없음"`).
+- `소비 위험도`: 전월 대비 증감률 기준 `높음`(+20% 초과) · `보통` · `낮음`(−20% 미만). 전월 지출이 0이면 비교 기준이 없어 `보통`.
+- `emotionCards`: `byEmotion` **상위 3건까지**, 같은 순서. 감정 카드 뒷면 문구이며 앞면(감정명·비율·금액)은 프론트가 §9 `byEmotion`으로 그린다.
+- `evidence`·`pattern`: 이 응답에서는 사용하지 않는다(빈 배열 / `count: 0`). 프론트는 `GET /api/transactions/patterns`에서 받아간다.
+
+### GET /api/analysis/ai-report · 인증 필요
+
+- 파라미터 없음. 호출 시점의 당월 지출과 동적 예산으로 계산하며, AI 모델은 호출하지 않는다.
+
+Response(200) `data`:
+```json
+{
+  "year": 2026,
+  "month": 8,
+  "totalExpense": 720000,
+  "totalBudget": 1000000,
+  "budgetUsageRate": 72.0,
+  "consumptionRisk": "YELLOW",
+  "ai": {
+    "fact": "이번 달 카페 지출 폼 미쳤다, 지갑도 카페인 과다 섭취 중이네.",
+    "challenge": "이번 주 배달은 2번까지만 주문하기",
+    "emotion": "① 발견: 스트레스를 느낄 때 밤 시간대 배달 소비가 두드러졌어요. ② 의미: 지친 마음을 빠르게 달래려는 선택이었을 수 있어요. ③ 조언: 주문 전 따뜻한 물을 마시며 5분만 마음을 살펴보세요."
+  }
+}
+```
+
+- `consumptionRisk`: 예산 소진율 90% 이상 `RED`, 70% 이상 90% 미만 `YELLOW`, 70% 미만 `GREEN`.
+- 지출이 없거나 예산을 산출할 수 없으면 `budgetUsageRate: 0.0`, `consumptionRisk: GREEN`이다.
+- `ai.fact`: 예산 상태·당월 지출·최대 지출 카테고리를 반영한 MZ 팩트 폭격기 한 문장이다.
+  `feelio.insight.provider=gpt`일 때 GPT를 호출하고, 비활성화·실패·타임아웃·빈 응답 시 `"팩트 분석을 준비 중이에요."`로 폴백한다.
+- `ai.challenge`: 오늘을 포함한 최근 7일의 카테고리별 지출(금액·건수)을 반영한 측정 가능한 미션 한 문장이다.
+  `feelio.insight.provider=gpt`일 때 GPT를 호출하고, 기록 없음·비활성화·실패·타임아웃·빈 응답 시 `"맞춤 챌린지를 준비 중이에요."`로 폴백한다.
+- `ai.emotion`: 당월 감정별 지출 상위 3건과 최대 지출 카테고리·시간대를 반영하며
+  `① 발견: ... ② 의미: ... ③ 조언: ...` 순서의 3단계 한 문장이다.
+  `feelio.insight.provider=gpt`일 때 GPT를 호출하고, 기록 없음·비활성화·실패·타임아웃·형식 오류 시 `"감정 소비 분석을 준비 중이에요."`로 폴백한다.
 
 ### GET /api/universe/simulation?goalId · 인증 필요
 

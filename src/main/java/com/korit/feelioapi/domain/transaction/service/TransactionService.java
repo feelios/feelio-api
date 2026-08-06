@@ -14,12 +14,15 @@ import com.korit.feelioapi.domain.goal.entity.Goal;
 import com.korit.feelioapi.domain.goal.mapper.GoalMapper;
 import com.korit.feelioapi.domain.transaction.mapper.TransactionMapper;
 import com.korit.feelioapi.domain.user.mapper.UserMapper;
+import com.korit.feelioapi.domain.meta.mapper.MetaMapper;
+import com.korit.feelioapi.domain.analysis.service.EmotionAnalysisService;
 import com.korit.feelioapi.global.exception.BusinessException;
 import com.korit.feelioapi.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -29,6 +32,8 @@ public class TransactionService {
     private final TransactionMapper transactionMapper;
     private final GoalMapper goalMapper;
     private final UserMapper userMapper;
+    private final MetaMapper metaMapper;
+    private final EmotionAnalysisService emotionAnalysisService;
 
     @Transactional(readOnly = true)
     public TransactionListResponse getTransactions(Long userId, TransactionSearchCondition condition) {
@@ -60,6 +65,10 @@ public class TransactionService {
             }
             transaction.setGoalId(request.goalId());
         }
+
+        LocalDateTime now = LocalDateTime.now();
+        transaction.setCreatedAt(now);
+        transaction.setUpdatedAt(now);
 
         transactionMapper.insertTransaction(transaction);
 
@@ -94,6 +103,8 @@ public class TransactionService {
         } else {
             transaction.setGoalId(null);
         }
+        
+        transaction.setUpdatedAt(LocalDateTime.now());
         
         transactionMapper.updateTransaction(transaction);
 
@@ -150,41 +161,54 @@ public class TransactionService {
     public TransactionPatternResponse getRecurringPatterns(Long userId) {
         List<Transaction> expenses = transactionMapper.findExpensesForPattern(userId);
 
-        List<Transaction> merged = new java.util.ArrayList<>();
-        for (Transaction current : expenses) {
-            if (merged.isEmpty()) {
-                merged.add(cloneTransaction(current));
-            } else {
-                Transaction last = merged.get(merged.size() - 1);
-                long Math_abs_diff = java.time.Duration.between(last.getOccurredAt(), current.getOccurredAt()).abs().toMinutes();
-                
-                if (Math_abs_diff <= 5 && java.util.Objects.equals(last.getMemo(), current.getMemo())) {
-                    last.setAmount(last.getAmount() + current.getAmount());
-                } else {
-                    merged.add(cloneTransaction(current));
-                }
-            }
-        }
-
-        java.util.Map<String, TransactionPatternDto> patternsMap = new java.util.HashMap<>();
-        for (Transaction t : merged) {
+        record PatternKey(Long emotionId, Long categoryId, String timeSlot) {}
+        record PatternVal(int count, int totalAmount) {}
+        
+        java.util.Map<PatternKey, PatternVal> patternsMap = new java.util.HashMap<>();
+        for (Transaction t : expenses) {
             String timeSlot = getTimeSlot(t.getOccurredAt().getHour());
-            String key = t.getEmotionId() + ":" + timeSlot + ":" + t.getMemo();
-            
-            TransactionPatternDto existing = patternsMap.get(key);
+            PatternKey key = new PatternKey(t.getEmotionId(), t.getCategoryId(), timeSlot);
+            PatternVal existing = patternsMap.get(key);
             if (existing == null) {
-                patternsMap.put(key, new TransactionPatternDto(timeSlot, t.getEmotionId(), t.getMemo(), 1, t.getAmount()));
+                patternsMap.put(key, new PatternVal(1, t.getAmount()));
             } else {
-                patternsMap.put(key, new TransactionPatternDto(timeSlot, t.getEmotionId(), t.getMemo(), existing.count() + 1, existing.totalAmount() + t.getAmount()));
+                patternsMap.put(key, new PatternVal(existing.count() + 1, existing.totalAmount() + t.getAmount()));
             }
         }
 
-        List<TransactionPatternDto> result = patternsMap.values().stream()
-                .filter(p -> p.count() >= 2)
-                .sorted(java.util.Comparator.comparingInt(TransactionPatternDto::count).reversed())
-                .toList();
+        var topEntry = patternsMap.entrySet().stream()
+                .filter(e -> e.getValue().count() >= 2)
+                .max(java.util.Comparator.comparingInt(e -> e.getValue().count()));
 
-        return new TransactionPatternResponse(result);
+        if (topEntry.isEmpty()) {
+            return new TransactionPatternResponse(new TransactionPatternDto(0, null, null, null, null, null));
+        }
+
+        var key = topEntry.get().getKey();
+        int count = topEntry.get().getValue().count();
+
+        java.util.Map<Long, String> emotions = metaMapper.findActiveEmotions().stream()
+                .collect(java.util.stream.Collectors.toMap(com.korit.feelioapi.domain.meta.entity.Emotion::getEmotionId, com.korit.feelioapi.domain.meta.entity.Emotion::getName));
+        java.util.Map<Long, String> categories = metaMapper.findActiveCategories().stream()
+                .collect(java.util.stream.Collectors.toMap(com.korit.feelioapi.domain.meta.entity.Category::getCategoryId, com.korit.feelioapi.domain.meta.entity.Category::getName));
+
+        String emotionName = emotions.getOrDefault(key.emotionId(), "알수없음");
+        String categoryName = categories.getOrDefault(key.categoryId(), "알수없음");
+        
+        String title = emotionName + "일 때 " + categoryName + " 지출 패턴";
+        String timeStr = switch(key.timeSlot()) {
+            case "MORNING" -> "아침";
+            case "AFTERNOON" -> "낮";
+            case "NIGHT" -> "밤";
+            default -> "새벽";
+        };
+        String desc = emotionAnalysisService.generatePattern(emotionName, categoryName, timeStr, count);
+
+        TransactionPatternDto dto = new TransactionPatternDto(
+                count, title, emotionName, categoryName, timeStr, desc
+        );
+
+        return new TransactionPatternResponse(dto);
     }
 
     private Transaction cloneTransaction(Transaction t) {

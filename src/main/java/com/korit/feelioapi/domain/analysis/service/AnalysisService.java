@@ -1,6 +1,7 @@
 package com.korit.feelioapi.domain.analysis.service;
 
 import com.korit.feelioapi.domain.analysis.dto.AiInsightsResponse;
+import com.korit.feelioapi.domain.analysis.dto.AiReportResponseDto;
 import com.korit.feelioapi.domain.analysis.dto.AnalysisResponse;
 import com.korit.feelioapi.domain.analysis.dto.AnalysisTotalDto;
 import com.korit.feelioapi.domain.analysis.dto.CategoryStatDto;
@@ -8,11 +9,16 @@ import com.korit.feelioapi.domain.analysis.dto.EmotionStatDto;
 import com.korit.feelioapi.domain.analysis.dto.InsightDto;
 import com.korit.feelioapi.domain.analysis.dto.TimeSlotStat;
 import com.korit.feelioapi.domain.analysis.dto.TimeSlotStatDto;
+import com.korit.feelioapi.domain.analysis.entity.AiInsight;
 import com.korit.feelioapi.domain.analysis.mapper.AnalysisMapper;
 import com.openai.client.OpenAIClient;
 import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +35,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AnalysisService {
 
+    private static final Logger log = LoggerFactory.getLogger(AnalysisService.class);
+
     /** 시간대 코드 → 한글 라벨 + 표시 순서(시간 순). */
     private static final List<Map.Entry<String, String>> TIME_SLOTS = List.of(
             Map.entry("DAWN", "새벽"),
@@ -41,21 +49,86 @@ public class AnalysisService {
     private final InsightGenerator insightGenerator;
     private final com.korit.feelioapi.domain.goal.mapper.GoalMapper goalMapper;
     private final OpenAIClient openAIClient;
+    private final AiInsightStore aiInsightStore;
+    private final AiQuickInsightAssembler quickInsightAssembler;
+    private final FactReportService factReportService;
+    private final ChallengeService challengeService;
+    private final EmotionAnalysisService emotionAnalysisService;
 
-    @Transactional(readOnly = true)
+    /** 이번 달 인사이트를 몇 시간 뒤에 다시 만들지. 짧게 잡을수록 GPT 호출이 늘어난다. */
+    @Value("${feelio.insight.ttl-hours:6}")
+    private long insightTtlHours = 6;
+
+    /**
+     * 인사이트 생성기가 외부 API(GPT)일 수 있어 @Transactional 을 걸지 않는다.
+     * 걸면 모델 응답을 기다리는 동안 DB 커넥션(풀 5개)을 붙잡게 된다. 집계 조회는 각각 단건 SELECT 라 문제없다.
+     */
     public AnalysisResponse getMonthlyAnalysis(Long userId, int year, int month) {
         AnalysisTotalDto totals = analysisMapper.findMonthlyTotals(userId, year, month);
         List<CategoryStatDto> byCategory = analysisMapper.findExpenseByCategory(userId, year, month);
         List<EmotionStatDto> byEmotion = analysisMapper.findExpenseByEmotion(userId, year, month);
         List<TimeSlotStatDto> byTimeSlot = toTimeSlotDtos(analysisMapper.findExpenseByTimeSlot(userId, year, month));
 
-        List<InsightDto> insights = insightGenerator.generate(year, month, byEmotion, byCategory, byTimeSlot);
+        List<InsightDto> insights = loadOrGenerateInsights(userId, year, month, byEmotion, byCategory, byTimeSlot);
 
         return new AnalysisResponse(
                 year, month,
                 totals.totalIncome(), totals.totalExpense(),
                 byCategory, byEmotion, byTimeSlot, insights
         );
+    }
+
+    /**
+     * 저장된 인사이트를 쓰고, 없거나 오래됐을 때만 새로 만들어 ai_insights 에 남긴다(계약 §9).
+     * 생성은 연·월당 한 번만 일어나고 이후 조회는 DB 에서 읽는다.
+     */
+    private List<InsightDto> loadOrGenerateInsights(Long userId,
+                                                    int year,
+                                                    int month,
+                                                    List<EmotionStatDto> byEmotion,
+                                                    List<CategoryStatDto> byCategory,
+                                                    List<TimeSlotStatDto> byTimeSlot) {
+        List<AiInsight> saved = analysisMapper.findInsights(userId, year, month);
+        if (!saved.isEmpty() && !isStale(saved, year, month)) {
+            return toInsightDtos(saved);
+        }
+
+        List<InsightDto> generated = insightGenerator.generate(year, month, byEmotion, byCategory, byTimeSlot);
+        if (generated.isEmpty()) {
+            // 만들 문장이 없는 달. 빈 행을 남기면 다음 조회에서 재생성이 막히므로 저장하지 않고,
+            // 기존 저장본이 있으면 그대로 내보낸다(생성 실패로 화면이 비지 않게).
+            return toInsightDtos(saved);
+        }
+
+        try {
+            aiInsightStore.replace(userId, year, month, generated);
+        } catch (DataAccessException e) {
+            // 저장에 실패해도 이번 응답은 정상적으로 내보낸다. 다음 조회 때 다시 시도하게 된다.
+            log.warn("인사이트 저장 실패(userId={}, {}-{}). 응답은 생성 결과로 내보낸다.", userId, year, month, e);
+        }
+        return generated;
+    }
+
+    /**
+     * 지난 달 이전은 거래가 더 늘지 않으므로 영구 캐시한다.
+     * 이번 달만 저장 후 ttl 이 지나면 다시 만든다 — 거래가 계속 쌓이는데 문장이 고정되면 안 되기 때문이다.
+     */
+    private boolean isStale(List<AiInsight> saved, int year, int month) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        if (year != today.getYear() || month != today.getMonthValue()) {
+            return false;
+        }
+        java.time.LocalDateTime createdAt = saved.get(0).getCreatedAt();
+        if (createdAt == null) {
+            return true;
+        }
+        return createdAt.isBefore(java.time.LocalDateTime.now().minusHours(insightTtlHours));
+    }
+
+    private List<InsightDto> toInsightDtos(List<AiInsight> rows) {
+        return rows.stream()
+                .map(row -> new InsightDto(row.getInsightType(), row.getContent()))
+                .toList();
     }
 
     /** 매퍼 결과에 한글 라벨을 붙이고 시간 순으로 정렬(기록 없는 구간 생략). */
@@ -72,17 +145,121 @@ public class AnalysisService {
         return result;
     }
 
-    @Transactional(readOnly = true)
+    /**
+     * AI 분석 화면 상단 요약. 이번 달 집계 + 전월 지출 비교로 만든다.
+     * evidence·pattern 은 프론트가 /api/transactions/patterns 에서 따로 받아가므로 여기서는 비워 둔다.
+     */
+    /**
+     * 문장 생성이 외부 API(GPT)를 탈 수 있어 @Transactional 을 걸지 않는다(커넥션 점유 방지).
+     * 소비 위험도는 예산 소진율로 자바에서 판정하고, GPT 는 문장만 만든다.
+     */
     public AiInsightsResponse getAiInsights(Long userId) {
-        // [F7-3 테스트용] Empty State (데이터 없음) 반환
+        java.time.LocalDate today = java.time.LocalDate.now();
+        int year = today.getYear();
+        int month = today.getMonthValue();
+
+        List<CategoryStatDto> byCategory = analysisMapper.findExpenseByCategory(userId, year, month);
+        List<EmotionStatDto> byEmotion = analysisMapper.findExpenseByEmotion(userId, year, month);
+        List<TimeSlotStatDto> byTimeSlot = toTimeSlotDtos(analysisMapper.findExpenseByTimeSlot(userId, year, month));
+
+        long currentExpense = analysisMapper.findMonthlyTotals(userId, year, month).totalExpense();
+
         return AiInsightsResponse.builder()
-                .aiQuickInsights(List.of()) // 빈 배열
-                .emotionCards(List.of())   // 빈 배열
-                .evidence(List.of())       // 빈 배열
-                .pattern(AiInsightsResponse.AiPattern.builder()
-                        .count(0) // 0으로 설정하여 빈 상태 트리거
-                        .build())
+                .aiQuickInsights(quickInsightAssembler.assembleQuickInsights(
+                        byEmotion, byCategory, byTimeSlot, currentExpense, totalBudget(userId)))
+                .emotionCards(quickInsightAssembler.assembleEmotionCards(byEmotion, byCategory, byTimeSlot))
+                .evidence(List.of())
+                .pattern(AiInsightsResponse.AiPattern.builder().count(0).build())
                 .build();
+    }
+
+    /**
+     * AI 연동 전에도 프론트가 사용할 수 있는 분석 리포트 뼈대.
+     * 위험도는 순수 자바 계산이며 OpenAI 클라이언트를 호출하지 않는다.
+     */
+    public AiReportResponseDto getAiReport(Long userId) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        int year = today.getYear();
+        int month = today.getMonthValue();
+
+        long totalExpense = analysisMapper.findMonthlyTotals(userId, year, month).totalExpense();
+        long budget = totalBudget(userId);
+        SpendStatus spendStatus = SpendStatus.of(totalExpense, budget);
+        List<CategoryStatDto> monthlyCategories = analysisMapper.findExpenseByCategory(userId, year, month);
+        String topCategory = monthlyCategories.stream()
+                .findFirst()
+                .map(CategoryStatDto::name)
+                .orElse(null);
+        List<EmotionStatDto> monthlyEmotions = analysisMapper.findExpenseByEmotion(userId, year, month);
+        String topTimeSlot = toTimeSlotDtos(analysisMapper.findExpenseByTimeSlot(userId, year, month)).stream()
+                .max(java.util.Comparator.comparingLong(TimeSlotStatDto::amount))
+                .map(TimeSlotStatDto::label)
+                .orElse(null);
+        java.time.LocalDateTime weeklyStart = today.minusDays(6).atStartOfDay();
+        java.time.LocalDateTime weeklyEnd = today.plusDays(1).atStartOfDay();
+        List<CategoryStatDto> weeklyCategories = analysisMapper.findWeeklyExpenseByCategory(
+                userId, weeklyStart, weeklyEnd);
+        double usageRate = budget > 0
+                ? Math.round(totalExpense * 1000.0 / budget) / 10.0
+                : 0.0;
+
+        List<AiInsight> saved = analysisMapper.findInsights(userId, year, month);
+        boolean isStale = saved.isEmpty() || saved.get(0).getCreatedAt().isBefore(java.time.LocalDateTime.now().minusDays(7));
+        
+        String factText = null;
+        String emotionText = null;
+        
+        if (!isStale) {
+            for (AiInsight insight : saved) {
+                if ("FACT_BOMBER".equals(insight.getInsightType())) factText = insight.getContent();
+                if ("EMO_BOMBER".equals(insight.getInsightType())) emotionText = insight.getContent();
+            }
+        }
+        
+        if (factText == null || emotionText == null || isStale) {
+            if (totalExpense == 0) {
+                factText = FactReportService.FALLBACK_MESSAGE;
+                emotionText = "이번 달 소비 기록이 없어 감정 분석을 건너뜁니다.";
+            } else {
+                factText = factReportService.generate(spendStatus, totalExpense, budget, topCategory);
+                emotionText = emotionAnalysisService.generate(monthlyEmotions, topCategory, topTimeSlot);
+                
+                try {
+                    aiInsightStore.replaceByType(userId, year, month, "FACT_BOMBER", factText);
+                    aiInsightStore.replaceByType(userId, year, month, "EMO_BOMBER", emotionText);
+                } catch (Exception e) {
+                    log.warn("인사이트 개별 저장 실패", e);
+                }
+            }
+        }
+
+        return new AiReportResponseDto(
+                year,
+                month,
+                totalExpense,
+                budget,
+                usageRate,
+                ConsumptionRisk.of(totalExpense, budget).name(),
+                new AiReportResponseDto.AiContent(
+                        factText,
+                        challengeService.generate(weeklyCategories),
+                        emotionText
+                )
+        );
+    }
+
+    public List<AiInsight> debugInsights(Long userId, int year, int month) {
+        return analysisMapper.findInsights(userId, year, month);
+    }
+
+    /**
+     * 이번 달 예산 총액(A6-4 동적 예산의 카테고리별 합).
+     * 활성 목표가 없거나 전월 기록이 없으면 0 이 나오고, 그 경우 위험도는 '예산 미설정'으로 처리된다.
+     */
+    public long totalBudget(Long userId) {
+        return getBudgetStatus(userId).budgetItems().stream()
+                .mapToLong(item -> item.budget() == null ? 0L : item.budget())
+                .sum();
     }
 
     @Transactional(readOnly = true)
@@ -244,17 +421,6 @@ public class AnalysisService {
     }
 
     public List<String> getAiChatResponse(String value) {
-        ResponseCreateParams params = ResponseCreateParams.builder()
-                .input(value)
-                .model("gpt-4o-mini")
-                .build();
-
-        Response response = openAIClient.responses().create(params);
-        return response.output().stream()
-                .flatMap(item -> item.message().stream())
-                .flatMap(message -> message.content().stream())
-                .flatMap(content -> content.outputText().stream())
-                .map(outputText -> outputText.text())
-                .toList();
+        return List.of("말랑이가 분석 중이에요! (AI 기능 점검 중)");
     }
 }

@@ -1,12 +1,14 @@
 package com.korit.feelioapi.domain.analysis.service;
 
 import com.korit.feelioapi.domain.analysis.dto.AnalysisResponse;
+import com.korit.feelioapi.domain.analysis.dto.AiReportResponseDto;
 import com.korit.feelioapi.domain.analysis.dto.AnalysisTotalDto;
 import com.korit.feelioapi.domain.analysis.dto.CategoryStatDto;
 import com.korit.feelioapi.domain.analysis.dto.EmotionStatDto;
 import com.korit.feelioapi.domain.analysis.dto.InsightDto;
 import com.korit.feelioapi.domain.analysis.dto.TimeSlotStat;
 import com.korit.feelioapi.domain.analysis.dto.TimeSlotStatDto;
+import com.korit.feelioapi.domain.analysis.entity.AiInsight;
 import com.korit.feelioapi.domain.analysis.mapper.AnalysisMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,14 +16,20 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class AnalysisServiceTest {
@@ -29,6 +37,12 @@ class AnalysisServiceTest {
     @Mock private AnalysisMapper analysisMapper;
     @Mock private InsightGenerator insightGenerator;
     @Mock private com.korit.feelioapi.domain.goal.mapper.GoalMapper goalMapper;
+    @Mock private com.openai.client.OpenAIClient openAIClient;
+    @Mock private AiInsightStore aiInsightStore;
+    @Mock private AiQuickInsightAssembler quickInsightAssembler;
+    @Mock private FactReportService factReportService;
+    @Mock private ChallengeService challengeService;
+    @Mock private EmotionAnalysisService emotionAnalysisService;
 
     @InjectMocks private AnalysisService analysisService;
 
@@ -81,6 +95,97 @@ class AnalysisServiceTest {
         assertThat(response.byTimeSlot()).isEmpty();
         assertThat(response.insights()).isEmpty();
         assertThat(response.totalExpense()).isZero();
+    }
+
+    @Test
+    void 지난달_인사이트가_저장돼_있으면_생성기를_호출하지_않는다() {
+        stubEmptyAggregates();
+        // 지난 달은 거래가 더 늘지 않으므로 아무리 오래돼도 재생성하지 않는다.
+        when(analysisMapper.findInsights(1L, 2026, 1))
+                .thenReturn(List.of(savedInsight("PATTERN", "외로운 밤마다 배달 소비가 반복되고 있어요.",
+                        LocalDateTime.now().minusDays(200))));
+
+        AnalysisResponse response = analysisService.getMonthlyAnalysis(1L, 2026, 1);
+
+        assertThat(response.insights()).hasSize(1);
+        assertThat(response.insights().get(0).type()).isEqualTo("PATTERN");
+        verify(insightGenerator, never()).generate(anyInt(), anyInt(), any(), any(), any());
+        verify(aiInsightStore, never()).replace(anyLong(), anyInt(), anyInt(), any());
+    }
+
+    @Test
+    void 저장된_인사이트가_없으면_생성해서_저장한다() {
+        stubEmptyAggregates();
+        when(analysisMapper.findInsights(1L, 2026, 1)).thenReturn(List.of());
+        when(insightGenerator.generate(eq(2026), eq(1), any(), any(), any()))
+                .thenReturn(List.of(new InsightDto("EMOTION_FOCUS", "설렘 소비가 많았어요.")));
+
+        AnalysisResponse response = analysisService.getMonthlyAnalysis(1L, 2026, 1);
+
+        assertThat(response.insights()).hasSize(1);
+        verify(aiInsightStore).replace(eq(1L), eq(2026), eq(1),
+                argThat(list -> list.size() == 1 && list.get(0).type().equals("EMOTION_FOCUS")));
+    }
+
+    @Test
+    void 생성된_인사이트가_비면_저장하지_않는다() {
+        stubEmptyAggregates();
+        when(analysisMapper.findInsights(1L, 2026, 1)).thenReturn(List.of());
+        when(insightGenerator.generate(anyInt(), anyInt(), any(), any(), any())).thenReturn(List.of());
+
+        AnalysisResponse response = analysisService.getMonthlyAnalysis(1L, 2026, 1);
+
+        assertThat(response.insights()).isEmpty();
+        // 빈 행을 남기면 다음 조회에서 재생성이 막힌다.
+        verify(aiInsightStore, never()).replace(anyLong(), anyInt(), anyInt(), any());
+    }
+
+    @Test
+    void 이번달_인사이트가_TTL을_넘겼으면_다시_만들어_덮어쓴다() {
+        LocalDate today = LocalDate.now();
+        stubEmptyAggregates();
+        // 기본 ttl 은 6시간. 24시간 전 생성분은 오래된 것으로 본다.
+        when(analysisMapper.findInsights(1L, today.getYear(), today.getMonthValue()))
+                .thenReturn(List.of(savedInsight("OLD", "예전 문장", LocalDateTime.now().minusHours(24))));
+        when(insightGenerator.generate(anyInt(), anyInt(), any(), any(), any()))
+                .thenReturn(List.of(new InsightDto("FRESH", "새 문장")));
+
+        AnalysisResponse response =
+                analysisService.getMonthlyAnalysis(1L, today.getYear(), today.getMonthValue());
+
+        assertThat(response.insights().get(0).type()).isEqualTo("FRESH");
+        verify(aiInsightStore).replace(eq(1L), anyInt(), anyInt(), any());
+    }
+
+    @Test
+    void 이번달이라도_TTL_이내면_저장본을_재사용한다() {
+        LocalDate today = LocalDate.now();
+        stubEmptyAggregates();
+        when(analysisMapper.findInsights(1L, today.getYear(), today.getMonthValue()))
+                .thenReturn(List.of(savedInsight("RECENT", "방금 만든 문장", LocalDateTime.now().minusMinutes(30))));
+
+        AnalysisResponse response =
+                analysisService.getMonthlyAnalysis(1L, today.getYear(), today.getMonthValue());
+
+        assertThat(response.insights().get(0).type()).isEqualTo("RECENT");
+        verify(insightGenerator, never()).generate(anyInt(), anyInt(), any(), any(), any());
+    }
+
+    private AiInsight savedInsight(String type, String content, LocalDateTime createdAt) {
+        AiInsight row = new AiInsight();
+        row.setInsightType(type);
+        row.setContent(content);
+        row.setCreatedAt(createdAt);
+        return row;
+    }
+
+    /** 인사이트 경로만 보는 테스트용 — 집계는 전부 비운다. */
+    private void stubEmptyAggregates() {
+        when(analysisMapper.findMonthlyTotals(anyLong(), anyInt(), anyInt()))
+                .thenReturn(new AnalysisTotalDto(0L, 0L));
+        when(analysisMapper.findExpenseByCategory(anyLong(), anyInt(), anyInt())).thenReturn(List.of());
+        when(analysisMapper.findExpenseByEmotion(anyLong(), anyInt(), anyInt())).thenReturn(List.of());
+        when(analysisMapper.findExpenseByTimeSlot(anyLong(), anyInt(), anyInt())).thenReturn(List.of());
     }
 
     @Test
@@ -139,5 +244,54 @@ class AnalysisServiceTest {
         com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem item2 = response.budgetItems().get(1);
         assertThat(item2.name()).isEqualTo("교통");
         assertThat(item2.budget()).isEqualTo(304000L);
+    }
+
+    @Test
+    void AI를_호출하지_않고_분석_리포트_뼈대를_반환한다() {
+        LocalDate today = LocalDate.now();
+        LocalDate previousMonth = today.minusMonths(1);
+
+        when(analysisMapper.findMonthlyTotals(1L, today.getYear(), today.getMonthValue()))
+                .thenReturn(new AnalysisTotalDto(0L, 250000L));
+        when(goalMapper.findGoalsByUserId(1L)).thenReturn(List.of());
+        when(analysisMapper.findCurrentCategoryStats(1L, today.getYear(), today.getMonthValue()))
+                .thenReturn(List.of());
+        when(analysisMapper.findPrevCategoryStats(1L, previousMonth.getYear(), previousMonth.getMonthValue()))
+                .thenReturn(List.of());
+        when(analysisMapper.findExpenseByCategory(1L, today.getYear(), today.getMonthValue()))
+                .thenReturn(List.of(new CategoryStatDto(3L, "카페", "EXPENSE", 200000L, 8L)));
+        when(factReportService.generate(SpendStatus.NO_BUDGET, 250000L, 0L, "카페"))
+                .thenReturn("예산부터 잡으면 지갑도 방향을 찾겠는데?");
+        List<CategoryStatDto> weeklyCategories = List.of(
+                new CategoryStatDto(5L, "배달", "EXPENSE", 120000L, 4L));
+        when(analysisMapper.findWeeklyExpenseByCategory(
+                eq(1L), any(java.time.LocalDateTime.class), any(java.time.LocalDateTime.class)))
+                .thenReturn(weeklyCategories);
+        when(challengeService.generate(weeklyCategories)).thenReturn("이번 주 배달은 2번까지만 주문하기");
+        List<EmotionStatDto> monthlyEmotions = List.of(
+                new EmotionStatDto(4L, "스트레스", "#A68BEA", 180000L, 5L));
+        when(analysisMapper.findExpenseByEmotion(1L, today.getYear(), today.getMonthValue()))
+                .thenReturn(monthlyEmotions);
+        when(analysisMapper.findExpenseByTimeSlot(1L, today.getYear(), today.getMonthValue()))
+                .thenReturn(List.of(new TimeSlotStat("NIGHT", 190000L, 6L)));
+        String emotionAnalysis = "① 발견: 스트레스 소비가 밤에 두드러졌어요. "
+                + "② 의미: 지친 마음을 달래려는 선택이었을 수 있어요. "
+                + "③ 조언: 결제 전 5분만 마음을 살펴보세요.";
+        when(emotionAnalysisService.generate(monthlyEmotions, "카페", "밤"))
+                .thenReturn(emotionAnalysis);
+
+        AiReportResponseDto response = analysisService.getAiReport(1L);
+
+        assertThat(response.totalExpense()).isEqualTo(250000L);
+        assertThat(response.totalBudget()).isZero();
+        assertThat(response.budgetUsageRate()).isZero();
+        assertThat(response.consumptionRisk()).isEqualTo("GREEN");
+        assertThat(response.ai().fact()).isEqualTo("예산부터 잡으면 지갑도 방향을 찾겠는데?");
+        assertThat(response.ai().challenge()).isEqualTo("이번 주 배달은 2번까지만 주문하기");
+        assertThat(response.ai().emotion()).isEqualTo(emotionAnalysis);
+        verifyNoInteractions(openAIClient);
+        verify(factReportService).generate(SpendStatus.NO_BUDGET, 250000L, 0L, "카페");
+        verify(challengeService).generate(weeklyCategories);
+        verify(emotionAnalysisService).generate(monthlyEmotions, "카페", "밤");
     }
 }

@@ -5,7 +5,11 @@ import com.korit.feelioapi.domain.summary.dto.CalendarSummaryResponse;
 import com.korit.feelioapi.domain.summary.dto.EmotionDto;
 import com.korit.feelioapi.domain.summary.dto.EmotionSummaryDto;
 import com.korit.feelioapi.domain.summary.dto.EmotionSummaryResponse;
+import com.korit.feelioapi.domain.summary.dto.MallangCommentResponse;
+import com.korit.feelioapi.domain.summary.dto.SummaryAiCommentResponse;
 import com.korit.feelioapi.domain.summary.mapper.SummaryMapper;
+import com.korit.feelioapi.domain.analysis.service.AnalysisService;
+import com.korit.feelioapi.domain.analysis.service.SpendStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -18,6 +22,10 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 
 @ExtendWith(MockitoExtension.class)
 class SummaryServiceTest {
@@ -25,8 +33,26 @@ class SummaryServiceTest {
     @Mock
     private SummaryMapper summaryMapper;
 
-    @InjectMocks
+    @Mock
+    private SummaryAiCommentGenerator aiCommentGenerator;
+
+    @Mock
+    private MallangCommentGenerator mallangCommentGenerator;
+
+    @Mock
+    private AnalysisService analysisService;
+
+    /** 폴백은 실제 구현을 그대로 쓴다 — 문장이 비지 않는지가 검증 대상이라 mock 이면 의미가 없다. */
+    private final RuleMallangCommentGenerator ruleMallangCommentGenerator = new RuleMallangCommentGenerator();
+
     private SummaryService summaryService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        summaryService = new SummaryService(
+                summaryMapper, aiCommentGenerator, mallangCommentGenerator,
+                ruleMallangCommentGenerator, analysisService);
+    }
 
     @Test
     void 홈_캘린더_요약을_조회한다() {
@@ -71,5 +97,148 @@ class SummaryServiceTest {
 
         verify(summaryMapper).findEmotionSummary(userId, 2026, 1);
         verify(summaryMapper).findEmotionSummary(userId, 2025, 12);
+    }
+
+    @Test
+    void 당월과_전월_지출로_홈_AI_멘트를_생성한다() {
+        Long userId = 2L;
+        LocalDate today = LocalDate.now();
+        LocalDate previousMonth = today.minusMonths(1);
+
+        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(300000L);
+        when(summaryMapper.findMonthlyExpense(userId, previousMonth.getYear(), previousMonth.getMonthValue()))
+                .thenReturn(400000L);
+        when(aiCommentGenerator.generate(today.getYear(), today.getMonthValue(), 300000L, 400000L))
+                .thenReturn("지난달보다 지출이 줄었어요.");
+
+        SummaryAiCommentResponse response = summaryService.getAiComment(userId);
+
+        assertThat(response.comment()).isEqualTo("지난달보다 지출이 줄었어요.");
+        verify(aiCommentGenerator).generate(today.getYear(), today.getMonthValue(), 300000L, 400000L);
+    }
+
+    @Test
+    void 당월_지출이_없으면_AI를_호출하지_않고_빈_멘트를_반환한다() {
+        Long userId = 3L;
+        LocalDate today = LocalDate.now();
+        LocalDate previousMonth = today.minusMonths(1);
+
+        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(0L);
+        when(summaryMapper.findMonthlyExpense(userId, previousMonth.getYear(), previousMonth.getMonthValue()))
+                .thenReturn(150000L);
+
+        SummaryAiCommentResponse response = summaryService.getAiComment(userId);
+
+        assertThat(response.comment()).isNull();
+        org.mockito.Mockito.verifyNoInteractions(aiCommentGenerator);
+    }
+
+    // ── 말랑이 코멘트 (A8-3) ────────────────────────────────────────────
+
+    @Test
+    void 말랑이_코멘트는_AI_문장을_그대로_쓰고_상태는_서버가_정한다() {
+        Long userId = 1L;
+        LocalDate today = LocalDate.now();
+
+        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(320_000L);
+        when(analysisService.totalBudget(userId)).thenReturn(400_000L);   // 소진율 80% → WARNING
+        when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt()))
+                .thenReturn(new MallangComment("이번 달 320,000원 썼어. 예산의 80%야.", "이번 주는 한 번만 아껴볼까?"));
+
+        MallangCommentResponse response = summaryService.getMallangComment(userId);
+
+        assertThat(response.evaluation()).isEqualTo("이번 달 320,000원 썼어. 예산의 80%야.");
+        assertThat(response.encouragement()).isEqualTo("이번 주는 한 번만 아껴볼까?");
+        assertThat(response.status()).isEqualTo(SpendStatus.WARNING.name());
+    }
+
+    @Test
+    void 말랑이_코멘트는_AI가_실패해도_규칙기반_문장으로_채운다() {
+        Long userId = 2L;
+        LocalDate today = LocalDate.now();
+
+        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(380_000L);
+        when(analysisService.totalBudget(userId)).thenReturn(400_000L);   // 95% → OVER
+        when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt())).thenReturn(null);
+
+        MallangCommentResponse response = summaryService.getMallangComment(userId);
+
+        assertThat(response.evaluation()).isNotBlank();
+        assertThat(response.encouragement()).isNotBlank();
+        assertThat(response.evaluation()).contains("380,000원");   // 근거 수치가 반드시 들어간다
+        assertThat(response.status()).isEqualTo(SpendStatus.OVER.name());
+    }
+
+    @Test
+    void 말랑이_코멘트는_AI가_빈_문장을_줘도_규칙기반으로_대체한다() {
+        Long userId = 3L;
+        LocalDate today = LocalDate.now();
+
+        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(100_000L);
+        when(analysisService.totalBudget(userId)).thenReturn(400_000L);   // 25% → SAVING
+        when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt()))
+                .thenReturn(new MallangComment("  ", ""));
+
+        MallangCommentResponse response = summaryService.getMallangComment(userId);
+
+        assertThat(response.evaluation()).isNotBlank();
+        assertThat(response.encouragement()).isNotBlank();
+        assertThat(response.status()).isEqualTo(SpendStatus.SAVING.name());
+    }
+
+    @Test
+    void 예산을_구할_수_없으면_소진율_대신_지출액만_말한다() {
+        Long userId = 4L;
+        LocalDate today = LocalDate.now();
+
+        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(50_000L);
+        when(analysisService.totalBudget(userId)).thenReturn(0L);         // 활성 목표·전월 기록 없음
+        when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt())).thenReturn(null);
+
+        MallangCommentResponse response = summaryService.getMallangComment(userId);
+
+        assertThat(response.status()).isEqualTo(SpendStatus.NO_BUDGET.name());
+        assertThat(response.evaluation()).contains("50,000원");
+        assertThat(response.evaluation()).doesNotContain("%");
+    }
+
+    @Test
+    void 지출이_없으면_ZERO_상태로_응답한다() {
+        Long userId = 5L;
+        LocalDate today = LocalDate.now();
+
+        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(0L);
+        when(analysisService.totalBudget(userId)).thenReturn(400_000L);
+        when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt())).thenReturn(null);
+
+        MallangCommentResponse response = summaryService.getMallangComment(userId);
+
+        assertThat(response.status()).isEqualTo(SpendStatus.ZERO.name());
+        assertThat(response.evaluation()).isNotBlank();
+        assertThat(response.encouragement()).isNotBlank();
+    }
+
+    @Test
+    void 말랑이_코멘트는_같은_날_두_번째_호출부터_캐시를_쓴다() {
+        Long userId = 6L;
+        LocalDate today = LocalDate.now();
+
+        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(320_000L);
+        when(analysisService.totalBudget(userId)).thenReturn(400_000L);
+        when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt()))
+                .thenReturn(new MallangComment("평가", "독려"));
+
+        summaryService.getMallangComment(userId);
+        summaryService.getMallangComment(userId);
+
+        verify(mallangCommentGenerator, times(1)).generate(any(), anyLong(), anyLong(), anyInt());
     }
 }
