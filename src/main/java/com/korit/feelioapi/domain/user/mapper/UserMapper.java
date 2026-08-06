@@ -20,7 +20,13 @@ public interface UserMapper {
 
     int markOnboardingDone(@Param("userId") Long userId, @Param("totalAsset") Long totalAsset);
 
-    int addTotalAsset(@Param("userId") Long userId, @Param("amount") int amount);
+    /**
+     * 거래가 자산에 준 변화량(수입 − 지출). 거래가 없으면 0.
+     *
+     * users.total_asset 은 온보딩 초기값 그대로 두고, 조회 시점에 이 값을 더해 현재 총자산을 만든다.
+     * 컬럼을 직접 증감하면 생성·수정·삭제 중 한 경로만 빠져도 값이 영구히 틀어진다(#200).
+     */
+    long sumTransactionEffect(@Param("userId") Long userId);
 
     /** 부분 전송: null 인 컬럼은 건드리지 않는다(동적 SQL). */
     int updateSettings(@Param("userId") Long userId,

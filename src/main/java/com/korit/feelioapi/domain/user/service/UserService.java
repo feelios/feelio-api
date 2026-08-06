@@ -100,9 +100,13 @@ public class UserService {
         return user;
     }
 
-    /** provider 는 연동된 소셜 계정에서 최신 1건을 채운다(§3 user 객체와 동일 구조). */
+    /**
+     * provider 는 연동된 소셜 계정에서 최신 1건을 채운다(§3 user 객체와 동일 구조).
+     * totalAsset 은 온보딩 초기값에 거래 변화량(수입 − 지출)을 더한 값이다 (#200).
+     */
     private UserResponse toResponse(User user) {
         String provider = userMapper.findProviderByUserId(user.getUserId());
-        return UserResponse.of(user, provider);
+        long transactionEffect = userMapper.sumTransactionEffect(user.getUserId());
+        return UserResponse.of(user, provider, transactionEffect);
     }
 }

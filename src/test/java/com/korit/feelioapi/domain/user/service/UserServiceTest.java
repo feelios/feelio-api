@@ -62,6 +62,52 @@ class UserServiceTest {
     }
 
     @Test
+    void 총자산은_온보딩_초기값에_거래_변화량을_더한_값이다() {
+        // 초기 100만 + (수입 − 지출 = −30만) → 70만
+        User u = user(1L, "서연");
+        u.setTotalAsset(1_000_000L);
+        when(userMapper.findUserById(1L)).thenReturn(u);
+        when(userMapper.findProviderByUserId(1L)).thenReturn("GOOGLE");
+        when(userMapper.sumTransactionEffect(1L)).thenReturn(-300_000L);
+
+        assertThat(userService.getMe(1L).totalAsset()).isEqualTo(700_000L);
+    }
+
+    @Test
+    void 거래가_없으면_총자산은_초기값_그대로다() {
+        User u = user(1L, "서연");
+        u.setTotalAsset(1_000_000L);
+        when(userMapper.findUserById(1L)).thenReturn(u);
+        when(userMapper.findProviderByUserId(1L)).thenReturn("GOOGLE");
+        when(userMapper.sumTransactionEffect(1L)).thenReturn(0L);
+
+        assertThat(userService.getMe(1L).totalAsset()).isEqualTo(1_000_000L);
+    }
+
+    @Test
+    void 수입이_지출보다_많으면_총자산이_초기값보다_커진다() {
+        User u = user(1L, "서연");
+        u.setTotalAsset(500_000L);
+        when(userMapper.findUserById(1L)).thenReturn(u);
+        when(userMapper.findProviderByUserId(1L)).thenReturn("GOOGLE");
+        when(userMapper.sumTransactionEffect(1L)).thenReturn(200_000L);
+
+        assertThat(userService.getMe(1L).totalAsset()).isEqualTo(700_000L);
+    }
+
+    @Test
+    void 온보딩_전이라_초기값이_없으면_거래_변화량만_반영한다() {
+        // total_asset 이 null 인 상태에서도 NPE 없이 계산돼야 한다.
+        User u = user(1L, "서연");
+        u.setTotalAsset(null);
+        when(userMapper.findUserById(1L)).thenReturn(u);
+        when(userMapper.findProviderByUserId(1L)).thenReturn("GOOGLE");
+        when(userMapper.sumTransactionEffect(1L)).thenReturn(-50_000L);
+
+        assertThat(userService.getMe(1L).totalAsset()).isEqualTo(-50_000L);
+    }
+
+    @Test
     void 존재하지_않는_사용자는_NOT_FOUND() {
         when(userMapper.findUserById(99L)).thenReturn(null);
 
