@@ -27,7 +27,9 @@ jobs:
               echo "APPLICATION_SECRET<<EOF" >> $GITHUB_ENV
               echo "${{ secrets.APPLICATION_SECRET_KMJ_CUSTOM }}" >> $GITHUB_ENV
               echo "EOF" >> $GITHUB_ENV
-              echo "ENV=${{ secrets.ENV_KMJ }}" >> $GITHUB_ENV
+              echo "ENV<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.ENV_KMJ_CUSTOM }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
               echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_KMJ }}" >> $GITHUB_ENV
               
               echo "OPENAI_KEY=${{ secrets.OPENAI_KEY_KMJ }}" >> $GITHUB_ENV
