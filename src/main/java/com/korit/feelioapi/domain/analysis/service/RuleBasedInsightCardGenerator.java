@@ -9,11 +9,14 @@ import java.util.List;
 /**
  * 규칙기반 카드 문구(무료·즉시·결정적). GPT 를 켜도 실패·타임아웃 시 이 결과가 대신 나가므로 항상 살아 있어야 한다.
  * 페르소나 말투는 GPT 쪽이 담당하고, 여기서는 같은 뜻을 담백하게 쓴다 — 폴백이 튀면 오히려 부자연스럽다.
+ *
+ * factReport·challenge 는 인터페이스 메서드가 아니다(#180). {@link FactReportService}·{@link ChallengeService}
+ * 가 이 빈을 구체 타입으로 주입받아 GPT 실패 시 폴백으로 호출한다.
  */
 @Component
 public class RuleBasedInsightCardGenerator implements InsightCardGenerator {
 
-    @Override
+    /** {@link FactReportService} 의 폴백. */
     public String factReport(SpendStatus status, String topCategory, long expense) {
         return switch (status) {
             case ZERO -> "이번 달은 아직 지출 기록이 없어요.";
@@ -26,7 +29,7 @@ public class RuleBasedInsightCardGenerator implements InsightCardGenerator {
         };
     }
 
-    @Override
+    /** {@link ChallengeService} 의 폴백. */
     public String challenge(String riskRoute) {
         if (riskRoute == null || riskRoute.isBlank()) {
             return "며칠만 기록을 이어가 보기";

@@ -164,9 +164,13 @@ public class AnalysisService {
 
         long currentExpense = analysisMapper.findMonthlyTotals(userId, year, month).totalExpense();
 
+        // 챌린지는 ChallengeService 가 최근 7일 카테고리별 지출로 만든다(ai-report 와 같은 정본).
+        List<CategoryStatDto> weeklyCategories = analysisMapper.findWeeklyExpenseByCategory(
+                userId, today.minusDays(6).atStartOfDay(), today.plusDays(1).atStartOfDay());
+
         return AiInsightsResponse.builder()
                 .aiQuickInsights(quickInsightAssembler.assembleQuickInsights(
-                        byEmotion, byCategory, byTimeSlot, currentExpense, totalBudget(userId)))
+                        byEmotion, byCategory, byTimeSlot, weeklyCategories, currentExpense, totalBudget(userId)))
                 .emotionCards(quickInsightAssembler.assembleEmotionCards(byEmotion, byCategory, byTimeSlot))
                 .evidence(List.of())
                 .pattern(AiInsightsResponse.AiPattern.builder().count(0).build())

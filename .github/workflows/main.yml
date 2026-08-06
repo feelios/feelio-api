@@ -80,11 +80,55 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
           
-      - name: Springboot Build and Docker image build and push
+      - name: 시크릿 파일 생성
         run: |
           echo ${{env.APPLICATION_SECRET}} | base64 --decode > ./src/main/resources/application-secret.yaml
           echo ${{env.FIREBASE_KEY}} | base64 --decode > ./src/main/resources/firebase-key.json
-          
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      # 스프링 컨텍스트 로드 검증 (A10-4).
+      # 이미지 빌드는 bootJar -x test 라 테스트가 한 번도 돌지 않는다. 그래서 빈 누락처럼
+      # 컨텍스트를 실제로 띄워야만 드러나는 오류가 배포 시점에야 발견된다.
+      # (2026-08-06: ObjectMapper 빈 부재로 기동 실패. 단위 테스트 110개는 전부 통과했었다.)
+      #
+      # 전체 테스트가 아니라 contextLoads 만 돌린다. 나머지 @SpringBootTest 들은
+      # 실 DB·OpenAI 를 타서 러너에서 돌릴 수 없다. 그 정리는 별도 이슈.
+      # contextLoads 는 DB 연결 없이 통과하는 것을 확인했다.
+      - name: 스프링 컨텍스트 로드 검증
+        run: |
+          chmod +x ./gradlew
+          ./gradlew test --tests "*FeelioApiApplicationTests*" --no-daemon
+        env:
+          # 이 관문이 보는 것은 "빈 배선이 성립하는가" 하나다. 시크릿이 맞는지는 보지 않는다.
+          # 러너에는 VM 의 .env 가 없어서, APPLICATION_SECRET 블롭에 빠진 값이 있으면
+          # JwtProvider 같은 생성자가 빈 문자열로 IllegalArgumentException 을 던지며
+          # 배선과 무관한 이유로 실패한다. 그래서 더미 값을 명시해 결과를 결정적으로 만든다.
+          #
+          # 실제 설정이 맞는지는 배포 후 헬스체크(A10-3)가 잡는다. 역할이 나뉜다.
+          DB_URL: jdbc:mysql://127.0.0.1:3306/ci?connectTimeout=2000
+          DB_USERNAME: ci
+          DB_PASSWORD: ci
+          # HS256 은 32바이트 이상을 요구한다. 짧으면 jjwt 가 거부한다.
+          JWT_SECRET: ci-context-load-smoke-test-dummy-secret-key-0123456789
+          GOOGLE_CLIENT_ID: ci-dummy
+          GOOGLE_CLIENT_SECRET: ci-dummy
+          NAVER_CLIENT_ID: ci-dummy
+          NAVER_CLIENT_SECRET: ci-dummy
+          KAKAO_CLIENT_ID: ci-dummy
+          KAKAO_CLIENT_SECRET: ci-dummy
+          CLIENT_URL: http://localhost:5173
+          OPENAI_KEY: ci-dummy
+          # gpt 로 둬야 GptInsight* 빈까지 생성돼 배선 검증 범위가 넓어진다(호출은 하지 않는다).
+          INSIGHT_PROVIDER: gpt
+
+      - name: Springboot Build and Docker image build and push
+        run: |
           echo "${{env.DOCKER_PASSWORD}}" | docker login -u ${{env.DOCKER_USERNAME}} --password-stdin
           docker build -t ${{env.DOCKER_USERNAME}}/spring-app:latest .
           docker push ${{env.DOCKER_USERNAME}}/spring-app:latest
@@ -109,3 +153,28 @@ jobs:
             sudo docker compose -f api-docker-compose.yaml pull
             sudo docker compose -f api-docker-compose.yaml down
             sudo docker compose -f api-docker-compose.yaml up -d
+
+            # 기동 확인 (A10-3).
+            # up -d 는 컨테이너를 띄우기만 하고 앱이 실제로 떴는지는 보지 않는다.
+            # 그래서 크래시 루프여도 이 워크플로가 성공으로 끝나고, 서비스는 502 인 채로 남는다.
+            #
+            # /api/users/me 는 인증이 필요하지만 401 이라도 "응답이 온다"는 것 자체가
+            # 스프링 컨텍스트가 뜨고 톰캣이 요청을 받고 있다는 뜻이다.
+            # 반대로 curl 이 000 을 주면 아직 기동 중이거나 죽은 것이다.
+            echo "앱 기동 확인 중..."
+            booted=0
+            for i in $(seq 1 48); do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://localhost:8080/api/users/me || echo 000)
+              if [ "$code" != "000" ]; then
+                echo "기동 확인 — ${i}회차, HTTP $code"
+                booted=1
+                break
+              fi
+              sleep 5
+            done
+
+            if [ "$booted" != "1" ]; then
+              echo "기동 실패 — 240초 안에 HTTP 응답이 없다. 아래 로그를 확인할 것."
+              sudo docker compose -f api-docker-compose.yaml logs --tail 120 api
+              exit 1
+            fi

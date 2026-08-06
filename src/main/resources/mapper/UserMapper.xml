@@ -37,12 +37,17 @@
         WHERE user_id = #{userId}
     </update>
 
-    <!-- 자산 증가/감소. -->
-    <update id="addTotalAsset">
-        UPDATE users
-        SET total_asset = total_asset + #{amount}
+    <!--
+      거래가 자산에 준 변화량(수입 − 지출). 거래가 없으면 0.
+      users.total_asset(온보딩 초기값)에 이 값을 더한 것이 현재 총자산이다 (#200).
+      저축은 type=EXPENSE 라 자연히 차감된다 — 홈 카드가 '목표와 별개인 자산'을 뜻하고
+      목표 적립액은 따로 표시되므로, 차감해야 이중계산이 되지 않는다.
+    -->
+    <select id="sumTransactionEffect" resultType="long">
+        SELECT COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE -amount END), 0)
+        FROM transactions
         WHERE user_id = #{userId}
-    </update>
+    </select>
 
     <!-- 설정 부분 수정: 전송된(null 아닌) 컬럼만 갱신. -->
     <update id="updateSettings">

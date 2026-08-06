@@ -10,15 +10,27 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 
 /**
- * 문장은 InsightCardGenerator 소관이므로 여기서는 규칙기반 구현을 물려
- * **숫자 판정과 카드 구조**만 검증한다.
+ * 문장 생성은 각 정본 서비스 소관이므로 여기서는 **숫자 판정과 카드 구조**만 검증한다.
+ * 감정 카드 문구는 규칙기반 구현을 물리고, 팩트·챌린지는 외부 호출(GPT)이 얽혀 있어 목으로 대체한다.
  */
 class AiQuickInsightAssemblerTest {
 
+    private final FactReportService factReportService = mock(FactReportService.class);
+    private final ChallengeService challengeService = mock(ChallengeService.class);
+
     private final AiQuickInsightAssembler assembler =
-            new AiQuickInsightAssembler(new RuleBasedInsightCardGenerator());
+            new AiQuickInsightAssembler(new RuleBasedInsightCardGenerator(), factReportService, challengeService);
+
+    {
+        lenient().when(factReportService.generate(any(), anyLong(), anyLong(), any())).thenReturn("팩트 문장");
+        lenient().when(challengeService.generate(any())).thenReturn("챌린지 문장");
+    }
 
     private final List<EmotionStatDto> byEmotion = List.of(
             new EmotionStatDto(3L, "무덤덤", "#B0B0B0", 600_000L, 6L),
@@ -34,7 +46,7 @@ class AiQuickInsightAssemblerTest {
     );
 
     private List<AiQuickInsight> assemble(long expense, long budget) {
-        return assembler.assembleQuickInsights(byEmotion, byCategory, byTimeSlot, expense, budget);
+        return assembler.assembleQuickInsights(byEmotion, byCategory, byTimeSlot, List.of(), expense, budget);
     }
 
     @Test
@@ -89,7 +101,7 @@ class AiQuickInsightAssemblerTest {
     @Test
     void 지출_기록이_없으면_빈_리스트를_준다() {
         // 억지 문구 대신 프론트의 빈 상태 표시에 맡긴다.
-        assertThat(assembler.assembleQuickInsights(List.of(), List.of(), List.of(), 0L, 0L)).isEmpty();
+        assertThat(assembler.assembleQuickInsights(List.of(), List.of(), List.of(), List.of(), 0L, 0L)).isEmpty();
     }
 
     @Test
