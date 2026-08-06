@@ -47,4 +47,13 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+
+    // CI 로그에 예외 타입만 찍히고 메시지가 빠져 원인 파악이 안 되던 문제를 막는다.
+    // 실패했을 때 원인 체인 전체를 그대로 출력한다.
+    testLogging {
+        events 'failed'
+        exceptionFormat 'full'
+        showCauses true
+        showStackTraces true
+    }
 }

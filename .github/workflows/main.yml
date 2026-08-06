@@ -104,6 +104,28 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew test --tests "*FeelioApiApplicationTests*" --no-daemon
+        env:
+          # 이 관문이 보는 것은 "빈 배선이 성립하는가" 하나다. 시크릿이 맞는지는 보지 않는다.
+          # 러너에는 VM 의 .env 가 없어서, APPLICATION_SECRET 블롭에 빠진 값이 있으면
+          # JwtProvider 같은 생성자가 빈 문자열로 IllegalArgumentException 을 던지며
+          # 배선과 무관한 이유로 실패한다. 그래서 더미 값을 명시해 결과를 결정적으로 만든다.
+          #
+          # 실제 설정이 맞는지는 배포 후 헬스체크(A10-3)가 잡는다. 역할이 나뉜다.
+          DB_URL: jdbc:mysql://127.0.0.1:3306/ci?connectTimeout=2000
+          DB_USERNAME: ci
+          DB_PASSWORD: ci
+          # HS256 은 32바이트 이상을 요구한다. 짧으면 jjwt 가 거부한다.
+          JWT_SECRET: ci-context-load-smoke-test-dummy-secret-key-0123456789
+          GOOGLE_CLIENT_ID: ci-dummy
+          GOOGLE_CLIENT_SECRET: ci-dummy
+          NAVER_CLIENT_ID: ci-dummy
+          NAVER_CLIENT_SECRET: ci-dummy
+          KAKAO_CLIENT_ID: ci-dummy
+          KAKAO_CLIENT_SECRET: ci-dummy
+          CLIENT_URL: http://localhost:5173
+          OPENAI_KEY: ci-dummy
+          # gpt 로 둬야 GptInsight* 빈까지 생성돼 배선 검증 범위가 넓어진다(호출은 하지 않는다).
+          INSIGHT_PROVIDER: gpt
 
       - name: Springboot Build and Docker image build and push
         run: |
