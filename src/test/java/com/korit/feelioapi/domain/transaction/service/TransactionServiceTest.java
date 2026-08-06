@@ -3,6 +3,7 @@ package com.korit.feelioapi.domain.transaction.service;
 import com.korit.feelioapi.domain.transaction.dto.TransactionCreateRequest;
 import com.korit.feelioapi.domain.transaction.dto.TransactionDto;
 import com.korit.feelioapi.domain.transaction.dto.TransactionListResponse;
+import com.korit.feelioapi.domain.transaction.dto.TransactionPatternDto;
 import com.korit.feelioapi.domain.transaction.dto.TransactionResetResponse;
 import com.korit.feelioapi.domain.transaction.dto.TransactionSearchCondition;
 import com.korit.feelioapi.domain.transaction.dto.TransactionTotalDto;
@@ -31,6 +32,21 @@ class TransactionServiceTest {
 
     @Mock
     private TransactionMapper transactionMapper;
+
+    @Mock
+    private com.korit.feelioapi.domain.meta.mapper.MetaMapper metaMapper;
+
+    @Mock
+    private com.korit.feelioapi.domain.analysis.service.EmotionAnalysisService emotionAnalysisService;
+
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    private com.korit.feelioapi.domain.analysis.mapper.AnalysisMapper analysisMapper;
+
+    @Mock
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @InjectMocks
     private TransactionService transactionService;
@@ -190,5 +206,26 @@ class TransactionServiceTest {
         assertThatThrownBy(() -> transactionService.deleteTransaction(userId, transactionId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.FORBIDDEN);
+    }
+
+    @Test
+    void getRecurringPatterns_returnsCachedInsight() throws Exception {
+        Long userId = 1L;
+        com.korit.feelioapi.domain.analysis.entity.AiInsight insight = new com.korit.feelioapi.domain.analysis.entity.AiInsight();
+        insight.setContent("{\"count\":2,\"title\":\"Test Pattern\",\"emotion\":\"Happy\",\"category\":\"Food\",\"time\":\"NIGHT\",\"desc\":\"Advice\",\"evidence\":[]}");
+        
+        when(analysisMapper.findInsightByType(userId, 0, 0, "PATTERN")).thenReturn(insight);
+        
+        TransactionPatternDto mockDto = new TransactionPatternDto(2, "Test Pattern", "Happy", "Food", "NIGHT", "Advice", java.util.List.of());
+        when(objectMapper.readValue(insight.getContent(), TransactionPatternDto.class)).thenReturn(mockDto);
+
+        var response = transactionService.getRecurringPatterns(userId);
+
+        assertThat(response.pattern()).isNotNull();
+        assertThat(response.pattern().count()).isEqualTo(2);
+        assertThat(response.pattern().title()).isEqualTo("Test Pattern");
+        assertThat(response.pattern().desc()).isEqualTo("Advice");
+        assertThat(response.evidence()).isNotNull();
+        assertThat(response.evidence()).isEmpty();
     }
 }

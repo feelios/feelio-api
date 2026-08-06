@@ -14,6 +14,8 @@ import com.korit.feelioapi.domain.goal.entity.Goal;
 import com.korit.feelioapi.domain.goal.mapper.GoalMapper;
 import com.korit.feelioapi.domain.transaction.mapper.TransactionMapper;
 import com.korit.feelioapi.domain.user.mapper.UserMapper;
+import com.korit.feelioapi.domain.meta.mapper.MetaMapper;
+import com.korit.feelioapi.domain.analysis.service.EmotionAnalysisService;
 import com.korit.feelioapi.global.exception.BusinessException;
 import com.korit.feelioapi.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.korit.feelioapi.domain.analysis.mapper.AnalysisMapper;
+import org.springframework.context.ApplicationEventPublisher;
+import com.korit.feelioapi.domain.transaction.event.TransactionChangedEvent;
+
 @Service
 @RequiredArgsConstructor
 public class TransactionService {
@@ -30,6 +37,11 @@ public class TransactionService {
     private final TransactionMapper transactionMapper;
     private final GoalMapper goalMapper;
     private final UserMapper userMapper;
+    private final MetaMapper metaMapper;
+    private final EmotionAnalysisService emotionAnalysisService;
+    private final ApplicationEventPublisher eventPublisher;
+    private final AnalysisMapper analysisMapper;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public TransactionListResponse getTransactions(Long userId, TransactionSearchCondition condition) {
@@ -68,6 +80,8 @@ public class TransactionService {
 
         transactionMapper.insertTransaction(transaction);
 
+        eventPublisher.publishEvent(new TransactionChangedEvent(userId));
+
         return transactionMapper.findTransactionById(transaction.getTransactionId(), userId);
     }
 
@@ -104,6 +118,8 @@ public class TransactionService {
         
         transactionMapper.updateTransaction(transaction);
 
+        eventPublisher.publishEvent(new TransactionChangedEvent(userId));
+
         return transactionMapper.findTransactionById(transactionId, userId);
     }
 
@@ -111,6 +127,7 @@ public class TransactionService {
     public TransactionDeleteResponse deleteTransaction(Long userId, Long transactionId) {
         getOwnedOrThrow(userId, transactionId);
         transactionMapper.deleteTransaction(transactionId);
+        eventPublisher.publishEvent(new TransactionChangedEvent(userId));
         return new TransactionDeleteResponse(true);
     }
 
@@ -129,12 +146,14 @@ public class TransactionService {
             }
         }
         transactionMapper.deleteTransactionsBulk(transactionIds);
+        eventPublisher.publishEvent(new TransactionChangedEvent(userId));
         return new TransactionDeleteResponse(true);
     }
 
     @Transactional
     public TransactionResetResponse resetTransactions(Long userId) {
         int deletedCount = transactionMapper.deleteAllTransactionsByUserId(userId);
+        eventPublisher.publishEvent(new TransactionChangedEvent(userId));
         return new TransactionResetResponse(deletedCount);
     }
 
@@ -150,48 +169,24 @@ public class TransactionService {
         }
         transactionMapper.updateTransaction(transaction);
         
+        eventPublisher.publishEvent(new TransactionChangedEvent(userId));
+
         return transactionMapper.findTransactionById(transactionId, userId);
     }
 
     @Transactional(readOnly = true)
     public TransactionPatternResponse getRecurringPatterns(Long userId) {
-        List<Transaction> expenses = transactionMapper.findExpensesForPattern(userId);
-
-        List<Transaction> merged = new java.util.ArrayList<>();
-        for (Transaction current : expenses) {
-            if (merged.isEmpty()) {
-                merged.add(cloneTransaction(current));
-            } else {
-                Transaction last = merged.get(merged.size() - 1);
-                long Math_abs_diff = java.time.Duration.between(last.getOccurredAt(), current.getOccurredAt()).abs().toMinutes();
-                
-                if (Math_abs_diff <= 5 && java.util.Objects.equals(last.getMemo(), current.getMemo())) {
-                    last.setAmount(last.getAmount() + current.getAmount());
-                } else {
-                    merged.add(cloneTransaction(current));
-                }
-            }
+        com.korit.feelioapi.domain.analysis.entity.AiInsight insight = analysisMapper.findInsightByType(userId, 0, 0, "PATTERN");
+        if (insight == null || insight.getContent() == null) {
+            return new TransactionPatternResponse(new TransactionPatternDto(0, null, null, null, null, null, java.util.List.of()), java.util.List.of());
         }
 
-        java.util.Map<String, TransactionPatternDto> patternsMap = new java.util.HashMap<>();
-        for (Transaction t : merged) {
-            String timeSlot = getTimeSlot(t.getOccurredAt().getHour());
-            String key = t.getEmotionId() + ":" + timeSlot + ":" + t.getMemo();
-            
-            TransactionPatternDto existing = patternsMap.get(key);
-            if (existing == null) {
-                patternsMap.put(key, new TransactionPatternDto(timeSlot, t.getEmotionId(), t.getMemo(), 1, t.getAmount()));
-            } else {
-                patternsMap.put(key, new TransactionPatternDto(timeSlot, t.getEmotionId(), t.getMemo(), existing.count() + 1, existing.totalAmount() + t.getAmount()));
-            }
+        try {
+            TransactionPatternDto dto = objectMapper.readValue(insight.getContent(), TransactionPatternDto.class);
+            return new TransactionPatternResponse(dto, dto.evidence() == null ? java.util.List.of() : dto.evidence());
+        } catch (Exception e) {
+            return new TransactionPatternResponse(new TransactionPatternDto(0, null, null, null, null, null, java.util.List.of()), java.util.List.of());
         }
-
-        List<TransactionPatternDto> result = patternsMap.values().stream()
-                .filter(p -> p.count() >= 2)
-                .sorted(java.util.Comparator.comparingInt(TransactionPatternDto::count).reversed())
-                .toList();
-
-        return new TransactionPatternResponse(result);
     }
 
     private Transaction cloneTransaction(Transaction t) {
