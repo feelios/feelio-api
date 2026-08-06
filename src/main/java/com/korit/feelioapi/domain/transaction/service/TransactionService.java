@@ -25,6 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.context.ApplicationEventPublisher;
+import com.korit.feelioapi.domain.transaction.event.TransactionChangedEvent;
+
 @Service
 @RequiredArgsConstructor
 public class TransactionService {
@@ -34,6 +37,7 @@ public class TransactionService {
     private final UserMapper userMapper;
     private final MetaMapper metaMapper;
     private final EmotionAnalysisService emotionAnalysisService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public TransactionListResponse getTransactions(Long userId, TransactionSearchCondition condition) {
@@ -72,6 +76,8 @@ public class TransactionService {
 
         transactionMapper.insertTransaction(transaction);
 
+        eventPublisher.publishEvent(new TransactionChangedEvent(userId));
+
         return transactionMapper.findTransactionById(transaction.getTransactionId(), userId);
     }
 
@@ -108,6 +114,8 @@ public class TransactionService {
         
         transactionMapper.updateTransaction(transaction);
 
+        eventPublisher.publishEvent(new TransactionChangedEvent(userId));
+
         return transactionMapper.findTransactionById(transactionId, userId);
     }
 
@@ -115,6 +123,7 @@ public class TransactionService {
     public TransactionDeleteResponse deleteTransaction(Long userId, Long transactionId) {
         getOwnedOrThrow(userId, transactionId);
         transactionMapper.deleteTransaction(transactionId);
+        eventPublisher.publishEvent(new TransactionChangedEvent(userId));
         return new TransactionDeleteResponse(true);
     }
 
@@ -133,12 +142,14 @@ public class TransactionService {
             }
         }
         transactionMapper.deleteTransactionsBulk(transactionIds);
+        eventPublisher.publishEvent(new TransactionChangedEvent(userId));
         return new TransactionDeleteResponse(true);
     }
 
     @Transactional
     public TransactionResetResponse resetTransactions(Long userId) {
         int deletedCount = transactionMapper.deleteAllTransactionsByUserId(userId);
+        eventPublisher.publishEvent(new TransactionChangedEvent(userId));
         return new TransactionResetResponse(deletedCount);
     }
 
@@ -154,6 +165,8 @@ public class TransactionService {
         }
         transactionMapper.updateTransaction(transaction);
         
+        eventPublisher.publishEvent(new TransactionChangedEvent(userId));
+
         return transactionMapper.findTransactionById(transactionId, userId);
     }
 
