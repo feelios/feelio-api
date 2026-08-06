@@ -38,6 +38,9 @@ class TransactionServiceTest {
     @Mock
     private com.korit.feelioapi.domain.analysis.service.EmotionAnalysisService emotionAnalysisService;
 
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     @InjectMocks
     private TransactionService transactionService;
 
