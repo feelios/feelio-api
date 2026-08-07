@@ -40,6 +40,8 @@ public class GptInsightCardGenerator implements InsightCardGenerator {
      */
     private static final int MAX_EMOTION_CARD_LENGTH = Math.min(80, MAX_CONTENT_LENGTH);
 
+
+
     private static final String EMOTION_PERSONA = """
             너는 사용자의 소비를 함께 들여다보는 '말랑이'야.
             다정하고 착하지만 할 말은 하는 친구다. 숫자를 정확히 보고 짚어주되, 다그치지 않는다.
@@ -233,6 +235,7 @@ public class GptInsightCardGenerator implements InsightCardGenerator {
         return values;
     }
 
+
     /**
      * 길이를 넘기면 마지막 문장 끝에서 자른다.
      *
@@ -253,5 +256,6 @@ public class GptInsightCardGenerator implements InsightCardGenerator {
 
         int wordEnd = head.lastIndexOf(' ');
         return (wordEnd >= maxLength / 2 ? head.substring(0, wordEnd) : head).trim() + "…";
+
     }
 }

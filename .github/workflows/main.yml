@@ -24,8 +24,12 @@ jobs:
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_KMJ }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_KMJ }}" >> $GITHUB_ENV
               
-              echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_KMJ }}" >> $GITHUB_ENV
-              echo "ENV=${{ secrets.ENV_KMJ }}" >> $GITHUB_ENV
+              echo "APPLICATION_SECRET<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.APPLICATION_SECRET_KMJ_CUSTOM }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
+              echo "ENV<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.ENV_KMJ_CUSTOM }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
               echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_KMJ }}" >> $GITHUB_ENV
               
               echo "OPENAI_KEY=${{ secrets.OPENAI_KEY_KMJ }}" >> $GITHUB_ENV
@@ -82,8 +86,13 @@ jobs:
           
       - name: 시크릿 파일 생성
         run: |
-          echo ${{env.APPLICATION_SECRET}} | base64 --decode > ./src/main/resources/application-secret.yaml
-          echo ${{env.FIREBASE_KEY}} | base64 --decode > ./src/main/resources/firebase-key.json
+o ${{env.FIREBASE_KEY}} | base64 --decode > ./src/main/resources/firebase-key.json
+          echo "${{env.APPLICATION_SECRET}}" | base64 --decode > ./src/main/resources/application-secret.yaml
+          echo "${{env.FIREBASE_KEY}}" | base64 --decode > ./src/main/resources/firebase-key.json
+          
+          # 디버깅: 파일이 정상적으로 채워졌는지 크기 확인 (비어있으면 0 출력)
+          ls -l ./src/main/resources/application-secret.yaml
+
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4

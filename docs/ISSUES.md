@@ -81,6 +81,7 @@
 | [ ] | - | A11-8 | 과거 달 예산 현황(Budget Status) 동적 조회 API 확장 | `feat/historical-budget-api` | - | Ctrl·Svc | - | 신규 | GET /api/analysis/budget API에 year, month 파라미터 추가 및 과거 지출 기반 예산 동적 산출 구현 (F17-5 연계) |
 
 
+
 > **A7 = AI 연동 (마일스톤 7).** 세 이슈 공통: AI 호출 실패·타임아웃이 화면 장애로 이어지지 않도록 폴백을 반드시 둔다.
 > A7-2를 먼저 진행해 폴백·설정 구조를 잡고, A7-3이 그 구조를 재사용하는 순서를 권한다. A7-1은 계약 확정 전까지 `blocked`.
 
