@@ -116,6 +116,8 @@ class TransactionServiceTest {
         Transaction transaction = new Transaction();
         transaction.setTransactionId(transactionId);
         transaction.setUserId(userId);
+        // 삭제 시 해당 월의 AI 분석 캐시를 지우느라 occurredAt 을 읽는다(A11-1).
+        transaction.setOccurredAt(LocalDateTime.now());
 
         when(transactionMapper.findById(transactionId)).thenReturn(transaction);
 
@@ -151,6 +153,8 @@ class TransactionServiceTest {
         Transaction owned = new Transaction();
         owned.setTransactionId(transactionId);
         owned.setUserId(userId);
+        // 수정 시 변경 전/후 달의 AI 분석 캐시를 지우느라 기존 occurredAt 을 읽는다(A11-1).
+        owned.setOccurredAt(LocalDateTime.now());
         TransactionCreateRequest request = new TransactionCreateRequest("INCOME", 50000, 9L, 1L, "메모", LocalDateTime.now(), null);
         TransactionDto updated = new TransactionDto(transactionId, "INCOME", 50000, "메모", request.occurredAt(), null, null, null, null, null);
 

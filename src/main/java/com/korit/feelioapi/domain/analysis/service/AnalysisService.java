@@ -361,38 +361,29 @@ public class AnalysisService {
         List<com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat> currentStats = analysisMapper.findCurrentCategoryStats(userId, currentYear, currentMonth);
         List<com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat> prevStats = analysisMapper.findPrevCategoryStats(userId, prevYear, prevMonth);
 
+        // 전전월도 함께 본다. 전월 대비 늘었는지 줄었는지를 알아야 삭감을 늘어난 쪽에만 몰아줄 수 있다 (#196).
+        java.time.LocalDate prevPrevDate = now.minusMonths(2);
+        List<com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat> prevPrevStats =
+                analysisMapper.findPrevCategoryStats(userId, prevPrevDate.getYear(), prevPrevDate.getMonthValue());
+
         Map<Long, Long> prevStatMap = prevStats.stream()
                 .collect(Collectors.toMap(com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat::categoryId, com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat::prevAmount));
 
-        // 2. Sum up prev variable expenses (isFixed = false, isBudgetable = true)
-        long variablePrevTotalExpense = prevStats.stream()
-                .filter(stat -> !stat.isFixed() && stat.isBudgetable())
-                .mapToLong(com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat::prevAmount)
-                .sum();
+        BudgetPlan plan = BudgetPlan.of(prevStats, prevPrevStats, totalRequiredSavings);
 
         List<com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem> budgetItems = new ArrayList<>();
         java.util.Set<Long> processedCategories = new java.util.HashSet<>();
 
         for (com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat currentStat : currentStats) {
             processedCategories.add(currentStat.categoryId());
-            
+
             if (!currentStat.isBudgetable()) {
                 continue; // 예산 제외 항목
             }
 
             Long prevAmount = prevStatMap.getOrDefault(currentStat.categoryId(), 0L);
-            long budget = 0L;
-            
-            if (currentStat.isFixed()) {
-                budget = Math.max(prevAmount, currentStat.currentAmount());
-            } else {
-                if (variablePrevTotalExpense > 0) {
-                    double reductionRatio = (double) totalRequiredSavings / variablePrevTotalExpense;
-                    reductionRatio = Math.min(1.0, reductionRatio);
-                    double rawBudget = prevAmount * (1.0 - reductionRatio);
-                    budget = Math.round(rawBudget / 1000.0) * 1000L;
-                }
-            }
+            long budget = plan.budgetFor(
+                    currentStat.categoryId(), prevAmount, currentStat.currentAmount(), currentStat.isFixed());
 
             budgetItems.add(new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem(
                     currentStat.categoryName(),
@@ -403,32 +394,21 @@ public class AnalysisService {
             ));
         }
 
+        // 전월엔 썼는데 이번 달엔 아직 안 쓴 카테고리. 예산은 잡아줘야 화면에서 사라지지 않는다.
         for (com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat prevStat : prevStats) {
-            if (!processedCategories.contains(prevStat.categoryId())) {
-                if (!prevStat.isBudgetable()) {
-                    continue; // 예산 제외 항목
-                }
-
-                long budget = 0L;
-                if (prevStat.isFixed()) {
-                    budget = prevStat.prevAmount();
-                } else {
-                    if (variablePrevTotalExpense > 0) {
-                        double reductionRatio = (double) totalRequiredSavings / variablePrevTotalExpense;
-                        reductionRatio = Math.min(1.0, reductionRatio);
-                        double rawBudget = prevStat.prevAmount() * (1.0 - reductionRatio);
-                        budget = Math.round(rawBudget / 1000.0) * 1000L;
-                    }
-                }
-
-                budgetItems.add(new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem(
-                        prevStat.categoryName() != null ? prevStat.categoryName() : "기타",
-                        "보통",
-                        0L,
-                        prevStat.prevAmount(),
-                        budget
-                ));
+            if (processedCategories.contains(prevStat.categoryId()) || !prevStat.isBudgetable()) {
+                continue;
             }
+
+            long budget = plan.budgetFor(prevStat.categoryId(), prevStat.prevAmount(), 0L, prevStat.isFixed());
+
+            budgetItems.add(new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem(
+                    prevStat.categoryName() != null ? prevStat.categoryName() : "기타",
+                    "보통",
+                    0L,
+                    prevStat.prevAmount(),
+                    budget
+            ));
         }
 
         return new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse(budgetItems);

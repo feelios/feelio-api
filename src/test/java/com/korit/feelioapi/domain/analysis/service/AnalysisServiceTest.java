@@ -280,7 +280,7 @@ class AnalysisServiceTest {
         when(emotionAnalysisService.generate(monthlyEmotions, "카페", "밤"))
                 .thenReturn(emotionAnalysis);
 
-        AiReportResponseDto response = analysisService.getAiReport(1L);
+        AiReportResponseDto response = analysisService.getAiReport(1L, null, null);
 
         assertThat(response.totalExpense()).isEqualTo(250000L);
         assertThat(response.totalBudget()).isZero();
