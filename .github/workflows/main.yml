@@ -82,8 +82,8 @@ jobs:
           
       - name: 시크릿 파일 생성
         run: |
-          echo ${{env.APPLICATION_SECRET}} | base64 --decode > ./src/main/resources/application-secret.yaml
-          echo ${{env.FIREBASE_KEY}} | base64 --decode > ./src/main/resources/firebase-key.json
+          echo "$APPLICATION_SECRET" | base64 --decode > ./src/main/resources/application-secret.yaml
+          echo "$FIREBASE_KEY" | base64 --decode > ./src/main/resources/firebase-key.json
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
