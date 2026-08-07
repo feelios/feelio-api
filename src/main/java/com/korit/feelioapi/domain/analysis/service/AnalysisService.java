@@ -175,7 +175,7 @@ public class AnalysisService {
 
         return AiInsightsResponse.builder()
                 .aiQuickInsights(quickInsightAssembler.assembleQuickInsights(
-                        byEmotion, byCategory, byTimeSlot, weeklyCategories, currentExpense, totalBudget(userId)))
+                        byEmotion, byCategory, byTimeSlot, weeklyCategories, currentExpense, totalBudget(userId, reqYear, reqMonth)))
                 .emotionCards(quickInsightAssembler.assembleEmotionCards(byEmotion, byCategory, byTimeSlot))
                 .evidence(List.of())
                 .pattern(AiInsightsResponse.AiPattern.builder().count(0).build())
@@ -192,7 +192,7 @@ public class AnalysisService {
         int month = (reqMonth != null) ? reqMonth : today.getMonthValue();
 
         long totalExpense = analysisMapper.findMonthlyTotals(userId, year, month).totalExpense();
-        long budget = totalBudget(userId);
+        long budget = totalBudget(userId, reqYear, reqMonth);
         SpendStatus spendStatus = SpendStatus.of(totalExpense, budget);
         List<CategoryStatDto> monthlyCategories = analysisMapper.findExpenseByCategory(userId, year, month);
         String topCategory = monthlyCategories.stream()
@@ -272,8 +272,8 @@ public class AnalysisService {
      * 이번 달 예산 총액(A6-4 동적 예산의 카테고리별 합).
      * 활성 목표가 없거나 전월 기록이 없으면 0 이 나오고, 그 경우 위험도는 '예산 미설정'으로 처리된다.
      */
-    public long totalBudget(Long userId) {
-        return getBudgetStatus(userId).budgetItems().stream()
+    public long totalBudget(Long userId, Integer reqYear, Integer reqMonth) {
+        return getBudgetStatus(userId, reqYear, reqMonth).budgetItems().stream()
                 .mapToLong(item -> item.budget() == null ? 0L : item.budget())
                 .sum();
     }
@@ -335,12 +335,13 @@ public class AnalysisService {
     }
 
     @Transactional(readOnly = true)
-    public com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse getBudgetStatus(Long userId) {
+    public com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse getBudgetStatus(Long userId, Integer reqYear, Integer reqMonth) {
         java.time.LocalDate now = java.time.LocalDate.now();
-        int currentYear = now.getYear();
-        int currentMonth = now.getMonthValue();
+        int currentYear = (reqYear != null) ? reqYear : now.getYear();
+        int currentMonth = (reqMonth != null) ? reqMonth : now.getMonthValue();
 
-        java.time.LocalDate prevDate = now.minusMonths(1);
+        java.time.LocalDate targetDate = java.time.LocalDate.of(currentYear, currentMonth, 1);
+        java.time.LocalDate prevDate = targetDate.minusMonths(1);
         int prevYear = prevDate.getYear();
         int prevMonth = prevDate.getMonthValue();
 

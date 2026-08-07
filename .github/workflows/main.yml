@@ -86,9 +86,8 @@ jobs:
           
       - name: 시크릿 파일 생성
         run: |
-o ${{env.FIREBASE_KEY}} | base64 --decode > ./src/main/resources/firebase-key.json
-          echo "${{env.APPLICATION_SECRET}}" | base64 --decode > ./src/main/resources/application-secret.yaml
-          echo "${{env.FIREBASE_KEY}}" | base64 --decode > ./src/main/resources/firebase-key.json
+          echo "$APPLICATION_SECRET" | base64 --decode > ./src/main/resources/application-secret.yaml
+          echo "$FIREBASE_KEY" | base64 --decode > ./src/main/resources/firebase-key.json
           
           # 디버깅: 파일이 정상적으로 채워졌는지 크기 확인 (비어있으면 0 출력)
           ls -l ./src/main/resources/application-secret.yaml
