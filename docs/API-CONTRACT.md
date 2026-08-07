@@ -143,6 +143,10 @@ Response `data`:
 }
 ```
 - type: `EXPENSE` | `INCOME` / 감정·카테고리는 단일
+- `occurredAt`·`createdAt` 등 모든 시각은 **오프셋 없는 한국 로컬 시각**이다(`"2026-07-01T21:30:00"`). UTC 로 변환해 보내지 않는다.
+  - 프론트는 사용자가 고른 벽시계 값을 그대로 보낸다. `toISOString()` 을 태우면 9시간이 밀린다.
+  - 서버도 같은 시계를 봐야 한다. 컨테이너가 UTC 로 뜨면 `@PastOrPresent` 검증이 방금 한 기록도
+    미래로 판정해 거부한다. API 컨테이너는 `TZ=Asia/Seoul` 로 고정한다(#283).
 
 ### GET /api/transactions · 인증 필요
 
@@ -176,9 +180,18 @@ Request:
 }
 ```
 - 필수: type, amount(>0 정수), categoryId, emotionId, occurredAt
+- type: `EXPENSE` | `INCOME` 둘 중 하나
 - memo: 생략 시 null 저장, 최대 200자
 - goalId: 선택(null 허용)
 - 서버: transactions 저장(단건)
+
+본문이 가리키는 ID 는 저장 전에 검증하고, 어긋나면 **VALIDATION_ERROR(400)** 로 답한다 (#195).
+DB 제약에 맡기면 FK 위반이 500 으로 새어나가 프론트가 원인을 알 수 없다.
+- categoryId: 없거나 비활성이거나 **다른 사용자의 커스텀 카테고리**면 거부
+- categoryId 의 type 과 거래 type 이 다르면 거부 (지출에 수입 카테고리 금지)
+- emotionId: 없거나 비활성이면 거부
+- goalId: 없거나 **타인의 목표**면 거부 — 404 가 아니라 400 이다.
+  본문 값이 잘못된 것이지 요청한 리소스가 없는 게 아니다.
 
 Response(201) `data`: 생성된 거래 객체. 에러: VALIDATION_ERROR
 
@@ -375,7 +388,11 @@ Response(200) `data`:
 }
 ```
 - `byCategory`·`byEmotion`·`byTimeSlot`: 지출 기준 집계(금액 `amount`·건수 `count`). 기록 없는 항목은 배열에서 생략.
-- `byEmotion`은 **amount 내림차순** 정렬 → 소비가 가장 몰린 감정이 맨 앞(긍정·부정 무관, "감정소비" 관점의 초점 감정).
+- `byEmotion`은 **count 내림차순**, 건수가 같을 때만 **amount 내림차순**으로 정렬한다 → 가장 자주 소비한 감정이 맨 앞(긍정·부정 무관, "감정소비" 관점의 초점 감정).
+  - 이 순위가 답하는 질문은 "**어떤 기분으로 자주 소비했나**"다. 금액이 아니라 빈도가 기준이므로,
+    3건 쓴 감정이 1건이지만 금액이 큰 감정에게 밀리지 않는다. 금액은 건수가 같을 때의 동률 판정에만 쓴다.
+  - 프론트도 같은 규칙으로 그린다. 반올림한 비율(percent)로 비교하면 건수가 다른데도 동률이 되어
+    금액으로 뒤집히므로, 정렬은 반드시 **원시 건수**로 한다.
 - `byTimeSlot.slot`: `occurred_at` 시(hour) 기준 4구간 — `DAWN`(0–5) · `MORNING`(6–11) · `AFTERNOON`(12–17) · `NIGHT`(18–23). `label`은 한글 표기.
 - `insights`: `ai_insights` 테이블 매핑(`insight_type`→`type`, `content`→`content`), 0..n건. 문구는 감정 중립(긍정 감정도 대상).
   - 저장본이 있으면 그대로 반환하고, 없을 때만 생성해 저장한다. **지난 달 이전은 영구 캐시**, 이번 달만 `feelio.insight.ttl-hours`(기본 6) 경과 시 재생성한다.

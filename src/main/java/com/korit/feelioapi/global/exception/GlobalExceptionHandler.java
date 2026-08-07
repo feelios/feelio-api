@@ -4,10 +4,14 @@ import com.korit.feelioapi.global.response.ApiError;
 import com.korit.feelioapi.global.response.ApiResponse;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * 전역 예외 핸들러.
@@ -39,6 +43,42 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleConstraintViolation(ConstraintViolationException e) {
         return build(ErrorCode.VALIDATION_ERROR, e.getMessage());
+    }
+
+    /**
+     * 본문을 읽지 못한 경우 → VALIDATION_ERROR(400).
+     * 깨진 JSON, 숫자 자리에 온 문자열, int 범위를 넘는 금액 등이 여기로 온다.
+     * @Valid 가 돌기 전에 터지므로 위 핸들러로는 잡히지 않아 그동안 500 이었다(#195).
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNotReadable(HttpMessageNotReadableException e) {
+        log.warn("본문 파싱 실패: {}", e.getMessage());
+        return build(ErrorCode.VALIDATION_ERROR, "요청 본문 형식이 올바르지 않습니다.");
+    }
+
+    /** 경로·쿼리 파라미터 타입 불일치 → VALIDATION_ERROR(400). 예: /api/transactions/abc */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        return build(ErrorCode.VALIDATION_ERROR,
+                String.format("'%s' 값이 올바르지 않습니다.", e.getName()));
+    }
+
+    /** 필수 쿼리 파라미터 누락 → VALIDATION_ERROR(400). */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingParam(MissingServletRequestParameterException e) {
+        return build(ErrorCode.VALIDATION_ERROR,
+                String.format("'%s' 값은 필수입니다.", e.getParameterName()));
+    }
+
+    /**
+     * DB 제약 위반 → VALIDATION_ERROR(400). 최후 방어선이다.
+     * 서비스에서 미리 걸러내는 게 원칙이고, 놓친 경로가 있어도 사용자에게 500 을 보이지는 않는다.
+     * 원인 파악은 로그로 한다 — SQL 메시지에 스키마가 드러나므로 응답에는 싣지 않는다.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException e) {
+        log.warn("DB 제약 위반 — 서비스 단계에서 걸러지지 않은 경로가 있다", e);
+        return build(ErrorCode.VALIDATION_ERROR, "요청 값이 올바르지 않습니다.");
     }
 
     /** 그 외 미처리 예외 → INTERNAL_ERROR(500). 내부 메시지는 노출하지 않는다. */

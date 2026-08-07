@@ -73,6 +73,8 @@ public interface AnalysisMapper {
                              @Param("month") int month,
                              @Param("type") String type);
 
+    void deleteAllInsights(@Param("userId") Long userId);
+
     void insertInsights(@Param("userId") Long userId,
                         @Param("year") int year,
                         @Param("month") int month,

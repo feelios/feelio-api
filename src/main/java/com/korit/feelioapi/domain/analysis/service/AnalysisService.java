@@ -153,10 +153,10 @@ public class AnalysisService {
      * 문장 생성이 외부 API(GPT)를 탈 수 있어 @Transactional 을 걸지 않는다(커넥션 점유 방지).
      * 소비 위험도는 예산 소진율로 자바에서 판정하고, GPT 는 문장만 만든다.
      */
-    public AiInsightsResponse getAiInsights(Long userId) {
+    public AiInsightsResponse getAiInsights(Long userId, Integer reqYear, Integer reqMonth) {
         java.time.LocalDate today = java.time.LocalDate.now();
-        int year = today.getYear();
-        int month = today.getMonthValue();
+        int year = (reqYear != null) ? reqYear : today.getYear();
+        int month = (reqMonth != null) ? reqMonth : today.getMonthValue();
 
         List<CategoryStatDto> byCategory = analysisMapper.findExpenseByCategory(userId, year, month);
         List<EmotionStatDto> byEmotion = analysisMapper.findExpenseByEmotion(userId, year, month);
@@ -165,8 +165,13 @@ public class AnalysisService {
         long currentExpense = analysisMapper.findMonthlyTotals(userId, year, month).totalExpense();
 
         // 챌린지는 ChallengeService 가 최근 7일 카테고리별 지출로 만든다(ai-report 와 같은 정본).
+
+        java.time.LocalDate targetDate = (year == today.getYear() && month == today.getMonthValue()) 
+                ? today 
+                : java.time.LocalDate.of(year, month, 1).plusMonths(1).minusDays(1);
         List<CategoryStatDto> weeklyCategories = analysisMapper.findWeeklyExpenseByCategory(
-                userId, today.minusDays(6).atStartOfDay(), today.plusDays(1).atStartOfDay());
+                userId, targetDate.minusDays(6).atStartOfDay(), targetDate.plusDays(1).atStartOfDay());
+
 
         return AiInsightsResponse.builder()
                 .aiQuickInsights(quickInsightAssembler.assembleQuickInsights(
@@ -181,10 +186,10 @@ public class AnalysisService {
      * AI 연동 전에도 프론트가 사용할 수 있는 분석 리포트 뼈대.
      * 위험도는 순수 자바 계산이며 OpenAI 클라이언트를 호출하지 않는다.
      */
-    public AiReportResponseDto getAiReport(Long userId) {
+    public AiReportResponseDto getAiReport(Long userId, Integer reqYear, Integer reqMonth) {
         java.time.LocalDate today = java.time.LocalDate.now();
-        int year = today.getYear();
-        int month = today.getMonthValue();
+        int year = (reqYear != null) ? reqYear : today.getYear();
+        int month = (reqMonth != null) ? reqMonth : today.getMonthValue();
 
         long totalExpense = analysisMapper.findMonthlyTotals(userId, year, month).totalExpense();
         long budget = totalBudget(userId);
@@ -199,8 +204,12 @@ public class AnalysisService {
                 .max(java.util.Comparator.comparingLong(TimeSlotStatDto::amount))
                 .map(TimeSlotStatDto::label)
                 .orElse(null);
-        java.time.LocalDateTime weeklyStart = today.minusDays(6).atStartOfDay();
-        java.time.LocalDateTime weeklyEnd = today.plusDays(1).atStartOfDay();
+        
+        java.time.LocalDate targetDate = (year == today.getYear() && month == today.getMonthValue()) 
+                ? today 
+                : java.time.LocalDate.of(year, month, 1).plusMonths(1).minusDays(1);
+        java.time.LocalDateTime weeklyStart = targetDate.minusDays(6).atStartOfDay();
+        java.time.LocalDateTime weeklyEnd = targetDate.plusDays(1).atStartOfDay();
         List<CategoryStatDto> weeklyCategories = analysisMapper.findWeeklyExpenseByCategory(
                 userId, weeklyStart, weeklyEnd);
         double usageRate = budget > 0
@@ -208,7 +217,7 @@ public class AnalysisService {
                 : 0.0;
 
         List<AiInsight> saved = analysisMapper.findInsights(userId, year, month);
-        boolean isStale = saved.isEmpty() || saved.get(0).getCreatedAt().isBefore(java.time.LocalDateTime.now().minusDays(7));
+        boolean isStale = saved.isEmpty() || isStale(saved, year, month);
         
         String factText = null;
         String emotionText = null;
@@ -218,9 +227,12 @@ public class AnalysisService {
                 if ("FACT_BOMBER".equals(insight.getInsightType())) factText = insight.getContent();
                 if ("EMO_BOMBER".equals(insight.getInsightType())) emotionText = insight.getContent();
             }
+            if (factText == null || emotionText == null) {
+                isStale = true;
+            }
         }
         
-        if (factText == null || emotionText == null || isStale) {
+        if (isStale) {
             if (totalExpense == 0) {
                 factText = FactReportService.FALLBACK_MESSAGE;
                 emotionText = "이번 달 소비 기록이 없어 감정 분석을 건너뜁니다.";

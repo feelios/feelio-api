@@ -155,6 +155,12 @@
           AND `month` = #{month}
     </delete>
 
+    <!-- 사용자 전체 AI 인사이트 삭제 (회원 탈퇴, 데이터 초기화 용도) -->
+    <delete id="deleteAllInsights">
+        DELETE FROM ai_insights
+        WHERE user_id = #{userId}
+    </delete>
+
     <!-- 인사이트 일괄 저장. 다중 VALUES 한 문장이라 일부만 저장되는 상태가 남지 않는다. -->
     <insert id="insertInsights">
         INSERT INTO ai_insights (user_id, `year`, `month`, insight_type, content)
