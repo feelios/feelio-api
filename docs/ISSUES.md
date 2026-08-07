@@ -79,6 +79,8 @@
 | [ ] | - | A11-6 | 과거 지출/수입 데이터 CUD 시 총자산 정합성 롤백 및 동기화 | `feat/past-transaction-sync` | - | Svc | - | 신규 | 과거 내역 수정/삭제 시 당시 예산/총자산 변동분을 역산하여 현재 총자산을 안전하게 재계산하는 트랜잭션 이벤트 구축 |
 | [ ] | - | A11-7 | 목표 100% 달성 시 생명주기 완결 및 잔여 자산 환급 처리 | `feat/goal-lifecycle-completed` | - | Svc | - | 신규 | 목표 금액 100% 도달 시 IN_PROGRESS -> COMPLETED로 전환 및 초과 저축액 총자산 환급 로직 분리 |
 | [ ] | - | A11-8 | 과거 달 예산 현황(Budget Status) 동적 조회 API 확장 | `feat/historical-budget-api` | - | Ctrl·Svc | - | 신규 | GET /api/analysis/budget API에 year, month 파라미터 추가 및 과거 지출 기반 예산 동적 산출 구현 (F17-5 연계) |
+| [ ] | - | A12-1 | AI 챌린지 주간 단위 갱신 적용 및 스키마 수정 | `feat/ai-challenge-weekly-update` | - | Svc·DB | - | 신규 | ai_insights 캐싱 기준을 year-month-week로 세분화하여 매주 새로운 챌린지를 반환하도록 로직 및 DB 유니크 키 확장 |
+| [ ] | - | A12-2 | 시스템 기본 카테고리 DB 리스트 전면 수정 | `feat/default-category-update` | - | DB | - | 신규 | 앱 초기화 시 제공되는 카테고리 17종(식비, 배달 등)으로 데이터베이스 기본 데이터 마이그레이션 |
 
 
 
