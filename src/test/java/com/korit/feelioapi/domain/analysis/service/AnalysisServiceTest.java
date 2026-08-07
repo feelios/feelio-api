@@ -229,7 +229,8 @@ class AnalysisServiceTest {
                 ));
 
         // When
-        com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse response = analysisService.getBudgetStatus(1L);
+        com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse response =
+                analysisService.getBudgetStatus(1L, null, null);
 
         // Then
         // reductionRatio = 240,000 / 1,000,000 = 0.24
