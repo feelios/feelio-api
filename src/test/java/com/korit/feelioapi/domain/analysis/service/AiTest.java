@@ -9,8 +9,8 @@ public class AiTest {
     @Test
     public void test() {
         try {
-            System.out.println("AI INSIGHTS: " + analysisService.getAiInsights(1L));
-            System.out.println("AI REPORT: " + analysisService.getAiReport(1L));
+            System.out.println("AI INSIGHTS: " + analysisService.getAiInsights(1L, null, null));
+            System.out.println("AI REPORT: " + analysisService.getAiReport(1L, null, null));
         } catch (Exception e) {
             e.printStackTrace();
             throw e;
