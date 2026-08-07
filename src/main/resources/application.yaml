@@ -120,7 +120,10 @@ openai:
   key: ${OPENAI_KEY}
   # 파인튜닝 모델은 ID 가 ft:gpt-4o-mini-...:org::xxxx 형태라 설정으로 뺀다.
   model: ${OPENAI_MODEL:gpt-4o-mini}
-  timeout-seconds: ${OPENAI_TIMEOUT_SECONDS:20}
+  # 계약 §1 상 프론트는 5초에 요청을 포기한다. 서버가 그보다 오래 기다리면
+  # 애써 만든 규칙기반 폴백이 사용자에게 닿지 못하고 화면은 그냥 실패로 끝난다.
+  # 20초로 두면 폴백이 있으나 마나였다 (#197).
+  timeout-seconds: ${OPENAI_TIMEOUT_SECONDS:4}
 
 feelio:
   insight:
@@ -128,6 +131,12 @@ feelio:
     provider: ${INSIGHT_PROVIDER:gpt}
     # 이번 달 인사이트 재생성 주기(시간). 지난 달 이전은 이 값과 무관하게 영구 캐시된다.
     ttl-hours: ${INSIGHT_TTL_HOURS:6}
+  ai:
+    circuit:
+      # 연속 실패가 이 횟수에 닿으면 서킷을 연다. 간헐적 실패로 열리지 않게 1은 피한다.
+      failure-threshold: ${AI_CIRCUIT_FAILURE_THRESHOLD:3}
+      # 서킷을 열어두는 시간. 이 동안은 호출하지 않고 곧바로 규칙기반으로 답한다.
+      open-seconds: ${AI_CIRCUIT_OPEN_SECONDS:60}
 
 firebase:
   key-path: classpath:firebase-key.json

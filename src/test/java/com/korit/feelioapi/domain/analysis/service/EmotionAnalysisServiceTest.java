@@ -15,7 +15,7 @@ class EmotionAnalysisServiceTest {
     @Test
     void GPT가_비활성화되면_외부호출_없이_준비중_문구를_반환한다() {
         OpenAIClient client = mock(OpenAIClient.class);
-        EmotionAnalysisService service = new EmotionAnalysisService(client, "gpt-4o-mini", 3L, "rule");
+        EmotionAnalysisService service = new EmotionAnalysisService(client, "gpt-4o-mini", 3L, "rule", new com.korit.feelioapi.global.ai.AiCallGuard(3, 60));
         List<EmotionStatDto> emotions = List.of(
                 new EmotionStatDto(4L, "스트레스", "#A68BEA", 150000L, 4L));
 
@@ -28,7 +28,7 @@ class EmotionAnalysisServiceTest {
     @Test
     void 감정_기록이_없으면_GPT설정이어도_외부호출을_하지_않는다() {
         OpenAIClient client = mock(OpenAIClient.class);
-        EmotionAnalysisService service = new EmotionAnalysisService(client, "gpt-4o-mini", 3L, "gpt");
+        EmotionAnalysisService service = new EmotionAnalysisService(client, "gpt-4o-mini", 3L, "gpt", new com.korit.feelioapi.global.ai.AiCallGuard(3, 60));
 
         assertThat(service.generate(List.of(), "배달", "밤"))
                 .isEqualTo(EmotionAnalysisService.FALLBACK_MESSAGE);
