@@ -143,6 +143,10 @@ Response `data`:
 }
 ```
 - type: `EXPENSE` | `INCOME` / 감정·카테고리는 단일
+- `occurredAt`·`createdAt` 등 모든 시각은 **오프셋 없는 한국 로컬 시각**이다(`"2026-07-01T21:30:00"`). UTC 로 변환해 보내지 않는다.
+  - 프론트는 사용자가 고른 벽시계 값을 그대로 보낸다. `toISOString()` 을 태우면 9시간이 밀린다.
+  - 서버도 같은 시계를 봐야 한다. 컨테이너가 UTC 로 뜨면 `@PastOrPresent` 검증이 방금 한 기록도
+    미래로 판정해 거부한다. API 컨테이너는 `TZ=Asia/Seoul` 로 고정한다(#283).
 
 ### GET /api/transactions · 인증 필요
 
