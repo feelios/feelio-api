@@ -144,7 +144,7 @@ class SummaryServiceTest {
 
         when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
                 .thenReturn(320_000L);
-        when(analysisService.totalBudget(userId)).thenReturn(400_000L);   // 소진율 80% → WARNING
+        when(analysisService.totalBudget(any(), any(), any())).thenReturn(400_000L);   // 소진율 80% → WARNING
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt()))
                 .thenReturn(new MallangComment("이번 달 320,000원 썼어. 예산의 80%야.", "이번 주는 한 번만 아껴볼까?"));
 
@@ -162,7 +162,7 @@ class SummaryServiceTest {
 
         when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
                 .thenReturn(380_000L);
-        when(analysisService.totalBudget(userId)).thenReturn(400_000L);   // 95% → OVER
+        when(analysisService.totalBudget(any(), any(), any())).thenReturn(400_000L);   // 95% → OVER
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt())).thenReturn(null);
 
         MallangCommentResponse response = summaryService.getMallangComment(userId);
@@ -180,7 +180,7 @@ class SummaryServiceTest {
 
         when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
                 .thenReturn(100_000L);
-        when(analysisService.totalBudget(userId)).thenReturn(400_000L);   // 25% → SAVING
+        when(analysisService.totalBudget(any(), any(), any())).thenReturn(400_000L);   // 25% → SAVING
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt()))
                 .thenReturn(new MallangComment("  ", ""));
 
@@ -198,7 +198,7 @@ class SummaryServiceTest {
 
         when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
                 .thenReturn(50_000L);
-        when(analysisService.totalBudget(userId)).thenReturn(0L);         // 활성 목표·전월 기록 없음
+        when(analysisService.totalBudget(any(), any(), any())).thenReturn(0L);         // 활성 목표·전월 기록 없음
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt())).thenReturn(null);
 
         MallangCommentResponse response = summaryService.getMallangComment(userId);
@@ -215,7 +215,7 @@ class SummaryServiceTest {
 
         when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
                 .thenReturn(0L);
-        when(analysisService.totalBudget(userId)).thenReturn(400_000L);
+        when(analysisService.totalBudget(any(), any(), any())).thenReturn(400_000L);
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt())).thenReturn(null);
 
         MallangCommentResponse response = summaryService.getMallangComment(userId);
@@ -232,7 +232,7 @@ class SummaryServiceTest {
 
         when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
                 .thenReturn(320_000L);
-        when(analysisService.totalBudget(userId)).thenReturn(400_000L);
+        when(analysisService.totalBudget(any(), any(), any())).thenReturn(400_000L);
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt()))
                 .thenReturn(new MallangComment("평가", "독려"));
 
