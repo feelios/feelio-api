@@ -12,10 +12,18 @@ import java.util.List;
 public class RuleBasedScenarioNarrator implements ScenarioNarrator {
 
     @Override
-    public List<String> narrate(NarrationContext context) {
+    public List<List<String>> narrate(NarrationContext context) {
         return List.of(
-                sentence(false, context.currentMonths(), null),
-                sentence(true, context.reducedMonths(), context.currentMonths())
+                List.of(
+                    sentence(false, context.currentMonths(), null),
+                    "이대로라면 지금 속도를 유지할 것 같아요.",
+                    "조금 더 분발하면 어떨까요?"
+                ),
+                List.of(
+                    sentence(true, context.reducedMonths(), context.currentMonths()),
+                    "소비를 줄이면 목표 달성이 훨씬 빨라져요!",
+                    "평행우주에서는 멋진 결과를 얻었네요."
+                )
         );
     }
 

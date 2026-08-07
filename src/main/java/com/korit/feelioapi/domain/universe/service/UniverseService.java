@@ -67,7 +67,7 @@ public class UniverseService {
         Projection reduced = project(income, reducedExpense, remaining);
 
         // 숫자를 모두 확정한 뒤 문장을 한 번에 받는다. 두 문장은 서로를 참조해야(몇 개월 빨라지는지) 자연스럽다.
-        List<String> narrations = scenarioNarrator.narrate(new NarrationContext(
+        List<List<String>> narrations = scenarioNarrator.narrate(new NarrationContext(
                 goal.name(),
                 focusEmotion == null ? null : focusEmotion.name(),
                 current.months(),

@@ -11,6 +11,6 @@ public record ScenarioDto(
         Long monthlySaving,
         Integer monthsToGoal,
         String estimatedAchieveDate,
-        String narration
+        java.util.List<String> narrations
 ) {
 }

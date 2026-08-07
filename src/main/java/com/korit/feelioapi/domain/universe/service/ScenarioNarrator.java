@@ -12,8 +12,8 @@ import java.util.List;
 public interface ScenarioNarrator {
 
     /**
-     * CURRENT·REDUCED 두 문장을 그 순서로 돌려준다.
-     * 반환 크기는 항상 2다 — 두 시나리오가 고정이라 개수를 맞추지 못하면 구현체가 폴백해야 한다.
+     * CURRENT와 REDUCED 두 개의 시나리오에 해당하는 코멘트 리스트를 반환한다.
+     * 반환 크기는 항상 2개이며, 각 항목은 여러 개의 코멘트(롤링용)를 포함하는 리스트이다.
      */
-    List<String> narrate(NarrationContext context);
+    List<List<String>> narrate(NarrationContext context);
 }
