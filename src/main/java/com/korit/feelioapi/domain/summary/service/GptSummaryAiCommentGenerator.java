@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.stream.Collectors;
+import com.korit.feelioapi.global.ai.AiCallGuard;
 
 @Component
 @ConditionalOnProperty(name = "feelio.insight.provider", havingValue = "gpt")
@@ -24,12 +25,16 @@ public class GptSummaryAiCommentGenerator implements SummaryAiCommentGenerator {
     private final String model;
     private final Duration timeout;
 
+    private final AiCallGuard guard;
+
     public GptSummaryAiCommentGenerator(OpenAIClient openAIClient,
                                         @Value("${openai.model}") String model,
-                                        @Value("${openai.timeout-seconds}") long timeoutSeconds) {
+                                        @Value("${openai.timeout-seconds}") long timeoutSeconds,
+                                        AiCallGuard guard) {
         this.openAIClient = openAIClient;
         this.model = model;
         this.timeout = Duration.ofSeconds(timeoutSeconds);
+        this.guard = guard;
     }
 
     @Override
@@ -42,7 +47,7 @@ public class GptSummaryAiCommentGenerator implements SummaryAiCommentGenerator {
                     year, month, currentExpense, previousExpense);
             ResponseCreateParams params = ResponseCreateParams.builder().model(model).input(prompt).build();
             RequestOptions options = RequestOptions.builder().timeout(timeout).build();
-            Response response = openAIClient.responses().create(params, options);
+            Response response = guard.call("월간 총평", () -> openAIClient.responses().create(params, options));
             String text = response.output().stream()
                     .flatMap(item -> item.message().stream())
                     .flatMap(message -> message.content().stream())

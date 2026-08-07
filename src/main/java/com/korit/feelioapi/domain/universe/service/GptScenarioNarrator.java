@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.korit.feelioapi.global.ai.AiCallGuard;
 
 /**
  * 시나리오 문장을 GPT 로 만든다. feelio.insight.provider=gpt 일 때만 뜨고 @Primary 로 규칙기반보다 우선한다.
@@ -57,14 +58,18 @@ public class GptScenarioNarrator implements ScenarioNarrator {
     private final String model;
     private final Duration timeout;
 
+    private final AiCallGuard guard;
+
     public GptScenarioNarrator(OpenAIClient openAIClient,
                                RuleBasedScenarioNarrator fallback,
                                @Value("${openai.model}") String model,
-                               @Value("${openai.timeout-seconds}") long timeoutSeconds) {
+                               @Value("${openai.timeout-seconds}") long timeoutSeconds,
+                               AiCallGuard guard) {
         this.openAIClient = openAIClient;
         this.fallback = fallback;
         this.model = model;
         this.timeout = Duration.ofSeconds(timeoutSeconds);
+        this.guard = guard;
     }
 
     @Override
@@ -109,8 +114,8 @@ public class GptScenarioNarrator implements ScenarioNarrator {
                 .build();
 
         // 클라이언트 기본 타임아웃은 분 단위라 길다. 호출 단위로 짧게 건다.
-        Response response = openAIClient.responses()
-                .create(params, RequestOptions.builder().timeout(timeout).build());
+        Response response = guard.call("평행우주 서술", () -> openAIClient.responses()
+                .create(params, RequestOptions.builder().timeout(timeout).build()));
 
         return response.output().stream()
                 .flatMap(item -> item.message().stream())

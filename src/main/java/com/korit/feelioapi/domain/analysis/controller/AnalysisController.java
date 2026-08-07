@@ -57,10 +57,14 @@ public class AnalysisController {
         return ApiResponse.success(analysisService.getMonthlyTrend(userId));
     }
 
-    /** GET /api/analysis/budget — 목표 예산 현황 API. */
+    /** GET /api/analysis/budget : 월별 예산 현황 API. */
     @GetMapping("/budget")
-    public ApiResponse<com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse> getBudgetStatus(@AuthenticationPrincipal Long userId) {
-        return ApiResponse.success(analysisService.getBudgetStatus(userId));
+    public ApiResponse<com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse> getBudgetStatus(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month
+    ) {
+        return ApiResponse.success(analysisService.getBudgetStatus(userId, year, month));
     }
     @PostMapping("/ai")
     public ApiResponse<List<String>> chat(@RequestParam String value) {

@@ -15,7 +15,7 @@ import static org.mockito.Mockito.mock;
 class GptMallangCommentGeneratorTest {
 
     private final GptMallangCommentGenerator generator =
-            new GptMallangCommentGenerator(mock(OpenAIClient.class), "gpt-4o-mini", 3L);
+            new GptMallangCommentGenerator(mock(OpenAIClient.class), "gpt-4o-mini", 3L, new com.korit.feelioapi.global.ai.AiCallGuard(3, 60));
 
     @Test
     void 구분자로_평가와_독려를_가른다() {

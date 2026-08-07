@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.stream.Collectors;
+import com.korit.feelioapi.global.ai.AiCallGuard;
 
 /**
  * 말랑이 코멘트를 GPT 로 생성한다. 실패하면 null 을 반환하고 서비스가 규칙기반으로 대체한다.
@@ -34,12 +35,16 @@ public class GptMallangCommentGenerator implements MallangCommentGenerator {
     private final String model;
     private final Duration timeout;
 
+    private final AiCallGuard guard;
+
     public GptMallangCommentGenerator(OpenAIClient openAIClient,
                                       @Value("${openai.model}") String model,
-                                      @Value("${openai.timeout-seconds}") long timeoutSeconds) {
+                                      @Value("${openai.timeout-seconds}") long timeoutSeconds,
+                                      AiCallGuard guard) {
         this.openAIClient = openAIClient;
         this.model = model;
         this.timeout = Duration.ofSeconds(timeoutSeconds);
+        this.guard = guard;
     }
 
     @Override
@@ -50,7 +55,7 @@ public class GptMallangCommentGenerator implements MallangCommentGenerator {
                     .input(buildPrompt(status, expense, usageRate))
                     .build();
             RequestOptions options = RequestOptions.builder().timeout(timeout).build();
-            Response response = openAIClient.responses().create(params, options);
+            Response response = guard.call("말랑이 한마디", () -> openAIClient.responses().create(params, options));
 
             String text = response.output().stream()
                     .flatMap(item -> item.message().stream())

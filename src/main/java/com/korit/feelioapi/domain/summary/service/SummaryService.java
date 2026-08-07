@@ -85,7 +85,7 @@ public class SummaryService {
 
         return mallangCommentCache.computeIfAbsent(key, ignored -> {
             long expense = summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue());
-            long budget = analysisService.totalBudget(userId);
+            long budget = analysisService.totalBudget(userId, today.getYear(), today.getMonthValue());
             SpendStatus status = SpendStatus.of(expense, budget);
             int usageRate = budget > 0 ? (int) Math.round(expense * 100.0 / budget) : 0;
 
