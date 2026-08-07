@@ -48,6 +48,18 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 
+    // -PciOnly 를 주면 실 DB·OpenAI 가 있어야 도는 테스트를 뺀다.
+    // 러너에는 MySQL 도 API 키도 없어서, 이걸 빼지 않으면 코드가 멀쩡해도 빨간불이 뜬다.
+    // contextLoads(FeelioApiApplicationTests)는 DB 연결 없이 통과하므로 남겨 둔다 —
+    // 빈 배선 오류를 잡는 게 이 관문의 핵심이다.
+    if (project.hasProperty('ciOnly')) {
+        exclude '**/AlterTableTest.class'
+        exclude '**/CheckDbStateTest.class'
+        exclude '**/DbMigrationTest.class'
+        exclude '**/AiTest.class'
+        exclude '**/TransactionMapperTest.class'
+    }
+
     // CI 로그에 예외 타입만 찍히고 메시지가 빠져 원인 파악이 안 되던 문제를 막는다.
     // 실패했을 때 원인 체인 전체를 그대로 출력한다.
     testLogging {
