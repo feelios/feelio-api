@@ -10,6 +10,7 @@ import com.korit.feelioapi.domain.transaction.dto.TransactionResetResponse;
 import com.korit.feelioapi.domain.transaction.dto.TransactionSearchCondition;
 import com.korit.feelioapi.domain.transaction.dto.TransactionTotalDto;
 import com.korit.feelioapi.domain.transaction.entity.Transaction;
+import com.korit.feelioapi.domain.analysis.mapper.AnalysisMapper;
 import com.korit.feelioapi.domain.goal.entity.Goal;
 import com.korit.feelioapi.domain.goal.mapper.GoalMapper;
 import com.korit.feelioapi.domain.transaction.mapper.TransactionMapper;
@@ -36,11 +37,11 @@ public class TransactionService {
 
     private final TransactionMapper transactionMapper;
     private final GoalMapper goalMapper;
+    private final AnalysisMapper analysisMapper;
     private final UserMapper userMapper;
     private final MetaMapper metaMapper;
     private final EmotionAnalysisService emotionAnalysisService;
     private final ApplicationEventPublisher eventPublisher;
-    private final AnalysisMapper analysisMapper;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
@@ -80,6 +81,9 @@ public class TransactionService {
 
         transactionMapper.insertTransaction(transaction);
 
+        // A11-1: 해당 지출이 발생한 달의 AI 분석 캐시 삭제
+        analysisMapper.deleteInsights(userId, request.occurredAt().getYear(), request.occurredAt().getMonthValue());
+
         eventPublisher.publishEvent(new TransactionChangedEvent(userId));
 
         return transactionMapper.findTransactionById(transaction.getTransactionId(), userId);
@@ -93,9 +97,11 @@ public class TransactionService {
 
     @Transactional
     public TransactionDto updateTransaction(Long userId, Long transactionId, TransactionCreateRequest request) {
-        getOwnedOrThrow(userId, transactionId);
+        Transaction transaction = getOwnedOrThrow(userId, transactionId);
+        
+        int oldYear = transaction.getOccurredAt().getYear();
+        int oldMonth = transaction.getOccurredAt().getMonthValue();
 
-        Transaction transaction = new Transaction();
         transaction.setTransactionId(transactionId);
         transaction.setEmotionId(request.emotionId());
         transaction.setCategoryId(request.categoryId());
@@ -118,6 +124,15 @@ public class TransactionService {
         
         transactionMapper.updateTransaction(transaction);
 
+        int newYear = request.occurredAt().getYear();
+        int newMonth = request.occurredAt().getMonthValue();
+        
+        // A11-1: 수정 전/후의 AI 분석 캐시 삭제
+        analysisMapper.deleteInsights(userId, oldYear, oldMonth);
+        if (oldYear != newYear || oldMonth != newMonth) {
+            analysisMapper.deleteInsights(userId, newYear, newMonth);
+        }
+
         eventPublisher.publishEvent(new TransactionChangedEvent(userId));
 
         return transactionMapper.findTransactionById(transactionId, userId);
@@ -125,8 +140,12 @@ public class TransactionService {
 
     @Transactional
     public TransactionDeleteResponse deleteTransaction(Long userId, Long transactionId) {
-        getOwnedOrThrow(userId, transactionId);
+        Transaction transaction = getOwnedOrThrow(userId, transactionId);
         transactionMapper.deleteTransaction(transactionId);
+        
+        // A11-1: 삭제된 지출의 AI 분석 캐시 삭제
+        analysisMapper.deleteInsights(userId, transaction.getOccurredAt().getYear(), transaction.getOccurredAt().getMonthValue());
+        
         eventPublisher.publishEvent(new TransactionChangedEvent(userId));
         return new TransactionDeleteResponse(true);
     }
@@ -146,6 +165,13 @@ public class TransactionService {
             }
         }
         transactionMapper.deleteTransactionsBulk(transactionIds);
+
+        // A11-1: 삭제된 지출들의 연/월 수집 및 해당 달 AI 분석 캐시 삭제
+        transactions.stream()
+                .map(t -> java.util.Map.entry(t.getOccurredAt().getYear(), t.getOccurredAt().getMonthValue()))
+                .distinct()
+                .forEach(entry -> analysisMapper.deleteInsights(userId, entry.getKey(), entry.getValue()));
+
         eventPublisher.publishEvent(new TransactionChangedEvent(userId));
         return new TransactionDeleteResponse(true);
     }
@@ -153,6 +179,7 @@ public class TransactionService {
     @Transactional
     public TransactionResetResponse resetTransactions(Long userId) {
         int deletedCount = transactionMapper.deleteAllTransactionsByUserId(userId);
+        analysisMapper.deleteAllInsights(userId);
         eventPublisher.publishEvent(new TransactionChangedEvent(userId));
         return new TransactionResetResponse(deletedCount);
     }
@@ -169,6 +196,9 @@ public class TransactionService {
         }
         transactionMapper.updateTransaction(transaction);
         
+        // A11-1: 금액 변동 시 AI 분석 캐시 삭제
+        analysisMapper.deleteInsights(userId, transaction.getOccurredAt().getYear(), transaction.getOccurredAt().getMonthValue());
+
         eventPublisher.publishEvent(new TransactionChangedEvent(userId));
 
         return transactionMapper.findTransactionById(transactionId, userId);
