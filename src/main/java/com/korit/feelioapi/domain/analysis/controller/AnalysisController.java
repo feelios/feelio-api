@@ -33,16 +33,22 @@ public class AnalysisController {
         return ApiResponse.success(analysisService.debugInsights(userId, year, month));
     }
 
-    /** GET /api/analysis/ai-insights — 당월 집계 기반 AI 요약 카드·감정 카드 문구 (계약 §9). */
+    /** GET /api/analysis/ai-insights — 당월(또는 지정된 월) 집계 기반 AI 요약 카드·감정 카드 문구 (계약 §9). */
     @GetMapping("/ai-insights")
-    public ApiResponse<com.korit.feelioapi.domain.analysis.dto.AiInsightsResponse> getAiInsights(@AuthenticationPrincipal Long userId) {
-        return ApiResponse.success(analysisService.getAiInsights(userId));
+    public ApiResponse<com.korit.feelioapi.domain.analysis.dto.AiInsightsResponse> getAiInsights(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month) {
+        return ApiResponse.success(analysisService.getAiInsights(userId, year, month));
     }
 
     /** GET /api/analysis/ai-report — AI 연동 전 분석 리포트 뼈대와 소비 위험도. */
     @GetMapping("/ai-report")
-    public ApiResponse<AiReportResponseDto> getAiReport(@AuthenticationPrincipal Long userId) {
-        return ApiResponse.success(analysisService.getAiReport(userId));
+    public ApiResponse<AiReportResponseDto> getAiReport(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month) {
+        return ApiResponse.success(analysisService.getAiReport(userId, year, month));
     }
 
     /** GET /api/analysis/trend — 최근 7개월 지출 추이. */
@@ -51,10 +57,14 @@ public class AnalysisController {
         return ApiResponse.success(analysisService.getMonthlyTrend(userId));
     }
 
-    /** GET /api/analysis/budget — 목표 예산 현황 API. */
+    /** GET /api/analysis/budget : 월별 예산 현황 API. */
     @GetMapping("/budget")
-    public ApiResponse<com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse> getBudgetStatus(@AuthenticationPrincipal Long userId) {
-        return ApiResponse.success(analysisService.getBudgetStatus(userId));
+    public ApiResponse<com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse> getBudgetStatus(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month
+    ) {
+        return ApiResponse.success(analysisService.getBudgetStatus(userId, year, month));
     }
     @PostMapping("/ai")
     public ApiResponse<List<String>> chat(@RequestParam String value) {

@@ -153,10 +153,10 @@ public class AnalysisService {
      * 문장 생성이 외부 API(GPT)를 탈 수 있어 @Transactional 을 걸지 않는다(커넥션 점유 방지).
      * 소비 위험도는 예산 소진율로 자바에서 판정하고, GPT 는 문장만 만든다.
      */
-    public AiInsightsResponse getAiInsights(Long userId) {
+    public AiInsightsResponse getAiInsights(Long userId, Integer reqYear, Integer reqMonth) {
         java.time.LocalDate today = java.time.LocalDate.now();
-        int year = today.getYear();
-        int month = today.getMonthValue();
+        int year = (reqYear != null) ? reqYear : today.getYear();
+        int month = (reqMonth != null) ? reqMonth : today.getMonthValue();
 
         List<CategoryStatDto> byCategory = analysisMapper.findExpenseByCategory(userId, year, month);
         List<EmotionStatDto> byEmotion = analysisMapper.findExpenseByEmotion(userId, year, month);
@@ -165,12 +165,17 @@ public class AnalysisService {
         long currentExpense = analysisMapper.findMonthlyTotals(userId, year, month).totalExpense();
 
         // 챌린지는 ChallengeService 가 최근 7일 카테고리별 지출로 만든다(ai-report 와 같은 정본).
+
+        java.time.LocalDate targetDate = (year == today.getYear() && month == today.getMonthValue()) 
+                ? today 
+                : java.time.LocalDate.of(year, month, 1).plusMonths(1).minusDays(1);
         List<CategoryStatDto> weeklyCategories = analysisMapper.findWeeklyExpenseByCategory(
-                userId, today.minusDays(6).atStartOfDay(), today.plusDays(1).atStartOfDay());
+                userId, targetDate.minusDays(6).atStartOfDay(), targetDate.plusDays(1).atStartOfDay());
+
 
         return AiInsightsResponse.builder()
                 .aiQuickInsights(quickInsightAssembler.assembleQuickInsights(
-                        byEmotion, byCategory, byTimeSlot, weeklyCategories, currentExpense, totalBudget(userId)))
+                        byEmotion, byCategory, byTimeSlot, weeklyCategories, currentExpense, totalBudget(userId, reqYear, reqMonth)))
                 .emotionCards(quickInsightAssembler.assembleEmotionCards(byEmotion, byCategory, byTimeSlot))
                 .evidence(List.of())
                 .pattern(AiInsightsResponse.AiPattern.builder().count(0).build())
@@ -181,13 +186,13 @@ public class AnalysisService {
      * AI 연동 전에도 프론트가 사용할 수 있는 분석 리포트 뼈대.
      * 위험도는 순수 자바 계산이며 OpenAI 클라이언트를 호출하지 않는다.
      */
-    public AiReportResponseDto getAiReport(Long userId) {
+    public AiReportResponseDto getAiReport(Long userId, Integer reqYear, Integer reqMonth) {
         java.time.LocalDate today = java.time.LocalDate.now();
-        int year = today.getYear();
-        int month = today.getMonthValue();
+        int year = (reqYear != null) ? reqYear : today.getYear();
+        int month = (reqMonth != null) ? reqMonth : today.getMonthValue();
 
         long totalExpense = analysisMapper.findMonthlyTotals(userId, year, month).totalExpense();
-        long budget = totalBudget(userId);
+        long budget = totalBudget(userId, reqYear, reqMonth);
         SpendStatus spendStatus = SpendStatus.of(totalExpense, budget);
         List<CategoryStatDto> monthlyCategories = analysisMapper.findExpenseByCategory(userId, year, month);
         String topCategory = monthlyCategories.stream()
@@ -199,8 +204,12 @@ public class AnalysisService {
                 .max(java.util.Comparator.comparingLong(TimeSlotStatDto::amount))
                 .map(TimeSlotStatDto::label)
                 .orElse(null);
-        java.time.LocalDateTime weeklyStart = today.minusDays(6).atStartOfDay();
-        java.time.LocalDateTime weeklyEnd = today.plusDays(1).atStartOfDay();
+        
+        java.time.LocalDate targetDate = (year == today.getYear() && month == today.getMonthValue()) 
+                ? today 
+                : java.time.LocalDate.of(year, month, 1).plusMonths(1).minusDays(1);
+        java.time.LocalDateTime weeklyStart = targetDate.minusDays(6).atStartOfDay();
+        java.time.LocalDateTime weeklyEnd = targetDate.plusDays(1).atStartOfDay();
         List<CategoryStatDto> weeklyCategories = analysisMapper.findWeeklyExpenseByCategory(
                 userId, weeklyStart, weeklyEnd);
         double usageRate = budget > 0
@@ -208,7 +217,7 @@ public class AnalysisService {
                 : 0.0;
 
         List<AiInsight> saved = analysisMapper.findInsights(userId, year, month);
-        boolean isStale = saved.isEmpty() || saved.get(0).getCreatedAt().isBefore(java.time.LocalDateTime.now().minusDays(7));
+        boolean isStale = saved.isEmpty() || isStale(saved, year, month);
         
         String factText = null;
         String emotionText = null;
@@ -218,9 +227,12 @@ public class AnalysisService {
                 if ("FACT_BOMBER".equals(insight.getInsightType())) factText = insight.getContent();
                 if ("EMO_BOMBER".equals(insight.getInsightType())) emotionText = insight.getContent();
             }
+            if (factText == null || emotionText == null) {
+                isStale = true;
+            }
         }
         
-        if (factText == null || emotionText == null || isStale) {
+        if (isStale) {
             if (totalExpense == 0) {
                 factText = FactReportService.FALLBACK_MESSAGE;
                 emotionText = "이번 달 소비 기록이 없어 감정 분석을 건너뜁니다.";
@@ -260,8 +272,8 @@ public class AnalysisService {
      * 이번 달 예산 총액(A6-4 동적 예산의 카테고리별 합).
      * 활성 목표가 없거나 전월 기록이 없으면 0 이 나오고, 그 경우 위험도는 '예산 미설정'으로 처리된다.
      */
-    public long totalBudget(Long userId) {
-        return getBudgetStatus(userId).budgetItems().stream()
+    public long totalBudget(Long userId, Integer reqYear, Integer reqMonth) {
+        return getBudgetStatus(userId, reqYear, reqMonth).budgetItems().stream()
                 .mapToLong(item -> item.budget() == null ? 0L : item.budget())
                 .sum();
     }
@@ -323,12 +335,13 @@ public class AnalysisService {
     }
 
     @Transactional(readOnly = true)
-    public com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse getBudgetStatus(Long userId) {
+    public com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse getBudgetStatus(Long userId, Integer reqYear, Integer reqMonth) {
         java.time.LocalDate now = java.time.LocalDate.now();
-        int currentYear = now.getYear();
-        int currentMonth = now.getMonthValue();
+        int currentYear = (reqYear != null) ? reqYear : now.getYear();
+        int currentMonth = (reqMonth != null) ? reqMonth : now.getMonthValue();
 
-        java.time.LocalDate prevDate = now.minusMonths(1);
+        java.time.LocalDate targetDate = java.time.LocalDate.of(currentYear, currentMonth, 1);
+        java.time.LocalDate prevDate = targetDate.minusMonths(1);
         int prevYear = prevDate.getYear();
         int prevMonth = prevDate.getMonthValue();
 
@@ -351,38 +364,29 @@ public class AnalysisService {
         List<com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat> currentStats = analysisMapper.findCurrentCategoryStats(userId, currentYear, currentMonth);
         List<com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat> prevStats = analysisMapper.findPrevCategoryStats(userId, prevYear, prevMonth);
 
+        // 전전월도 함께 본다. 전월 대비 늘었는지 줄었는지를 알아야 삭감을 늘어난 쪽에만 몰아줄 수 있다 (#196).
+        java.time.LocalDate prevPrevDate = now.minusMonths(2);
+        List<com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat> prevPrevStats =
+                analysisMapper.findPrevCategoryStats(userId, prevPrevDate.getYear(), prevPrevDate.getMonthValue());
+
         Map<Long, Long> prevStatMap = prevStats.stream()
                 .collect(Collectors.toMap(com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat::categoryId, com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat::prevAmount));
 
-        // 2. Sum up prev variable expenses (isFixed = false, isBudgetable = true)
-        long variablePrevTotalExpense = prevStats.stream()
-                .filter(stat -> !stat.isFixed() && stat.isBudgetable())
-                .mapToLong(com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat::prevAmount)
-                .sum();
+        BudgetPlan plan = BudgetPlan.of(prevStats, prevPrevStats, totalRequiredSavings);
 
         List<com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem> budgetItems = new ArrayList<>();
         java.util.Set<Long> processedCategories = new java.util.HashSet<>();
 
         for (com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat currentStat : currentStats) {
             processedCategories.add(currentStat.categoryId());
-            
+
             if (!currentStat.isBudgetable()) {
                 continue; // 예산 제외 항목
             }
 
             Long prevAmount = prevStatMap.getOrDefault(currentStat.categoryId(), 0L);
-            long budget = 0L;
-            
-            if (currentStat.isFixed()) {
-                budget = Math.max(prevAmount, currentStat.currentAmount());
-            } else {
-                if (variablePrevTotalExpense > 0) {
-                    double reductionRatio = (double) totalRequiredSavings / variablePrevTotalExpense;
-                    reductionRatio = Math.min(1.0, reductionRatio);
-                    double rawBudget = prevAmount * (1.0 - reductionRatio);
-                    budget = Math.round(rawBudget / 1000.0) * 1000L;
-                }
-            }
+            long budget = plan.budgetFor(
+                    currentStat.categoryId(), prevAmount, currentStat.currentAmount(), currentStat.isFixed());
 
             budgetItems.add(new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem(
                     currentStat.categoryName(),
@@ -393,32 +397,21 @@ public class AnalysisService {
             ));
         }
 
+        // 전월엔 썼는데 이번 달엔 아직 안 쓴 카테고리. 예산은 잡아줘야 화면에서 사라지지 않는다.
         for (com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat prevStat : prevStats) {
-            if (!processedCategories.contains(prevStat.categoryId())) {
-                if (!prevStat.isBudgetable()) {
-                    continue; // 예산 제외 항목
-                }
-
-                long budget = 0L;
-                if (prevStat.isFixed()) {
-                    budget = prevStat.prevAmount();
-                } else {
-                    if (variablePrevTotalExpense > 0) {
-                        double reductionRatio = (double) totalRequiredSavings / variablePrevTotalExpense;
-                        reductionRatio = Math.min(1.0, reductionRatio);
-                        double rawBudget = prevStat.prevAmount() * (1.0 - reductionRatio);
-                        budget = Math.round(rawBudget / 1000.0) * 1000L;
-                    }
-                }
-
-                budgetItems.add(new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem(
-                        prevStat.categoryName() != null ? prevStat.categoryName() : "기타",
-                        "보통",
-                        0L,
-                        prevStat.prevAmount(),
-                        budget
-                ));
+            if (processedCategories.contains(prevStat.categoryId()) || !prevStat.isBudgetable()) {
+                continue;
             }
+
+            long budget = plan.budgetFor(prevStat.categoryId(), prevStat.prevAmount(), 0L, prevStat.isFixed());
+
+            budgetItems.add(new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem(
+                    prevStat.categoryName() != null ? prevStat.categoryName() : "기타",
+                    "보통",
+                    0L,
+                    prevStat.prevAmount(),
+                    budget
+            ));
         }
 
         return new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse(budgetItems);

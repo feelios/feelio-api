@@ -39,15 +39,59 @@ public class RuleBasedInsightCardGenerator implements InsightCardGenerator {
 
     @Override
     public List<String> emotionAnalyses(List<EmotionStatDto> emotions, String topCategory, String topTimeSlotLabel) {
+        // 카드가 담을 수 있는 길이(60자 안팎)에 맞춘다. 길면 화면에서 잘린다(#204).
+        // GPT 문구와 나란히 보이는 자리라 결을 맞춘다 — 다정하되 숫자는 정확히 짚는다.
+        // 감정마다 첫 마디와 제안을 달리한다. 같은 틀을 돌려쓰면 카드 세 장이 복사한 것처럼 보인다.
+        long totalAmount = emotions.stream().mapToLong(EmotionStatDto::amount).sum();
+
         List<String> analyses = new ArrayList<>();
         for (EmotionStatDto emotion : emotions) {
-            String where = topCategory == null ? "" : String.format(" 특히 '%s' 쪽이 많았어요.", topCategory);
-            analyses.add(String.format(
-                    "'%s'일 때 %d건, %,d원을 썼어요.%s "
-                            + "그때의 소비는 단순한 지출이라기보다 그 순간의 마음이 함께 움직인 것으로 보여요. "
-                            + "이 패턴을 알고 있으면 다음 소비를 더 의식적으로 선택하는 데 도움이 돼요.",
-                    emotion.name(), emotion.count(), emotion.amount(), where));
+            analyses.add(String.format("%s %s %s",
+                    opening(emotion.name()), fact(emotion, totalAmount), suggestion(emotion.name())));
         }
         return analyses;
+    }
+
+    /**
+     * 짚어줄 사실 한 조각. 그 감정에서 가장 눈에 띄는 수치를 고른다.
+     * 금액만 나열하면 "그래서 뭐" 가 되므로, 비중이 크면 비율을, 아니면 건당 평균을 보여준다.
+     */
+    private String fact(EmotionStatDto emotion, long totalAmount) {
+        long share = totalAmount > 0 ? Math.round(emotion.amount() * 100.0 / totalAmount) : 0;
+        if (share >= 30) {
+            return String.format("감정 소비의 %d%%가 여기 몰려 있어.", share);
+        }
+        if (emotion.count() > 0) {
+            return String.format("%d번에 건당 %,d원씩 썼어.", emotion.count(), emotion.amount() / emotion.count());
+        }
+        return String.format("%,d원을 썼어.", emotion.amount());
+    }
+
+    /** 감정별 첫 마디. 목록에 없는 감정이 와도 무난하게 받는다. */
+    private String opening(String emotion) {
+        return switch (emotion) {
+            case "신남" -> "신나는 날이었구나!";
+            case "설렘" -> "설레는 마음이었네.";
+            case "뿌듯함" -> "뿌듯할 만했어.";
+            case "스트레스" -> "많이 지쳤구나.";
+            case "화남" -> "속상한 일이 있었나 봐.";
+            case "외로움" -> "혼자인 기분이었구나.";
+            case "평온" -> "잔잔한 날이었네.";
+            case "무덤덤" -> "특별할 것 없는 날에도";
+            default -> "이 마음일 때";
+        };
+    }
+
+    /** 감정별 다음 행동 제안. 훈계가 아니라 곁에서 권하는 어조로 둔다. */
+    private String suggestion(String emotion) {
+        return switch (emotion) {
+            case "신남", "설렘" -> "들뜬 날은 하루 뒤에 사볼까?";
+            case "뿌듯함" -> "보상 한도를 미리 정해두면 좋아.";
+            case "스트레스", "화남" -> "급할 땐 10분만 미뤄볼까?";
+            case "외로움" -> "장바구니에 하루 담아두면 어때?";
+            case "평온" -> "고정지출이 섞이진 않았는지 볼까?";
+            case "무덤덤" -> "반복되는 건 하나만 줄여볼까?";
+            default -> "다음엔 한 번만 쉬어가 볼까?";
+        };
     }
 }

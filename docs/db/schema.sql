@@ -1,4 +1,4 @@
--- Feelio DB Schema (st1_feelio)
+-- Feelio DB Schema (st1_feelio_kmj)
 -- 실제 운영 DB에서 추출한 스키마의 SSOT 문서. (DB가 이미 생성되어 있음 — 이 파일은 기록용)
 -- 규칙: 이 스키마를 임의로 실행/변경하지 않는다. 변경은 팀 승인 후 별도 진행.
 -- 엔진/charset: InnoDB / utf8mb4 / utf8mb4_unicode_ci

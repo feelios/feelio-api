@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.stream.Collectors;
+import com.korit.feelioapi.global.ai.AiCallGuard;
 
 /** 예산 상태와 대표 소비 카테고리로 MZ 팩트 폭격기 한 문장을 생성한다. */
 @Service
@@ -35,16 +36,20 @@ public class FactReportService {
     private final Duration timeout;
     private final String provider;
 
+    private final AiCallGuard guard;
+
     public FactReportService(OpenAIClient openAIClient,
                              RuleBasedInsightCardGenerator fallback,
                              @Value("${openai.model}") String model,
                              @Value("${openai.timeout-seconds}") long timeoutSeconds,
-                             @Value("${feelio.insight.provider:rule}") String provider) {
+                             @Value("${feelio.insight.provider:rule}") String provider,
+                             AiCallGuard guard) {
         this.openAIClient = openAIClient;
         this.fallback = fallback;
         this.model = model;
         this.timeout = Duration.ofSeconds(timeoutSeconds);
         this.provider = provider;
+        this.guard = guard;
     }
 
     public String generate(SpendStatus status, long expense, long budget, String topCategory) {
@@ -58,10 +63,10 @@ public class FactReportService {
                     .instructions(PERSONA)
                     .input(buildInput(status, expense, budget, topCategory))
                     .build();
-            Response response = openAIClient.responses().create(
+            Response response = guard.call("팩트 리포트", () -> openAIClient.responses().create(
                     params,
                     RequestOptions.builder().timeout(timeout).build()
-            );
+            ));
             String text = response.output().stream()
                     .flatMap(item -> item.message().stream())
                     .flatMap(message -> message.content().stream())

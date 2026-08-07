@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.korit.feelioapi.global.ai.AiCallGuard;
 
 /** 당월 감정별 소비를 발견·의미·조언의 3단계로 풀어내는 심리 상담사 서비스. */
 @Service
@@ -37,14 +38,18 @@ public class EmotionAnalysisService {
     private final Duration timeout;
     private final String provider;
 
+    private final AiCallGuard guard;
+
     public EmotionAnalysisService(OpenAIClient openAIClient,
                                   @Value("${openai.model}") String model,
                                   @Value("${openai.timeout-seconds}") long timeoutSeconds,
-                                  @Value("${feelio.insight.provider:rule}") String provider) {
+                                  @Value("${feelio.insight.provider:rule}") String provider,
+                                  AiCallGuard guard) {
         this.openAIClient = openAIClient;
         this.model = model;
         this.timeout = Duration.ofSeconds(timeoutSeconds);
         this.provider = provider;
+        this.guard = guard;
     }
 
     public String generate(List<EmotionStatDto> emotions, String topCategory, String topTimeSlot) {
@@ -58,10 +63,10 @@ public class EmotionAnalysisService {
                     .instructions(PERSONA)
                     .input(buildInput(emotions, topCategory, topTimeSlot))
                     .build();
-            Response response = openAIClient.responses().create(
+            Response response = guard.call("감정 분석", () -> openAIClient.responses().create(
                     params,
                     RequestOptions.builder().timeout(timeout).build()
-            );
+            ));
             String text = response.output().stream()
                     .flatMap(item -> item.message().stream())
                     .flatMap(message -> message.content().stream())
@@ -111,7 +116,8 @@ public class EmotionAnalysisService {
                     .instructions("당신은 사용자의 소비 패턴을 날카롭게 분석하는 AI입니다. 1문장으로 짧고 뼈때리는 조언을 해주세요.")
                     .input("감정: " + emotion + ", 카테고리: " + category + ", 시간대: " + timeSlot + ", 반복횟수: " + count)
                     .build();
-            Response response = openAIClient.responses().create(params, RequestOptions.builder().timeout(timeout).build());
+            Response response = guard.call("패턴 분석",
+                    () -> openAIClient.responses().create(params, RequestOptions.builder().timeout(timeout).build()));
             String text = response.output().stream().flatMap(i -> i.message().stream()).flatMap(m -> m.content().stream()).flatMap(c -> c.outputText().stream()).map(o -> o.text()).collect(Collectors.joining()).trim();
             return text;
         } catch (Exception e) {

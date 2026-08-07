@@ -77,7 +77,11 @@
 | [ ] | - | A11-4 | 예산 산출 로직 개편 (성과 기반 보완법 및 저축 불가 엣지 케이스) | `feat/budget-calc-performance-based` | - | Svc | - | 신규 | 전월 절약 항목에만 예산 삭감 적용 (평균의 함정 방지). 원천적으로 저축할 자산/수입이 없는 경우 예산 0원 배정 방지 로직 추가 |
 | [ ] | - | A11-5 | AI API 타임아웃 및 폴백(Fallback) 방어 시스템 구축 | `feat/ai-timeout-fallback` | - | Svc | - | 신규 | OpenAI 등 외부 API 3~5초 응답 지연 시 500 에러 대신 200 OK와 기본 문구(Fallback Text) 반환하는 서킷 브레이커 도입 |
 | [ ] | - | A11-6 | 과거 지출/수입 데이터 CUD 시 총자산 정합성 롤백 및 동기화 | `feat/past-transaction-sync` | - | Svc | - | 신규 | 과거 내역 수정/삭제 시 당시 예산/총자산 변동분을 역산하여 현재 총자산을 안전하게 재계산하는 트랜잭션 이벤트 구축 |
-| [ ] | - | A11-7 | 목표 100% 달성 시 생명주기 상태 변경 및 잉여금 환불 로직 | `feat/goal-lifecycle-completed` | - | Svc | - | 신규 | 목표 금액 100% 도달 시 IN_PROGRESS -> COMPLETED로 전환 및 초과 저축분 총자산 환불 비즈니스 로직 분리 |
+| [ ] | - | A11-7 | 목표 100% 달성 시 생명주기 완결 및 잔여 자산 환급 처리 | `feat/goal-lifecycle-completed` | - | Svc | - | 신규 | 목표 금액 100% 도달 시 IN_PROGRESS -> COMPLETED로 전환 및 초과 저축액 총자산 환급 로직 분리 |
+| [ ] | - | A11-8 | 과거 달 예산 현황(Budget Status) 동적 조회 API 확장 | `feat/historical-budget-api` | - | Ctrl·Svc | - | 신규 | GET /api/analysis/budget API에 year, month 파라미터 추가 및 과거 지출 기반 예산 동적 산출 구현 (F17-5 연계) |
+| [ ] | - | A12-1 | AI 챌린지 주간 단위 갱신 적용 및 스키마 수정 | `feat/ai-challenge-weekly-update` | - | Svc·DB | - | 신규 | ai_insights 캐싱 기준을 year-month-week로 세분화하여 매주 새로운 챌린지를 반환하도록 로직 및 DB 유니크 키 확장 |
+| [ ] | - | A12-2 | 시스템 기본 카테고리 DB 리스트 전면 수정 | `feat/default-category-update` | - | DB | - | 신규 | 앱 초기화 시 제공되는 카테고리 17종(식비, 배달 등)으로 데이터베이스 기본 데이터 마이그레이션 |
+
 
 
 > **A7 = AI 연동 (마일스톤 7).** 세 이슈 공통: AI 호출 실패·타임아웃이 화면 장애로 이어지지 않도록 폴백을 반드시 둔다.
