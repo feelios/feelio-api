@@ -37,6 +37,9 @@ class TransactionServiceTest {
     private com.korit.feelioapi.domain.meta.mapper.MetaMapper metaMapper;
 
     @Mock
+    private com.korit.feelioapi.domain.goal.mapper.GoalMapper goalMapper;
+
+    @Mock
     private com.korit.feelioapi.domain.analysis.service.EmotionAnalysisService emotionAnalysisService;
 
     @Mock
@@ -71,11 +74,25 @@ class TransactionServiceTest {
         verify(transactionMapper).calculateTotals(userId, condition);
     }
 
+    /** 참조 검증을 통과시키는 기본 스텁 (#195). */
+    private void 참조가_모두_유효할_때(Long userId, TransactionCreateRequest request) {
+        com.korit.feelioapi.domain.meta.entity.Category category = new com.korit.feelioapi.domain.meta.entity.Category();
+        category.setCategoryId(request.categoryId());
+        category.setName("카테고리");
+        category.setType(request.type());
+
+        when(metaMapper.findUsableCategory(request.categoryId(), userId)).thenReturn(category);
+        when(metaMapper.findActiveEmotionById(request.emotionId()))
+                .thenReturn(new com.korit.feelioapi.domain.meta.entity.Emotion());
+    }
+
     @Test
     void 거래_기록을_생성하고_생성된_객체를_반환한다() {
         Long userId = 1L;
         TransactionCreateRequest request = new TransactionCreateRequest("EXPENSE", 10000, 2L, 3L, "memo", LocalDateTime.now(), null);
         TransactionDto mockDto = new TransactionDto(10L, "EXPENSE", 10000, "memo", request.occurredAt(), null, null, null, null, null);
+
+        참조가_모두_유효할_때(userId, request);
 
         doAnswer(invocation -> {
             Transaction t = invocation.getArgument(0);
@@ -137,6 +154,7 @@ class TransactionServiceTest {
         TransactionCreateRequest request = new TransactionCreateRequest("INCOME", 50000, 9L, 1L, "메모", LocalDateTime.now(), null);
         TransactionDto updated = new TransactionDto(transactionId, "INCOME", 50000, "메모", request.occurredAt(), null, null, null, null, null);
 
+        참조가_모두_유효할_때(userId, request);
         when(transactionMapper.findById(transactionId)).thenReturn(owned);
         when(transactionMapper.findTransactionById(transactionId, userId)).thenReturn(updated);
 
@@ -206,6 +224,75 @@ class TransactionServiceTest {
         assertThatThrownBy(() -> transactionService.deleteTransaction(userId, transactionId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.FORBIDDEN);
+    }
+
+    // --- #195: 참조 ID 가 잘못됐을 때 500 대신 VALIDATION_ERROR 로 끊는다 ---
+
+    @Test
+    void 없는_카테고리로_생성하면_VALIDATION_ERROR() {
+        Long userId = 1L;
+        TransactionCreateRequest request = new TransactionCreateRequest("EXPENSE", 10000, 999L, 3L, "memo", LocalDateTime.now(), null);
+
+        when(metaMapper.findUsableCategory(999L, userId)).thenReturn(null);
+
+        assertThatThrownBy(() -> transactionService.createTransaction(userId, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
+
+        verify(transactionMapper, org.mockito.Mockito.never()).insertTransaction(any(Transaction.class));
+    }
+
+    @Test
+    void 지출에_수입_카테고리를_붙이면_VALIDATION_ERROR() {
+        Long userId = 1L;
+        TransactionCreateRequest request = new TransactionCreateRequest("EXPENSE", 10000, 2L, 3L, "memo", LocalDateTime.now(), null);
+
+        com.korit.feelioapi.domain.meta.entity.Category incomeCategory = new com.korit.feelioapi.domain.meta.entity.Category();
+        incomeCategory.setCategoryId(2L);
+        incomeCategory.setName("월급");
+        incomeCategory.setType("INCOME");
+        when(metaMapper.findUsableCategory(2L, userId)).thenReturn(incomeCategory);
+
+        assertThatThrownBy(() -> transactionService.createTransaction(userId, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
+
+        verify(transactionMapper, org.mockito.Mockito.never()).insertTransaction(any(Transaction.class));
+    }
+
+    @Test
+    void 없는_감정으로_생성하면_VALIDATION_ERROR() {
+        Long userId = 1L;
+        TransactionCreateRequest request = new TransactionCreateRequest("EXPENSE", 10000, 2L, 999L, "memo", LocalDateTime.now(), null);
+
+        com.korit.feelioapi.domain.meta.entity.Category category = new com.korit.feelioapi.domain.meta.entity.Category();
+        category.setCategoryId(2L);
+        category.setType("EXPENSE");
+        when(metaMapper.findUsableCategory(2L, userId)).thenReturn(category);
+        when(metaMapper.findActiveEmotionById(999L)).thenReturn(null);
+
+        assertThatThrownBy(() -> transactionService.createTransaction(userId, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
+
+        verify(transactionMapper, org.mockito.Mockito.never()).insertTransaction(any(Transaction.class));
+    }
+
+    @Test
+    void 타인의_목표를_가리키면_VALIDATION_ERROR() {
+        Long userId = 1L;
+        TransactionCreateRequest request = new TransactionCreateRequest("EXPENSE", 10000, 2L, 3L, "memo", LocalDateTime.now(), 7L);
+
+        참조가_모두_유효할_때(userId, request);
+        com.korit.feelioapi.domain.goal.entity.Goal othersGoal = new com.korit.feelioapi.domain.goal.entity.Goal();
+        othersGoal.setUserId(2L);
+        when(goalMapper.findById(7L)).thenReturn(othersGoal);
+
+        assertThatThrownBy(() -> transactionService.createTransaction(userId, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
+
+        verify(transactionMapper, org.mockito.Mockito.never()).insertTransaction(any(Transaction.class));
     }
 
     @Test

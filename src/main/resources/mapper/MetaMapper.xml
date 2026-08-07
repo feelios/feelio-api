@@ -21,4 +21,25 @@
         ORDER BY type, sort_order
     </select>
 
+    <!--
+      거래 저장 전 카테고리 검증용 단건 조회.
+      user_id IS NULL 은 공용 카테고리, 그 외에는 본인 것만 통과시킨다.
+      type 을 함께 돌려줘야 서비스에서 거래 유형과 어긋나는지 볼 수 있다.
+    -->
+    <select id="findUsableCategory" resultType="com.korit.feelioapi.domain.meta.entity.Category">
+        SELECT category_id, name, type, sort_order
+        FROM categories
+        WHERE category_id = #{categoryId}
+          AND is_active = 1
+          AND (user_id IS NULL OR user_id = #{userId})
+    </select>
+
+    <!-- 거래 저장 전 감정 검증용 단건 조회. 비활성 감정으로는 새 기록을 만들 수 없다. -->
+    <select id="findActiveEmotionById" resultType="com.korit.feelioapi.domain.meta.entity.Emotion">
+        SELECT emotion_id, name, color, sort_order
+        FROM emotions
+        WHERE emotion_id = #{emotionId}
+          AND is_active = 1
+    </select>
+
 </mapper>
