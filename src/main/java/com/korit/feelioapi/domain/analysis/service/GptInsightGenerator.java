@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.korit.feelioapi.global.ai.AiCallGuard;
 
 /**
  * GPT 기반 인사이트 생성(계약 §9). feelio.insight.provider=gpt 일 때만 빈이 뜨고 @Primary 로 규칙기반보다 우선한다.
@@ -48,14 +49,18 @@ public class GptInsightGenerator implements InsightGenerator {
     private final String model;
     private final Duration timeout;
 
+    private final AiCallGuard guard;
+
     public GptInsightGenerator(OpenAIClient openAIClient,
                                RuleBasedInsightGenerator fallbackGenerator,
                                @Value("${openai.model}") String model,
-                               @Value("${openai.timeout-seconds}") long timeoutSeconds) {
+                               @Value("${openai.timeout-seconds}") long timeoutSeconds,
+                               AiCallGuard guard) {
         this.openAIClient = openAIClient;
         this.fallbackGenerator = fallbackGenerator;
         this.model = model;
         this.timeout = Duration.ofSeconds(timeoutSeconds);
+        this.guard = guard;
     }
 
     @Override
@@ -94,7 +99,7 @@ public class GptInsightGenerator implements InsightGenerator {
                 .timeout(timeout)
                 .build();
 
-        Response response = openAIClient.responses().create(params, options);
+        Response response = guard.call("월간 인사이트", () -> openAIClient.responses().create(params, options));
 
         return response.output().stream()
                 .flatMap(item -> item.message().stream())

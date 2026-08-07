@@ -14,7 +14,7 @@ class FactReportServiceTest {
     void GPT가_비활성화되면_외부호출_없이_규칙기반_문구를_반환한다() {
         OpenAIClient client = mock(OpenAIClient.class);
         RuleBasedInsightCardGenerator fallback = new RuleBasedInsightCardGenerator();
-        FactReportService service = new FactReportService(client, fallback, "gpt-4o-mini", 3L, "rule");
+        FactReportService service = new FactReportService(client, fallback, "gpt-4o-mini", 3L, "rule", new com.korit.feelioapi.global.ai.AiCallGuard(3, 60));
 
         String result = service.generate(SpendStatus.SAVING, 100000L, 200000L, "식비");
 
