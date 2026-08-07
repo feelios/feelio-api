@@ -180,9 +180,18 @@ Request:
 }
 ```
 - 필수: type, amount(>0 정수), categoryId, emotionId, occurredAt
+- type: `EXPENSE` | `INCOME` 둘 중 하나
 - memo: 생략 시 null 저장, 최대 200자
 - goalId: 선택(null 허용)
 - 서버: transactions 저장(단건)
+
+본문이 가리키는 ID 는 저장 전에 검증하고, 어긋나면 **VALIDATION_ERROR(400)** 로 답한다 (#195).
+DB 제약에 맡기면 FK 위반이 500 으로 새어나가 프론트가 원인을 알 수 없다.
+- categoryId: 없거나 비활성이거나 **다른 사용자의 커스텀 카테고리**면 거부
+- categoryId 의 type 과 거래 type 이 다르면 거부 (지출에 수입 카테고리 금지)
+- emotionId: 없거나 비활성이면 거부
+- goalId: 없거나 **타인의 목표**면 거부 — 404 가 아니라 400 이다.
+  본문 값이 잘못된 것이지 요청한 리소스가 없는 게 아니다.
 
 Response(201) `data`: 생성된 거래 객체. 에러: VALIDATION_ERROR
 
