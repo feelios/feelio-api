@@ -200,16 +200,20 @@ class UniverseServiceTest {
         UniverseResponse res = universeService.simulate(100L, 1L);
 
         // 소비 시뮬레이션 화면이다. 응원·덕담이 아니라 근거가 되는 금액이 나와야 한다.
+        // 카드에 이미 적힌 값(이번 달 지출·도달 개월)은 되풀이하지 않는다 — 넘겨 읽을 이유가 없어진다.
         assertThat(res.scenarios().get(0).narrations())
                 .containsExactly(
                         "지금 속도라면 약 20개월 뒤 제주도 여행에 닿아요.",
-                        "이번 달 지출 2,000,000원 기준이에요.",
+                        "제주도 여행까지 20,000,000원 남았어요.",
                         "지금은 매달 1,000,000원씩 모으고 있어요.");
         assertThat(res.scenarios().get(1).narrations())
                 .containsExactly(
                         "이렇게 줄이면 약 14개월 뒤 제주도 여행 도착, 6개월 빨라져요.",
-                        "배달 지출을 줄이면 매달 500,000원이 더 남아요.",
+                        "배달 지출을 줄이면 매달 모으는 돈이 1,500,000원이 돼요.",
                         "그만큼 제주도 여행 도착이 앞당겨져요.");
+
+        // 카드가 크게 보여주는 이번 달 지출 금액은 문장에 다시 나오지 않는다.
+        assertThat(res.scenarios().get(0).narrations()).noneMatch(line -> line.contains("2,000,000원"));
     }
 
     @Test

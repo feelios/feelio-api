@@ -46,11 +46,17 @@ public class GptScenarioNarrator implements ScenarioNarrator {
             미래(REDUCED)를 각각 코멘트 3개로 말해줘.
 
             이 화면은 소비와 목표 도달 시점만 다룬다. 세 코멘트 모두 돈 이야기여야 한다.
+
+            중요: 카드에는 이미 "이번 달 지출 금액"과 "도달 개월 수"가 크게 적혀 있다.
+            그 두 숫자를 그대로 되풀이하는 코멘트는 사용자가 이미 본 것을 다시 읽는 셈이라
+            넘길 이유가 없다. 1번째 코멘트에서만 개월 수를 쓰고, 나머지는 카드에 없는 숫자
+            (남은 금액, 매달 모으는 금액)로 말해라.
+
             화면은 3개를 차례로 돌려 보여주니 같은 말을 바꿔 쓰지 말고 근거를 하나씩 옮겨라.
             1번째: 언제 목표에 닿는지 (개월 수를 넣는다)
-            2번째: 그 개월 수가 어디서 나온 숫자인지 (이번 달 지출·월 저축·줄일 항목 금액 중 하나를 근거로)
-            3번째: CURRENT 는 이 소비 흐름이 이어질 때의 이야기,
-                   REDUCED 는 줄여서 생기는 차이(빨라지는 개월 수나 매달 더 남는 금액)
+            2번째: 목표까지 남은 금액
+            3번째: CURRENT 는 지금 매달 모으는 금액,
+                   REDUCED 는 줄였을 때 매달 모으게 되는 금액
 
             말투는 담백하고 다정하게. 다그치거나 훈계하지 마라.
 
@@ -131,8 +137,10 @@ public class GptScenarioNarrator implements ScenarioNarrator {
         input.append("줄일 소비 항목: ")
                 .append(context.focusCategoryName() == null ? "특정 항목 없음" : context.focusCategoryName())
                 .append('\n');
-        input.append(String.format(Locale.KOREA, "이번 달 지출: %,d원%n", context.monthlyExpense()));
+        input.append(String.format(Locale.KOREA, "이번 달 지출(카드에 이미 표시됨): %,d원%n", context.monthlyExpense()));
+        input.append(String.format(Locale.KOREA, "목표까지 남은 금액: %,d원%n", context.remaining()));
         input.append(String.format(Locale.KOREA, "지금 매달 모으는 금액: %,d원%n", context.currentSaving()));
+        input.append(String.format(Locale.KOREA, "줄이면 매달 모으게 되는 금액: %,d원%n", context.reducedSaving()));
         input.append(String.format(Locale.KOREA, "줄이면 매달 더 남는 금액: %,d원%n", context.savedPerMonth()));
         input.append("CURRENT(지금처럼): ").append(describeMonths(context.currentMonths())).append('\n');
         input.append("REDUCED(줄이면): ").append(describeMonths(context.reducedMonths())).append('\n');

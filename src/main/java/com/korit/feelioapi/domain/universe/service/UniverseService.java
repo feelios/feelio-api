@@ -74,8 +74,10 @@ public class UniverseService {
                 goal.name(),
                 topCategory == null ? null : topCategory.name(),
                 expense,
+                Math.max(0L, remaining),
                 current.saving(),
                 reduced.saving() - current.saving(),
+                reduced.saving(),
                 current.months(),
                 reduced.months()));
 

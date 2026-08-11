@@ -13,12 +13,16 @@ public record NarrationContext(
         String goalName,
         /** 줄일 대상 카테고리 이름(소비가 가장 몰린 곳). 거래가 없으면 null. */
         String focusCategoryName,
-        /** 기준 월 총 지출. */
+        /** 기준 월 총 지출. 카드에 이미 크게 떠 있는 값이라 문장에서는 되도록 반복하지 않는다. */
         long monthlyExpense,
+        /** 목표까지 남은 금액. 카드에 없는 숫자라 문장이 새 정보를 줄 수 있다. */
+        long remaining,
         /** 지금 흐름에서 매달 모으는 금액. */
         long currentSaving,
         /** 줄였을 때 매달 더 남는 금액(= 감축 저축 − 현행 저축). */
         long savedPerMonth,
+        /** 줄였을 때 매달 모으게 되는 금액. */
+        long reducedSaving,
         Integer currentMonths,
         Integer reducedMonths
 ) {

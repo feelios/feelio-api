@@ -27,14 +27,15 @@ public class RuleBasedScenarioNarrator implements ScenarioNarrator {
         return List.of(
                 List.of(
                     sentence(false, context.currentMonths(), null, goal),
-                    String.format(Locale.KOREA, "이번 달 지출 %,d원 기준이에요.", context.monthlyExpense()),
+                    String.format(Locale.KOREA, "%s까지 %,d원 남았어요.", goal, context.remaining()),
                     String.format(Locale.KOREA, "지금은 매달 %,d원씩 모으고 있어요.", context.currentSaving())
                 ),
                 List.of(
                     sentence(true, context.reducedMonths(), context.currentMonths(), goal),
                     focus == null
-                        ? String.format(Locale.KOREA, "줄이면 매달 %,d원이 더 남아요.", context.savedPerMonth())
-                        : String.format(Locale.KOREA, "%s 지출을 줄이면 매달 %,d원이 더 남아요.", focus, context.savedPerMonth()),
+                        ? String.format(Locale.KOREA, "줄이면 매달 모으는 돈이 %,d원이 돼요.", context.reducedSaving())
+                        : // 받침 유무에 따라 을/를 이 갈리므로 조사가 변하지 않는 "지출을" 로 붙인다(배달을/카페를 대신).
+                          String.format(Locale.KOREA, "%s 지출을 줄이면 매달 모으는 돈이 %,d원이 돼요.", focus, context.reducedSaving()),
                     String.format("그만큼 %s 도착이 앞당겨져요.", goal)
                 )
         );
