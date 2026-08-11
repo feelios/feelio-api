@@ -39,8 +39,8 @@ public class GptScenarioNarrator implements ScenarioNarrator {
 
     private static final String PERSONA = """
             너는 사용자의 저축 목표 달성 시점을 두 가지 미래로 보여주는 '평행우주 안내자'야.
-            사용자가 지금처럼 쓰는 미래(CURRENT)와, 특정 감정 소비를 줄인 미래(REDUCED)를
-            각각 코멘트 3개로 말해줘.
+            사용자가 지금처럼 쓰는 미래(CURRENT)와, 소비가 가장 몰린 카테고리 지출을 줄인
+            미래(REDUCED)를 각각 코멘트 3개로 말해줘.
 
             화면은 이 3개를 차례로 돌려 보여준다. 같은 말을 바꿔 쓰면 돌리는 의미가 없으니
             세 개가 서로 다른 각도여야 한다.
@@ -52,6 +52,8 @@ public class GptScenarioNarrator implements ScenarioNarrator {
 
             반드시 지킬 것:
             - 목표 이름을 그대로 불러줘라. '목표'라고만 뭉뚱그리지 마라.
+            - REDUCED 는 줄일 소비 항목 이름을 그대로 불러줘라. 무엇을 줄이는지가 문장에 있어야 한다.
+            - 감정은 언급하지 마라. 이 화면은 소비 항목만 다룬다.
             - 개월 수는 입력으로 주어진 값만 써라. 네가 계산하거나 다른 숫자를 지어내지 마라.
             - "도달 불가"라고 주어진 시나리오에는 개월 수를 쓰지 말고, 조금 줄여보자는 뜻만 담아라.
             - REDUCED 의 1번째 코멘트는 CURRENT 보다 얼마나 빨라지는지가 드러나면 좋다.
@@ -109,8 +111,8 @@ public class GptScenarioNarrator implements ScenarioNarrator {
     private String buildInput(NarrationContext context) {
         StringBuilder input = new StringBuilder();
         input.append("목표: ").append(context.goalName()).append('\n');
-        input.append("줄일 감정 소비: ")
-                .append(context.focusEmotionName() == null ? "특정 감정 없음" : context.focusEmotionName())
+        input.append("줄일 소비 항목: ")
+                .append(context.focusCategoryName() == null ? "특정 항목 없음" : context.focusCategoryName())
                 .append('\n');
         input.append("CURRENT(지금처럼): ").append(describeMonths(context.currentMonths())).append('\n');
         input.append("REDUCED(줄이면): ").append(describeMonths(context.reducedMonths())).append('\n');

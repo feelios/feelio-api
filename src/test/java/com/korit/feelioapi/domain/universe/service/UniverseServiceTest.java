@@ -1,6 +1,6 @@
 package com.korit.feelioapi.domain.universe.service;
 
-import com.korit.feelioapi.domain.universe.dto.FocusEmotionDto;
+import com.korit.feelioapi.domain.universe.dto.TopCategoryDto;
 import com.korit.feelioapi.domain.universe.dto.GoalRow;
 import com.korit.feelioapi.domain.universe.dto.MonthKey;
 import com.korit.feelioapi.domain.universe.dto.ScenarioDto;
@@ -56,13 +56,13 @@ class UniverseServiceTest {
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
         when(universeMapper.findMonthlyTotals(100L, 2026, 7))
                 .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
-        when(universeMapper.findFocusEmotion(100L, 2026, 7))
-                .thenReturn(new FocusEmotionDto(2L, "설렘", "#F28AB7", 1_000_000L));
+        when(universeMapper.findTopCategory(100L, 2026, 7))
+                .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
 
         UniverseResponse res = universeService.simulate(100L, 1L);
 
         assertThat(res.reductionRate()).isEqualTo(0.5);
-        assertThat(res.focusEmotion().name()).isEqualTo("설렘");
+        assertThat(res.topCategory().name()).isEqualTo("배달");
         assertThat(res.scenarios()).hasSize(2);
 
         ScenarioDto current = res.scenarios().get(0);
@@ -74,7 +74,7 @@ class UniverseServiceTest {
         assertThat(reduced.key()).isEqualTo("REDUCED");
         assertThat(reduced.monthlyExpense()).isEqualTo(1_500_000L);
         assertThat(reduced.monthsToGoal()).isEqualTo(14);
-        assertThat(reduced.title()).isEqualTo("설렘 소비를 줄이면");
+        assertThat(reduced.title()).isEqualTo("배달 소비를 줄이면");
         assertThat(reduced.estimatedAchieveDate()).isNotNull();
     }
 
@@ -85,17 +85,17 @@ class UniverseServiceTest {
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
         when(universeMapper.findMonthlyTotals(100L, 2026, 7))
                 .thenReturn(new UniverseTotalDto(1_000_000L, 1_200_000L));
-        when(universeMapper.findFocusEmotion(100L, 2026, 7)).thenReturn(null);
+        when(universeMapper.findTopCategory(100L, 2026, 7)).thenReturn(null);
 
         UniverseResponse res = universeService.simulate(100L, 1L);
 
-        assertThat(res.focusEmotion()).isNull();
+        assertThat(res.topCategory()).isNull();
         assertThat(res.scenarios().get(0).monthsToGoal()).isNull();
         assertThat(res.scenarios().get(0).estimatedAchieveDate()).isNull();
     }
 
     @Test
-    void 거래가_없으면_지출0_focus_null() {
+    void 거래가_없으면_지출0_카테고리_null() {
         when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 2_000_000, 0));
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(null, null));
 
@@ -103,8 +103,8 @@ class UniverseServiceTest {
 
         assertThat(res.monthlyIncome()).isZero();
         assertThat(res.monthlyExpense()).isZero();
-        assertThat(res.focusEmotion()).isNull();
-        assertThat(res.scenarios().get(1).title()).isEqualTo("감정 소비를 줄이면");
+        assertThat(res.topCategory()).isNull();
+        assertThat(res.scenarios().get(1).title()).isEqualTo("전체 소비를 줄이면");
     }
 
     @Test
@@ -143,8 +143,8 @@ class UniverseServiceTest {
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
         when(universeMapper.findMonthlyTotals(100L, 2026, 7))
                 .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
-        when(universeMapper.findFocusEmotion(100L, 2026, 7))
-                .thenReturn(new FocusEmotionDto(2L, "설렘", "#F28AB7", 1_000_000L));
+        when(universeMapper.findTopCategory(100L, 2026, 7))
+                .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
 
         UniverseResponse res = new UniverseService(universeMapper, narrator).simulate(100L, 1L);
 
@@ -154,7 +154,7 @@ class UniverseServiceTest {
 
         // 숫자는 서비스가 계산해 넘긴다. 모델이 다시 계산하면 화면 숫자와 어긋난다.
         assertThat(context.goalName()).isEqualTo("제주도 여행");
-        assertThat(context.focusEmotionName()).isEqualTo("설렘");
+        assertThat(context.focusCategoryName()).isEqualTo("배달");
         assertThat(context.currentMonths()).isEqualTo(20);
         assertThat(context.reducedMonths()).isEqualTo(14);
 
@@ -169,8 +169,8 @@ class UniverseServiceTest {
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
         when(universeMapper.findMonthlyTotals(100L, 2026, 7))
                 .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
-        when(universeMapper.findFocusEmotion(100L, 2026, 7))
-                .thenReturn(new FocusEmotionDto(2L, "설렘", "#F28AB7", 1_000_000L));
+        when(universeMapper.findTopCategory(100L, 2026, 7))
+                .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
 
         UniverseResponse res = universeService.simulate(100L, 1L);
 
@@ -192,8 +192,8 @@ class UniverseServiceTest {
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
         when(universeMapper.findMonthlyTotals(100L, 2026, 7))
                 .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
-        when(universeMapper.findFocusEmotion(100L, 2026, 7))
-                .thenReturn(new FocusEmotionDto(2L, "설렘", "#F28AB7", 1_000_000L));
+        when(universeMapper.findTopCategory(100L, 2026, 7))
+                .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
 
         UniverseResponse res = universeService.simulate(100L, 1L);
 

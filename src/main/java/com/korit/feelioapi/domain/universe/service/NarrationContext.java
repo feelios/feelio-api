@@ -8,7 +8,8 @@ package com.korit.feelioapi.domain.universe.service;
  */
 public record NarrationContext(
         String goalName,
-        String focusEmotionName,
+        /** 줄일 대상 카테고리 이름(소비가 가장 몰린 곳). 거래가 없으면 null. */
+        String focusCategoryName,
         Integer currentMonths,
         Integer reducedMonths
 ) {

@@ -1,6 +1,6 @@
 package com.korit.feelioapi.domain.universe.mapper;
 
-import com.korit.feelioapi.domain.universe.dto.FocusEmotionDto;
+import com.korit.feelioapi.domain.universe.dto.TopCategoryDto;
 import com.korit.feelioapi.domain.universe.dto.GoalRow;
 import com.korit.feelioapi.domain.universe.dto.MonthKey;
 import com.korit.feelioapi.domain.universe.dto.UniverseTotalDto;
@@ -25,8 +25,8 @@ public interface UniverseMapper {
                                        @Param("year") int year,
                                        @Param("month") int month);
 
-    /** 기준 월 소비가 가장 몰린 감정 1건(지출 기준). 없으면 null. */
-    FocusEmotionDto findFocusEmotion(@Param("userId") Long userId,
-                                     @Param("year") int year,
-                                     @Param("month") int month);
+    /** 기준 월 소비가 가장 몰린 카테고리 1건(지출 기준). 없으면 null. */
+    TopCategoryDto findTopCategory(@Param("userId") Long userId,
+                                   @Param("year") int year,
+                                   @Param("month") int month);
 }
