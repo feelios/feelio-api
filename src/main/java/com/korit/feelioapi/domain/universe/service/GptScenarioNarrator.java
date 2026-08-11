@@ -33,6 +33,8 @@ public class GptScenarioNarrator implements ScenarioNarrator {
 
     /** 카드 한 줄이라 짧게 자른다. */
     private static final int MAX_NARRATION_LENGTH = 120;
+    /** 이보다 짧으면 문장이 아니라 자리표시자나 부스러기로 본다. */
+    private static final int MIN_NARRATION_LENGTH = 6;
     /** 계약 §9 상 시나리오는 CURRENT·REDUCED 2건 고정. */
     private static final int SCENARIO_COUNT = 2;
     /** 화면이 한 시나리오 안에서 돌려 보여주는 코멘트 수. 규칙기반 폴백과 같은 값으로 맞춘다. */
@@ -66,8 +68,12 @@ public class GptScenarioNarrator implements ScenarioNarrator {
             - 각 코멘트는 60자 이내로.
 
             JSON 배열의 배열만 출력하고 다른 말은 붙이지 마라.
-            형식: [["CURRENT 1","CURRENT 2","CURRENT 3"],["REDUCED 1","REDUCED 2","REDUCED 3"]]
             바깥 배열은 반드시 2개, CURRENT 먼저 REDUCED 나중. 안쪽 배열은 각각 코멘트 3개.
+
+            아래는 모양을 보여주는 예시일 뿐이다. 숫자도 문장도 전부 입력에 맞게 새로 써라.
+            예시 문장을 그대로 베끼지 마라.
+            [["지금 속도라면 약 12개월 뒤 유럽 여행에 닿아요.","이번 달 지출 250,000원 기준이에요.","이 속도면 내년 여름에 도착해요."],
+             ["카페 지출을 줄이면 약 9개월, 3개월 빨라져요.","줄이면 매달 60,000원이 더 남아요.","그만큼 유럽 여행 도착이 앞당겨져요."]]
             """;
 
     /** 모델 응답 파싱 전용. 컨테이너에 ObjectMapper 빈이 없어 직접 만든다. */
@@ -99,12 +105,17 @@ public class GptScenarioNarrator implements ScenarioNarrator {
             // 개수가 어긋나면 문장이 엉뚱한 시나리오에 붙는다. 그럴 바엔 통째로 폴백이 낫다.
             // 빈 행도 막는다 — 코멘트가 하나도 없는 시나리오는 화면에서 빈 칸이 된다.
             if (parsed.size() == SCENARIO_COUNT && parsed.stream().noneMatch(List::isEmpty)) {
-                return parsed.stream()
+                List<List<String>> cleaned = parsed.stream()
                         .map(row -> row.stream()
                                 .limit(NARRATIONS_PER_SCENARIO)
                                 .map(text -> truncate(stripQuotes(text)))
                                 .toList())
                         .toList();
+                if (cleaned.stream().flatMap(List::stream).allMatch(this::looksLikeSentence)) {
+                    return cleaned;
+                }
+                log.warn("시나리오 문장에 사람 말이 아닌 값이 섞였다. 규칙기반으로 대체한다. 응답={}", cleaned);
+                return fallback.narrate(context);
             }
             log.warn("시나리오 문장 형식 불일치(기대 {}행, 실제 {}행). 규칙기반으로 대체한다.",
                     SCENARIO_COUNT, parsed.size());
@@ -182,6 +193,23 @@ public class GptScenarioNarrator implements ScenarioNarrator {
         return matrix;
     }
     
+
+    /**
+     * 사람에게 보여줄 문장인지 최소한만 본다.
+     *
+     * 프롬프트에 형식 예시를 `[["CURRENT 1", ...]]` 로 적었더니 모델이 그 자리표시자를
+     * 그대로 돌려줬고, 카드에 "CURRENT 1" 이 그대로 떴다. 형식은 맞아서 파싱·개수 검사를
+     * 전부 통과했다. 프롬프트만 고치면 같은 사고가 다른 모양으로 또 난다.
+     *
+     * 한글이 한 글자도 없거나 지나치게 짧으면 문장이 아니라고 본다. 자리표시자·코드·빈말이
+     * 여기서 걸린다. 판단은 최소로 둔다 — 과하게 막으면 멀쩡한 문장까지 폴백된다.
+     */
+    // 테스트에서 직접 부를 수 있게 패키지 범위로 둔다. OpenAI 클라이언트를 흉내 내지 않고도 이 판단만 검증한다.
+    boolean looksLikeSentence(String value) {
+        return value != null
+                && value.length() >= MIN_NARRATION_LENGTH
+                && value.codePoints().anyMatch(c -> c >= 0xAC00 && c <= 0xD7A3);
+    }
 
     /** 모델이 문장을 따옴표로 감싸는 경우가 잦다. 카드에 그대로 노출되면 어색하다. */
     private String stripQuotes(String value) {
