@@ -11,9 +11,10 @@ import com.korit.feelioapi.domain.transaction.dto.TransactionPatternDto;
 import com.korit.feelioapi.domain.transaction.mapper.TransactionMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.List;
 import java.util.Map;
@@ -30,8 +31,19 @@ public class PatternAnalysisEventListener {
     private final AiInsightStore aiInsightStore;
     private final ObjectMapper objectMapper;
 
+    /**
+     * 커밋된 뒤에 돈다. @EventListener 였을 때는 발행 즉시 다른 스레드에서 시작했는데,
+     * 발행 지점이 전부 @Transactional 메서드 안이라 그 시점에는 방금 넣은 거래가 아직
+     * 커밋 전이었다. 리스너는 별도 커넥션이라 그 행을 볼 수 없다.
+     *
+     * 그래서 패턴이 늘 '직전 상태'로 다시 만들어졌다 — 화면이 거래 하나씩 뒤처졌다.
+     * 방금 등록한 건은 다음 거래를 등록해야 반영되는 식이었다.
+     *
+     * fallbackExecution 은 트랜잭션 밖에서 발행되는 경우를 위한 보험이다.
+     * 기본값(false)이면 그런 이벤트는 조용히 버려진다.
+     */
     @Async
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void handleTransactionChangedEvent(TransactionChangedEvent event) {
         Long userId = event.userId();
         log.info("[Async Pattern Analysis] Start processing for userId: {}", userId);

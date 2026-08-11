@@ -1,6 +1,6 @@
 package com.korit.feelioapi.domain.universe.service;
 
-import com.korit.feelioapi.domain.universe.dto.FocusEmotionDto;
+import com.korit.feelioapi.domain.universe.dto.TopCategoryDto;
 import com.korit.feelioapi.domain.universe.dto.GoalRow;
 import com.korit.feelioapi.domain.universe.dto.MonthKey;
 import com.korit.feelioapi.domain.universe.dto.ScenarioDto;
@@ -42,7 +42,11 @@ class UniverseServiceTest {
     @InjectMocks private UniverseService universeService;
 
     private GoalRow goal(long id, long userId, int target, int current) {
-        return new GoalRow(id, userId, "제주도 여행", target, current);
+        return goal(id, userId, target, current, "제주도 여행");
+    }
+
+    private GoalRow goal(long id, long userId, int target, int current, String name) {
+        return new GoalRow(id, userId, name, target, current);
     }
 
     @Test
@@ -52,13 +56,13 @@ class UniverseServiceTest {
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
         when(universeMapper.findMonthlyTotals(100L, 2026, 7))
                 .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
-        when(universeMapper.findFocusEmotion(100L, 2026, 7))
-                .thenReturn(new FocusEmotionDto(2L, "설렘", "#F28AB7", 1_000_000L));
+        when(universeMapper.findTopCategory(100L, 2026, 7))
+                .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
 
         UniverseResponse res = universeService.simulate(100L, 1L);
 
         assertThat(res.reductionRate()).isEqualTo(0.5);
-        assertThat(res.focusEmotion().name()).isEqualTo("설렘");
+        assertThat(res.topCategory().name()).isEqualTo("배달");
         assertThat(res.scenarios()).hasSize(2);
 
         ScenarioDto current = res.scenarios().get(0);
@@ -70,7 +74,7 @@ class UniverseServiceTest {
         assertThat(reduced.key()).isEqualTo("REDUCED");
         assertThat(reduced.monthlyExpense()).isEqualTo(1_500_000L);
         assertThat(reduced.monthsToGoal()).isEqualTo(14);
-        assertThat(reduced.title()).isEqualTo("설렘 소비를 줄이면");
+        assertThat(reduced.title()).isEqualTo("배달 소비를 줄이면");
         assertThat(reduced.estimatedAchieveDate()).isNotNull();
     }
 
@@ -81,17 +85,17 @@ class UniverseServiceTest {
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
         when(universeMapper.findMonthlyTotals(100L, 2026, 7))
                 .thenReturn(new UniverseTotalDto(1_000_000L, 1_200_000L));
-        when(universeMapper.findFocusEmotion(100L, 2026, 7)).thenReturn(null);
+        when(universeMapper.findTopCategory(100L, 2026, 7)).thenReturn(null);
 
         UniverseResponse res = universeService.simulate(100L, 1L);
 
-        assertThat(res.focusEmotion()).isNull();
+        assertThat(res.topCategory()).isNull();
         assertThat(res.scenarios().get(0).monthsToGoal()).isNull();
         assertThat(res.scenarios().get(0).estimatedAchieveDate()).isNull();
     }
 
     @Test
-    void 거래가_없으면_지출0_focus_null() {
+    void 거래가_없으면_지출0_카테고리_null() {
         when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 2_000_000, 0));
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(null, null));
 
@@ -99,8 +103,8 @@ class UniverseServiceTest {
 
         assertThat(res.monthlyIncome()).isZero();
         assertThat(res.monthlyExpense()).isZero();
-        assertThat(res.focusEmotion()).isNull();
-        assertThat(res.scenarios().get(1).title()).isEqualTo("감정 소비를 줄이면");
+        assertThat(res.topCategory()).isNull();
+        assertThat(res.scenarios().get(1).title()).isEqualTo("전체 소비를 줄이면");
     }
 
     @Test
@@ -139,8 +143,8 @@ class UniverseServiceTest {
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
         when(universeMapper.findMonthlyTotals(100L, 2026, 7))
                 .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
-        when(universeMapper.findFocusEmotion(100L, 2026, 7))
-                .thenReturn(new FocusEmotionDto(2L, "설렘", "#F28AB7", 1_000_000L));
+        when(universeMapper.findTopCategory(100L, 2026, 7))
+                .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
 
         UniverseResponse res = new UniverseService(universeMapper, narrator).simulate(100L, 1L);
 
@@ -150,7 +154,7 @@ class UniverseServiceTest {
 
         // 숫자는 서비스가 계산해 넘긴다. 모델이 다시 계산하면 화면 숫자와 어긋난다.
         assertThat(context.goalName()).isEqualTo("제주도 여행");
-        assertThat(context.focusEmotionName()).isEqualTo("설렘");
+        assertThat(context.focusCategoryName()).isEqualTo("배달");
         assertThat(context.currentMonths()).isEqualTo(20);
         assertThat(context.reducedMonths()).isEqualTo(14);
 
@@ -160,20 +164,71 @@ class UniverseServiceTest {
     }
 
     @Test
-    void 규칙기반_문장은_A7_3_이전과_같다() {
+    void 규칙기반_문장도_목표_이름을_부른다() {
         when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 20_000_000, 0));
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
         when(universeMapper.findMonthlyTotals(100L, 2026, 7))
                 .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
-        when(universeMapper.findFocusEmotion(100L, 2026, 7))
-                .thenReturn(new FocusEmotionDto(2L, "설렘", "#F28AB7", 1_000_000L));
+        when(universeMapper.findTopCategory(100L, 2026, 7))
+                .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
 
         UniverseResponse res = universeService.simulate(100L, 1L);
 
-        // 코멘트가 복수가 된 뒤에도 첫 문장은 A7-3 이전과 같아야 한다. 뒤에 붙는 롤링 문구는 여기서 보지 않는다.
+        // GPT 가 죽으면 이 문장이 그대로 화면에 나간다. 폴백이 '목표'라고만 말하면
+        // 어떤 목표 이야기인지 알 수 없어, AI 를 붙인 의미가 폴백에서 사라진다.
+        assertThat(res.scenarios().get(0).narrations().get(0))
+                .isEqualTo("지금 속도라면 약 20개월 뒤 제주도 여행에 닿아요.");
+        assertThat(res.scenarios().get(1).narrations().get(0))
+                .isEqualTo("이렇게 줄이면 약 14개월 뒤 제주도 여행 도착, 6개월 빨라져요.");
+
+        // 롤링용 나머지 코멘트에도 목표 이름이 살아 있어야 한다.
+        assertThat(res.scenarios().get(0).narrations()).anyMatch(line -> line.contains("제주도 여행"));
+        assertThat(res.scenarios().get(1).narrations()).anyMatch(line -> line.contains("제주도 여행"));
+    }
+
+    @Test
+    void 롤링_코멘트는_전부_소비_숫자_이야기다() {
+        // income 3,000,000 / expense 2,000,000 → 현행 저축 1,000,000
+        // 배달 1,000,000 의 절반을 줄여 지출 1,500,000 → 감축 저축 1,500,000, 매달 +500,000
+        when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 20_000_000, 0));
+        when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
+        when(universeMapper.findMonthlyTotals(100L, 2026, 7))
+                .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
+        when(universeMapper.findTopCategory(100L, 2026, 7))
+                .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
+
+        UniverseResponse res = universeService.simulate(100L, 1L);
+
+        // 소비 시뮬레이션 화면이다. 응원·덕담이 아니라 근거가 되는 금액이 나와야 한다.
+        // 카드에 이미 적힌 값(이번 달 지출·도달 개월)은 되풀이하지 않는다 — 넘겨 읽을 이유가 없어진다.
+        assertThat(res.scenarios().get(0).narrations())
+                .containsExactly(
+                        "지금 속도라면 약 20개월 뒤 제주도 여행에 닿아요.",
+                        "제주도 여행까지 20,000,000원 남았어요.",
+                        "지금은 매달 1,000,000원씩 모으고 있어요.");
+        assertThat(res.scenarios().get(1).narrations())
+                .containsExactly(
+                        "이렇게 줄이면 약 14개월 뒤 제주도 여행 도착, 6개월 빨라져요.",
+                        "배달 지출을 줄이면 매달 모으는 돈이 1,500,000원이 돼요.",
+                        "그만큼 제주도 여행 도착이 앞당겨져요.");
+
+        // 카드가 크게 보여주는 이번 달 지출 금액은 문장에 다시 나오지 않는다.
+        assertThat(res.scenarios().get(0).narrations()).noneMatch(line -> line.contains("2,000,000원"));
+    }
+
+    @Test
+    void 목표_이름이_비면_목표라고만_부른다() {
+        when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 20_000_000, 0, "  "));
+        when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
+        when(universeMapper.findMonthlyTotals(100L, 2026, 7))
+                .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
+        when(universeMapper.findTopCategory(100L, 2026, 7))
+                .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
+
+        UniverseResponse res = universeService.simulate(100L, 1L);
+
+        // 이름이 없다고 "  에 닿아요" 같은 문장이 나가면 안 된다.
         assertThat(res.scenarios().get(0).narrations().get(0))
                 .isEqualTo("지금 속도라면 약 20개월 뒤 목표에 닿아요.");
-        assertThat(res.scenarios().get(1).narrations().get(0))
-                .isEqualTo("이렇게 줄이면 약 14개월 뒤 도착, 6개월 빨라져요.");
     }
 }

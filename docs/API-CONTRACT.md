@@ -514,20 +514,22 @@ Response(200) `data`:
   "goal": { "goalId": 1, "name": "제주도 여행", "targetAmount": 2000000, "currentAmount": 300000 },
   "monthlyIncome": 2600000,
   "monthlyExpense": 250000,
-  "focusEmotion": { "emotionId": 2, "name": "설렘", "color": "#F28AB7", "monthlyAmount": 120000 },
+  "topCategory": { "categoryId": 2, "name": "배달", "monthlyAmount": 120000 },
   "reductionRate": 0.5,
   "scenarios": [
-    { "key": "CURRENT", "title": "지금처럼 쓴다면",     "monthlyExpense": 250000, "monthlySaving": 150000, "monthsToGoal": 12, "estimatedAchieveDate": "2027-07", "narration": "지금 속도라면 약 12개월 걸려요." },
-    { "key": "REDUCED", "title": "설렘 소비를 줄이면",   "monthlyExpense": 190000, "monthlySaving": 210000, "monthsToGoal": 9,  "estimatedAchieveDate": "2027-04", "narration": "설렘 소비를 절반 줄이면 3개월 빨라져요." }
+    { "key": "CURRENT", "title": "지금처럼 쓴다면",     "monthlyExpense": 250000, "monthlySaving": 150000, "monthsToGoal": 12, "estimatedAchieveDate": "2027-07", "narrations": ["지금 속도라면 약 12개월 뒤 제주도 여행에 닿아요.", "제주도 여행에 한 걸음씩 가까워지고 있어요.", "지금 속도를 지키는 것만으로도 충분해요."] },
+    { "key": "REDUCED", "title": "배달 소비를 줄이면",   "monthlyExpense": 190000, "monthlySaving": 210000, "monthsToGoal": 9,  "estimatedAchieveDate": "2027-04", "narrations": ["배달 소비를 절반 줄이면 3개월 빨라져요.", "제주도 여행이 3개월 앞당겨져요.", "이번 주 배달을 한 번만 줄여볼까요?"] }
   ]
 }
 ```
-- **감정소비 = 소비가 가장 몰린 한 감정**(긍정·부정 무관)에 초점. REDUCED는 월 지출 전체가 아니라 **그 감정의 지출만** 줄인 시나리오다.
-- `focusEmotion`: 해당 기간 지출이 가장 큰 감정 1건 + 그 감정의 월 지출 `monthlyAmount`. 지출 기록이 전혀 없으면 `null`.
+- **소비가 가장 몰린 한 카테고리**에 초점. REDUCED는 월 지출 전체가 아니라 **그 카테고리의 지출만** 줄인 시나리오다.
+- `topCategory`: 해당 기간 지출이 가장 큰 카테고리 1건 + 그 카테고리의 월 지출 `monthlyAmount`. 지출 기록이 전혀 없으면 `null`.
+  - categories 테이블에 색 컬럼이 없어 `color` 는 내려가지 않는다. 강조색은 프론트가 정한다.
 - `monthlyIncome`/`monthlyExpense`: 최근 활동 기준 월 수입·지출(산정 방식은 A3-3 구현 소관).
 - `reductionRate`: 서버가 가정한 감축 비율(0~1, 예 `0.5`). 응답에 명시해 프론트 하드코딩을 피한다.
-- `scenarios`: `CURRENT`(현행)·`REDUCED`(감축) 2건 고정. `REDUCED.title`은 focusEmotion 이름을 반영(예: "설렘 소비를 줄이면").
-  - `REDUCED.monthlyExpense = monthlyExpense − round(focusEmotion.monthlyAmount × reductionRate)` (focusEmotion 이 `null`이면 CURRENT 와 동일).
+- `scenarios`: `CURRENT`(현행)·`REDUCED`(감축) 2건 고정. `REDUCED.title`은 topCategory 이름을 반영(예: "배달 소비를 줄이면"). topCategory 가 `null` 이면 "전체 소비를 줄이면".
+  - `narrations`: 시나리오당 문장 배열. 프론트가 차례로 돌려 보여준다.
+  - `REDUCED.monthlyExpense = monthlyExpense − round(topCategory.monthlyAmount × reductionRate)` (topCategory 가 `null`이면 CURRENT 와 동일).
   - `monthlySaving = monthlyIncome − 시나리오 monthlyExpense` (음수면 0 처리).
   - `monthsToGoal = ceil((targetAmount − currentAmount) / monthlySaving)`. `monthlySaving ≤ 0`이면 `monthsToGoal`·`estimatedAchieveDate` 모두 `null`(도달 불가).
 - 에러: `NOT_FOUND`(목표 없음) · `FORBIDDEN`(타인 목표) · `VALIDATION_ERROR`(goalId 누락).
