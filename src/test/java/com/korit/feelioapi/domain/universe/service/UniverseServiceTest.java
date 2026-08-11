@@ -42,7 +42,11 @@ class UniverseServiceTest {
     @InjectMocks private UniverseService universeService;
 
     private GoalRow goal(long id, long userId, int target, int current) {
-        return new GoalRow(id, userId, "제주도 여행", target, current);
+        return goal(id, userId, target, current, "제주도 여행");
+    }
+
+    private GoalRow goal(long id, long userId, int target, int current, String name) {
+        return new GoalRow(id, userId, name, target, current);
     }
 
     @Test
@@ -160,7 +164,7 @@ class UniverseServiceTest {
     }
 
     @Test
-    void 규칙기반_문장은_A7_3_이전과_같다() {
+    void 규칙기반_문장도_목표_이름을_부른다() {
         when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 20_000_000, 0));
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
         when(universeMapper.findMonthlyTotals(100L, 2026, 7))
@@ -170,10 +174,31 @@ class UniverseServiceTest {
 
         UniverseResponse res = universeService.simulate(100L, 1L);
 
-        // 코멘트가 복수가 된 뒤에도 첫 문장은 A7-3 이전과 같아야 한다. 뒤에 붙는 롤링 문구는 여기서 보지 않는다.
+        // GPT 가 죽으면 이 문장이 그대로 화면에 나간다. 폴백이 '목표'라고만 말하면
+        // 어떤 목표 이야기인지 알 수 없어, AI 를 붙인 의미가 폴백에서 사라진다.
+        assertThat(res.scenarios().get(0).narrations().get(0))
+                .isEqualTo("지금 속도라면 약 20개월 뒤 제주도 여행에 닿아요.");
+        assertThat(res.scenarios().get(1).narrations().get(0))
+                .isEqualTo("이렇게 줄이면 약 14개월 뒤 제주도 여행 도착, 6개월 빨라져요.");
+
+        // 롤링용 나머지 코멘트에도 목표 이름이 살아 있어야 한다.
+        assertThat(res.scenarios().get(0).narrations()).anyMatch(line -> line.contains("제주도 여행"));
+        assertThat(res.scenarios().get(1).narrations()).anyMatch(line -> line.contains("제주도 여행"));
+    }
+
+    @Test
+    void 목표_이름이_비면_목표라고만_부른다() {
+        when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 20_000_000, 0, "  "));
+        when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
+        when(universeMapper.findMonthlyTotals(100L, 2026, 7))
+                .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
+        when(universeMapper.findFocusEmotion(100L, 2026, 7))
+                .thenReturn(new FocusEmotionDto(2L, "설렘", "#F28AB7", 1_000_000L));
+
+        UniverseResponse res = universeService.simulate(100L, 1L);
+
+        // 이름이 없다고 "  에 닿아요" 같은 문장이 나가면 안 된다.
         assertThat(res.scenarios().get(0).narrations().get(0))
                 .isEqualTo("지금 속도라면 약 20개월 뒤 목표에 닿아요.");
-        assertThat(res.scenarios().get(1).narrations().get(0))
-                .isEqualTo("이렇게 줄이면 약 14개월 뒤 도착, 6개월 빨라져요.");
     }
 }

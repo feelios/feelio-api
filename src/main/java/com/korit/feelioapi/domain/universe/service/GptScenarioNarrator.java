@@ -34,20 +34,32 @@ public class GptScenarioNarrator implements ScenarioNarrator {
     private static final int MAX_NARRATION_LENGTH = 120;
     /** 계약 §9 상 시나리오는 CURRENT·REDUCED 2건 고정. */
     private static final int SCENARIO_COUNT = 2;
+    /** 화면이 한 시나리오 안에서 돌려 보여주는 코멘트 수. 규칙기반 폴백과 같은 값으로 맞춘다. */
+    private static final int NARRATIONS_PER_SCENARIO = 3;
 
     private static final String PERSONA = """
             너는 사용자의 저축 목표 달성 시점을 두 가지 미래로 보여주는 '평행우주 안내자'야.
-            사용자가 지금처럼 쓰는 미래(CURRENT)와, 특정 감정 소비를 줄인 미래(REDUCED)를 각각 한 문장으로 말해줘.
+            사용자가 지금처럼 쓰는 미래(CURRENT)와, 특정 감정 소비를 줄인 미래(REDUCED)를
+            각각 코멘트 3개로 말해줘.
+
+            화면은 이 3개를 차례로 돌려 보여준다. 같은 말을 바꿔 쓰면 돌리는 의미가 없으니
+            세 개가 서로 다른 각도여야 한다.
+            1번째: 언제 목표에 닿는지 (개월 수를 넣는다)
+            2번째: 그 목표가 사용자에게 어떤 의미일지
+            3번째: 다음 한 걸음으로 해볼 만한 것
+
             말투는 담백하고 다정하게. 다그치거나 훈계하지 마라.
 
             반드시 지킬 것:
+            - 목표 이름을 그대로 불러줘라. '목표'라고만 뭉뚱그리지 마라.
             - 개월 수는 입력으로 주어진 값만 써라. 네가 계산하거나 다른 숫자를 지어내지 마라.
             - "도달 불가"라고 주어진 시나리오에는 개월 수를 쓰지 말고, 조금 줄여보자는 뜻만 담아라.
-            - REDUCED 문장은 CURRENT 보다 얼마나 빨라지는지가 드러나면 좋다.
-            - 각 문장은 60자 이내로.
+            - REDUCED 의 1번째 코멘트는 CURRENT 보다 얼마나 빨라지는지가 드러나면 좋다.
+            - 각 코멘트는 60자 이내로.
 
-            JSON 배열만 출력하고 다른 말은 붙이지 마라. 형식: ["CURRENT 문장", "REDUCED 문장"]
-            반드시 2개, CURRENT 먼저 REDUCED 나중 순서를 지켜라.
+            JSON 배열의 배열만 출력하고 다른 말은 붙이지 마라.
+            형식: [["CURRENT 1","CURRENT 2","CURRENT 3"],["REDUCED 1","REDUCED 2","REDUCED 3"]]
+            바깥 배열은 반드시 2개, CURRENT 먼저 REDUCED 나중. 안쪽 배열은 각각 코멘트 3개.
             """;
 
     /** 모델 응답 파싱 전용. 컨테이너에 ObjectMapper 빈이 없어 직접 만든다. */
@@ -77,10 +89,16 @@ public class GptScenarioNarrator implements ScenarioNarrator {
         try {
             List<List<String>> parsed = parseStringMatrix(callModel(buildInput(context)));
             // 개수가 어긋나면 문장이 엉뚱한 시나리오에 붙는다. 그럴 바엔 통째로 폴백이 낫다.
-            if (parsed.size() == SCENARIO_COUNT) {
-                return parsed.stream().map(row -> row.stream().map(text -> truncate(stripQuotes(text))).toList()).toList();
+            // 빈 행도 막는다 — 코멘트가 하나도 없는 시나리오는 화면에서 빈 칸이 된다.
+            if (parsed.size() == SCENARIO_COUNT && parsed.stream().noneMatch(List::isEmpty)) {
+                return parsed.stream()
+                        .map(row -> row.stream()
+                                .limit(NARRATIONS_PER_SCENARIO)
+                                .map(text -> truncate(stripQuotes(text)))
+                                .toList())
+                        .toList();
             }
-            log.warn("시나리오 문장 개수 불일치(기대 {} / 실제 {}). 규칙기반으로 대체한다.",
+            log.warn("시나리오 문장 형식 불일치(기대 {}행, 실제 {}행). 규칙기반으로 대체한다.",
                     SCENARIO_COUNT, parsed.size());
         } catch (Exception e) {
             log.warn("시나리오 문장 생성 실패. 규칙기반으로 대체한다.", e);
@@ -153,25 +171,6 @@ public class GptScenarioNarrator implements ScenarioNarrator {
         return matrix;
     }
     
-    private List<String> parseStringArray(String rawText) throws Exception {
-        int start = rawText.indexOf('[');
-        int end = rawText.lastIndexOf(']');
-        if (start < 0 || end <= start) {
-            return List.of();
-        }
-        JsonNode array = objectMapper.readTree(rawText.substring(start, end + 1));
-        if (!array.isArray()) {
-            return List.of();
-        }
-        List<String> values = new ArrayList<>();
-        for (JsonNode node : array) {
-            String text = node.asText("").trim();
-            if (!text.isBlank()) {
-                values.add(text);
-            }
-        }
-        return values;
-    }
 
     /** 모델이 문장을 따옴표로 감싸는 경우가 잦다. 카드에 그대로 노출되면 어색하다. */
     private String stripQuotes(String value) {
