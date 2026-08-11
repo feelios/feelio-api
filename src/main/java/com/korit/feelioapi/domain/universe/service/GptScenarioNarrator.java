@@ -73,12 +73,12 @@ public class GptScenarioNarrator implements ScenarioNarrator {
     }
 
     @Override
-    public List<String> narrate(NarrationContext context) {
+    public List<List<String>> narrate(NarrationContext context) {
         try {
-            List<String> parsed = parseStringArray(callModel(buildInput(context)));
+            List<List<String>> parsed = parseStringMatrix(callModel(buildInput(context)));
             // 개수가 어긋나면 문장이 엉뚱한 시나리오에 붙는다. 그럴 바엔 통째로 폴백이 낫다.
             if (parsed.size() == SCENARIO_COUNT) {
-                return parsed.stream().map(text -> truncate(stripQuotes(text))).toList();
+                return parsed.stream().map(row -> row.stream().map(text -> truncate(stripQuotes(text))).toList()).toList();
             }
             log.warn("시나리오 문장 개수 불일치(기대 {} / 실제 {}). 규칙기반으로 대체한다.",
                     SCENARIO_COUNT, parsed.size());
@@ -127,6 +127,32 @@ public class GptScenarioNarrator implements ScenarioNarrator {
     }
 
     /** 모델이 ```json 펜스나 앞뒤 설명을 붙여도 배열 부분만 잘라 파싱한다. */
+    private List<List<String>> parseStringMatrix(String rawText) throws Exception {
+        int start = rawText.indexOf('[');
+        int end = rawText.lastIndexOf(']');
+        if (start < 0 || end <= start) {
+            return List.of();
+        }
+        JsonNode array = objectMapper.readTree(rawText.substring(start, end + 1));
+        if (!array.isArray()) {
+            return List.of();
+        }
+        List<List<String>> matrix = new ArrayList<>();
+        for (JsonNode node : array) {
+            if (node.isArray()) {
+                List<String> row = new ArrayList<>();
+                for (JsonNode child : node) {
+                    String text = child.asText("").trim();
+                    if (!text.isBlank()) {
+                        row.add(text);
+                    }
+                }
+                matrix.add(row);
+            }
+        }
+        return matrix;
+    }
+    
     private List<String> parseStringArray(String rawText) throws Exception {
         int start = rawText.indexOf('[');
         int end = rawText.lastIndexOf(']');
