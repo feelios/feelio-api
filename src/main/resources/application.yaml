@@ -124,6 +124,11 @@ openai:
   # 애써 만든 규칙기반 폴백이 사용자에게 닿지 못하고 화면은 그냥 실패로 끝난다.
   # 20초로 두면 폴백이 있으나 마나였다 (#197).
   timeout-seconds: ${OPENAI_TIMEOUT_SECONDS:4}
+  # 평행우주 서술만 따로 둔다. 한 번 호출로 문장 6개(2우주 × 3코멘트)를 받아
+  # 앱에서 가장 출력이 큰 호출인데, 4초로는 대부분 타임아웃 나 규칙기반으로 떨어졌다.
+  # 이 화면은 항해 연출이 있어 몇 초 더 기다릴 여지가 있다. 프론트도 이 요청만
+  # 타임아웃을 늘려 잡는다(web src/api/universe.js).
+  timeout-seconds-universe: ${OPENAI_TIMEOUT_SECONDS_UNIVERSE:10}
 
 feelio:
   insight:

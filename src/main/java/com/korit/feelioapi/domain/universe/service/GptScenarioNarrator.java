@@ -46,11 +46,17 @@ public class GptScenarioNarrator implements ScenarioNarrator {
             미래(REDUCED)를 각각 코멘트 3개로 말해줘.
 
             이 화면은 소비와 목표 도달 시점만 다룬다. 세 코멘트 모두 돈 이야기여야 한다.
+
+            중요: 카드에는 이미 "이번 달 지출 금액"과 "도달 개월 수"가 크게 적혀 있다.
+            그 두 숫자를 그대로 되풀이하는 코멘트는 사용자가 이미 본 것을 다시 읽는 셈이라
+            넘길 이유가 없다. 1번째 코멘트에서만 개월 수를 쓰고, 나머지는 카드에 없는 숫자
+            (남은 금액, 매달 모으는 금액)로 말해라.
+
             화면은 3개를 차례로 돌려 보여주니 같은 말을 바꿔 쓰지 말고 근거를 하나씩 옮겨라.
             1번째: 언제 목표에 닿는지 (개월 수를 넣는다)
-            2번째: 그 개월 수가 어디서 나온 숫자인지 (이번 달 지출·월 저축·줄일 항목 금액 중 하나를 근거로)
-            3번째: CURRENT 는 이 소비 흐름이 이어질 때의 이야기,
-                   REDUCED 는 줄여서 생기는 차이(빨라지는 개월 수나 매달 더 남는 금액)
+            2번째: 목표까지 남은 금액
+            3번째: CURRENT 는 지금 매달 모으는 금액,
+                   REDUCED 는 줄였을 때 매달 모으게 되는 금액
 
             말투는 담백하고 다정하게. 다그치거나 훈계하지 마라.
 
@@ -72,8 +78,8 @@ public class GptScenarioNarrator implements ScenarioNarrator {
 
             아래는 모양을 보여주는 예시일 뿐이다. 숫자도 문장도 전부 입력에 맞게 새로 써라.
             예시 문장을 그대로 베끼지 마라.
-            [["지금 속도라면 약 12개월 뒤 유럽 여행에 닿아요.","이번 달 지출 250,000원 기준이에요.","이 속도면 내년 여름에 도착해요."],
-             ["카페 지출을 줄이면 약 9개월, 3개월 빨라져요.","줄이면 매달 60,000원이 더 남아요.","그만큼 유럽 여행 도착이 앞당겨져요."]]
+            [["지금 속도라면 약 12개월 뒤 유럽 여행에 닿아요.","유럽 여행까지 3,600,000원 남았어요.","지금은 매달 300,000원씩 모으고 있어요."],
+             ["카페 지출을 줄이면 약 9개월, 3개월 빨라져요.","남은 3,600,000원을 더 빨리 채울 수 있어요.","줄이면 매달 모으는 돈이 400,000원이 돼요."]]
             """;
 
     /** 모델 응답 파싱 전용. 컨테이너에 ObjectMapper 빈이 없어 직접 만든다. */
@@ -89,7 +95,7 @@ public class GptScenarioNarrator implements ScenarioNarrator {
     public GptScenarioNarrator(OpenAIClient openAIClient,
                                RuleBasedScenarioNarrator fallback,
                                @Value("${openai.model}") String model,
-                               @Value("${openai.timeout-seconds}") long timeoutSeconds,
+                               @Value("${openai.timeout-seconds-universe:10}") long timeoutSeconds,
                                AiCallGuard guard) {
         this.openAIClient = openAIClient;
         this.fallback = fallback;
@@ -117,8 +123,10 @@ public class GptScenarioNarrator implements ScenarioNarrator {
                 log.warn("시나리오 문장에 사람 말이 아닌 값이 섞였다. 규칙기반으로 대체한다. 응답={}", cleaned);
                 return fallback.narrate(context);
             }
-            log.warn("시나리오 문장 형식 불일치(기대 {}행, 실제 {}행). 규칙기반으로 대체한다.",
-                    SCENARIO_COUNT, parsed.size());
+            // 원문을 남긴다. 형식이 왜 어긋났는지는 응답을 봐야만 알 수 있는데,
+            // 예전에는 개수만 찍어서 매번 추측으로 시작해야 했다.
+            log.warn("시나리오 문장 형식 불일치(기대 {}행, 실제 {}행). 규칙기반으로 대체한다. 파싱결과={}",
+                    SCENARIO_COUNT, parsed.size(), parsed);
         } catch (Exception e) {
             log.warn("시나리오 문장 생성 실패. 규칙기반으로 대체한다.", e);
         }
@@ -131,8 +139,10 @@ public class GptScenarioNarrator implements ScenarioNarrator {
         input.append("줄일 소비 항목: ")
                 .append(context.focusCategoryName() == null ? "특정 항목 없음" : context.focusCategoryName())
                 .append('\n');
-        input.append(String.format(Locale.KOREA, "이번 달 지출: %,d원%n", context.monthlyExpense()));
+        input.append(String.format(Locale.KOREA, "이번 달 지출(카드에 이미 표시됨): %,d원%n", context.monthlyExpense()));
+        input.append(String.format(Locale.KOREA, "목표까지 남은 금액: %,d원%n", context.remaining()));
         input.append(String.format(Locale.KOREA, "지금 매달 모으는 금액: %,d원%n", context.currentSaving()));
+        input.append(String.format(Locale.KOREA, "줄이면 매달 모으게 되는 금액: %,d원%n", context.reducedSaving()));
         input.append(String.format(Locale.KOREA, "줄이면 매달 더 남는 금액: %,d원%n", context.savedPerMonth()));
         input.append("CURRENT(지금처럼): ").append(describeMonths(context.currentMonths())).append('\n');
         input.append("REDUCED(줄이면): ").append(describeMonths(context.reducedMonths())).append('\n');
