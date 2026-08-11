@@ -36,6 +36,13 @@ import com.korit.feelioapi.domain.transaction.event.TransactionChangedEvent;
 @RequiredArgsConstructor
 public class TransactionService {
 
+    /**
+     * 반복 패턴 문구 프롬프트를 바꾼 시각(PR #230 배포일).
+     * 이보다 먼저 만들어진 캐시는 옛 프롬프트("1문장으로 짧고 뼈때리는 조언")의 결과다.
+     * 프롬프트를 또 바꾸면 이 값을 그날로 올리면 된다 — 그 한 줄이 마이그레이션이다.
+     */
+    private static final LocalDateTime PATTERN_PROMPT_CHANGED_AT = LocalDateTime.of(2026, 8, 11, 0, 0);
+
     private final TransactionMapper transactionMapper;
     private final GoalMapper goalMapper;
     private final AnalysisMapper analysisMapper;
@@ -200,12 +207,34 @@ public class TransactionService {
             return new TransactionPatternResponse(new TransactionPatternDto(0, null, null, null, null, null, java.util.List.of()), java.util.List.of());
         }
 
+        refreshIfBuiltByOldPrompt(userId, insight.getCreatedAt());
+
         try {
             TransactionPatternDto dto = objectMapper.readValue(insight.getContent(), TransactionPatternDto.class);
             return new TransactionPatternResponse(dto, dto.evidence() == null ? java.util.List.of() : dto.evidence());
         } catch (Exception e) {
             return new TransactionPatternResponse(new TransactionPatternDto(0, null, null, null, null, null, java.util.List.of()), java.util.List.of());
         }
+    }
+
+    /**
+     * 옛 프롬프트로 만든 패턴 문구를 조회 시 한 번 다시 만들게 한다.
+     *
+     * 이 문구는 거래 변경 이벤트가 올 때만 갱신된다. 스케줄러도 TTL 도 없다. 그래서 프롬프트를
+     * 바꿔도 기존 사용자는 다음 거래를 할 때까지 옛 문장을 계속 본다. 그렇다고 캐시 행을 지우면
+     * 조회 시 재생성이 없어 카드가 "아직 발견된 패턴이 없어요"로 비어버린다 — 옛 문구보다 나쁘다.
+     *
+     * 그래서 지우지 않고, 낡은 행을 만나면 재생성만 걸어두고 이번 응답은 기존 문구를 그대로 준다.
+     * 화면이 비는 순간이 없고, 다음 조회부터 새 문장이 나온다.
+     *
+     * 갱신은 delete-insert 라 created_at 이 새로 찍힌다(DEFAULT CURRENT_TIMESTAMP).
+     * 따라서 사용자당 한 번만 걸리고 스스로 멈춘다.
+     */
+    private void refreshIfBuiltByOldPrompt(Long userId, LocalDateTime createdAt) {
+        if (createdAt == null || !createdAt.isBefore(PATTERN_PROMPT_CHANGED_AT)) {
+            return;
+        }
+        eventPublisher.publishEvent(new TransactionChangedEvent(userId));
     }
 
     private Transaction cloneTransaction(Transaction t) {
