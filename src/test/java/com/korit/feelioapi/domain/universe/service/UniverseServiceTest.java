@@ -76,6 +76,31 @@ class UniverseServiceTest {
         assertThat(reduced.monthsToGoal()).isEqualTo(14);
         assertThat(reduced.title()).isEqualTo("배달 소비를 줄이면");
         assertThat(reduced.estimatedAchieveDate()).isNotNull();
+
+        // 개월은 올림이라 한 달 안쪽에서 두 시나리오가 같은 값이 된다. 일수는 그 차이를 담아야 한다.
+        // 20개월 → ceil(20 * 30) = 600일, 13.33개월 → ceil(13.33 * 30) = 400일
+        assertThat(current.daysToGoal()).isEqualTo(600);
+        assertThat(reduced.daysToGoal()).isEqualTo(400);
+    }
+
+    @Test
+    void 한_달_안쪽이면_개월은_같아도_일수는_다르다() {
+        // 남은 1,600,000 / 저축 1,800,000 = 0.89개월, 감축 저축 2,000,000 = 0.8개월 → 둘 다 올림 1개월
+        when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 1_600_000, 0));
+        when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
+        when(universeMapper.findMonthlyTotals(100L, 2026, 7))
+                .thenReturn(new UniverseTotalDto(2_400_000L, 600_000L));
+        when(universeMapper.findTopCategory(100L, 2026, 7))
+                .thenReturn(new TopCategoryDto(2L, "배달", 400_000L));
+
+        UniverseResponse res = universeService.simulate(100L, 1L);
+        ScenarioDto current = res.scenarios().get(0);
+        ScenarioDto reduced = res.scenarios().get(1);
+
+        // 더 모으는 쪽이 같은 시점에 닿는 것처럼 보이던 자리다.
+        assertThat(current.monthsToGoal()).isEqualTo(reduced.monthsToGoal());
+        assertThat(reduced.monthlySaving()).isGreaterThan(current.monthlySaving());
+        assertThat(reduced.daysToGoal()).isLessThan(current.daysToGoal());
     }
 
     @Test

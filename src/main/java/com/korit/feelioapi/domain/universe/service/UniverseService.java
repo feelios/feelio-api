@@ -82,11 +82,11 @@ public class UniverseService {
                 reduced.months()));
 
         ScenarioDto currentScenario = new ScenarioDto("CURRENT", "지금처럼 쓴다면",
-                expense, current.saving(), current.months(), current.achieveDate(), narrations.get(0));
+                expense, current.saving(), current.months(), current.days(), current.achieveDate(), narrations.get(0));
 
         String reducedTitle = (topCategory != null ? topCategory.name() : "전체") + " 소비를 줄이면";
         ScenarioDto reducedScenario = new ScenarioDto("REDUCED", reducedTitle,
-                reducedExpense, reduced.saving(), reduced.months(), reduced.achieveDate(), narrations.get(1));
+                reducedExpense, reduced.saving(), reduced.months(), reduced.days(), reduced.achieveDate(), narrations.get(1));
 
         GoalSummaryDto goalDto = new GoalSummaryDto(
                 goal.goalId(), goal.name(), goal.targetAmount(), goal.currentAmount());
@@ -95,8 +95,11 @@ public class UniverseService {
                 List.of(currentScenario, reducedScenario));
     }
 
-    /** 시나리오의 숫자 부분. months·achieveDate 는 도달 불가(월 저축 ≤ 0) 시 null. */
-    private record Projection(long saving, Integer months, String achieveDate) {
+    /** 한 달을 며칠로 볼지. 일수는 어림값이라 30 으로 고정한다 — 달마다 바뀌면 비교가 흔들린다. */
+    private static final int DAYS_PER_MONTH = 30;
+
+    /** 시나리오의 숫자 부분. months·days·achieveDate 는 도달 불가(월 저축 ≤ 0) 시 null. */
+    private record Projection(long saving, Integer months, Integer days, String achieveDate) {
     }
 
     /** 계약 §9: 월 저축 = 수입 − 지출(≥0), 도달 개월 = ceil(남은액/저축), 저축 ≤ 0 이면 도달 불가(null). */
@@ -104,12 +107,15 @@ public class UniverseService {
         long saving = Math.max(0L, income - monthlyExpense);
 
         if (remaining <= 0) {
-            return new Projection(saving, 0, YearMonth.now().toString());
+            return new Projection(saving, 0, 0, YearMonth.now().toString());
         }
         if (saving <= 0) {
-            return new Projection(saving, null, null);
+            return new Projection(saving, null, null, null);
         }
-        int months = (int) Math.ceil((double) remaining / saving);
-        return new Projection(saving, months, YearMonth.now().plusMonths(months).toString());
+        double exactMonths = (double) remaining / saving;
+        int months = (int) Math.ceil(exactMonths);
+        // 개월은 올림이라 한 달 안쪽에서 두 시나리오가 같은 값이 된다. 일수는 그 차이를 담는다.
+        int days = (int) Math.ceil(exactMonths * DAYS_PER_MONTH);
+        return new Projection(saving, months, days, YearMonth.now().plusMonths(months).toString());
     }
 }
