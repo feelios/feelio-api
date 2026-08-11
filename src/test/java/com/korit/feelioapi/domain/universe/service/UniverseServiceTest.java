@@ -133,7 +133,7 @@ class UniverseServiceTest {
     @Test
     void 계산된_개월수가_문장생성기로_그대로_넘어간다() {
         ScenarioNarrator narrator = mock(ScenarioNarrator.class);
-        when(narrator.narrate(any())).thenReturn(List.of("현행 문장", "감축 문장"));
+        when(narrator.narrate(any())).thenReturn(List.of(List.of("현행 문장"), List.of("감축 문장")));
 
         when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 20_000_000, 0));
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
@@ -155,8 +155,8 @@ class UniverseServiceTest {
         assertThat(context.reducedMonths()).isEqualTo(14);
 
         // 돌려받은 문장이 CURRENT·REDUCED 순서대로 붙는다.
-        assertThat(res.scenarios().get(0).narration()).isEqualTo("현행 문장");
-        assertThat(res.scenarios().get(1).narration()).isEqualTo("감축 문장");
+        assertThat(res.scenarios().get(0).narrations()).containsExactly("현행 문장");
+        assertThat(res.scenarios().get(1).narrations()).containsExactly("감축 문장");
     }
 
     @Test
@@ -170,9 +170,10 @@ class UniverseServiceTest {
 
         UniverseResponse res = universeService.simulate(100L, 1L);
 
-        assertThat(res.scenarios().get(0).narration())
+        // 코멘트가 복수가 된 뒤에도 첫 문장은 A7-3 이전과 같아야 한다. 뒤에 붙는 롤링 문구는 여기서 보지 않는다.
+        assertThat(res.scenarios().get(0).narrations().get(0))
                 .isEqualTo("지금 속도라면 약 20개월 뒤 목표에 닿아요.");
-        assertThat(res.scenarios().get(1).narration())
+        assertThat(res.scenarios().get(1).narrations().get(0))
                 .isEqualTo("이렇게 줄이면 약 14개월 뒤 도착, 6개월 빨라져요.");
     }
 }
