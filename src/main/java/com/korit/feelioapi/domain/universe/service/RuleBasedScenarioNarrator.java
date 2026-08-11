@@ -3,10 +3,11 @@ package com.korit.feelioapi.domain.universe.service;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 규칙기반 시나리오 문장(무료·즉시·결정적). GPT 를 켜도 실패·타임아웃 시 이 결과가 대신 나가므로 항상 살아 있어야 한다.
- * A7-3 이전까지 UniverseService 가 직접 만들던 문장을 그대로 옮긴 것이라 출력이 바뀌지 않는다.
+ * 그래서 이 문장들도 GPT 와 같은 기준을 지킨다 — 목표 이름을 부르고, 소비와 도달 시점만 말한다.
  */
 @Component
 public class RuleBasedScenarioNarrator implements ScenarioNarrator {
@@ -14,19 +15,27 @@ public class RuleBasedScenarioNarrator implements ScenarioNarrator {
     /** 목표 이름이 없을 때만 쓰는 대체어. 이름이 있으면 언제나 이름을 부른다. */
     private static final String UNNAMED_GOAL = "목표";
 
+    /**
+     * 세 코멘트 모두 소비와 도달 시점 이야기다.
+     * 예전에는 "한 걸음씩 가까워지고 있어요" 같은 응원 문구가 섞여 있었는데,
+     * 소비 시뮬레이션 화면에서 근거 없는 덕담은 자리만 차지한다. 숫자로 말한다.
+     */
     @Override
     public List<List<String>> narrate(NarrationContext context) {
         String goal = goalLabel(context.goalName());
+        String focus = context.focusCategoryName();
         return List.of(
                 List.of(
                     sentence(false, context.currentMonths(), null, goal),
-                    goal + "에 한 걸음씩 가까워지고 있어요.",
-                    "지금 속도를 지키는 것만으로도 충분해요."
+                    String.format(Locale.KOREA, "이번 달 지출 %,d원 기준이에요.", context.monthlyExpense()),
+                    String.format(Locale.KOREA, "지금은 매달 %,d원씩 모으고 있어요.", context.currentSaving())
                 ),
                 List.of(
                     sentence(true, context.reducedMonths(), context.currentMonths(), goal),
-                    "줄인 만큼 " + goal + " 도착이 앞당겨져요.",
-                    "이번 주에 한 번만 아껴봐도 흐름이 달라져요."
+                    focus == null
+                        ? String.format(Locale.KOREA, "줄이면 매달 %,d원이 더 남아요.", context.savedPerMonth())
+                        : String.format(Locale.KOREA, "%s 지출을 줄이면 매달 %,d원이 더 남아요.", focus, context.savedPerMonth()),
+                    String.format("그만큼 %s 도착이 앞당겨져요.", goal)
                 )
         );
     }

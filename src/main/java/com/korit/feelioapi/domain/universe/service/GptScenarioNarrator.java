@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 import com.korit.feelioapi.global.ai.AiCallGuard;
 
@@ -42,21 +43,26 @@ public class GptScenarioNarrator implements ScenarioNarrator {
             사용자가 지금처럼 쓰는 미래(CURRENT)와, 소비가 가장 몰린 카테고리 지출을 줄인
             미래(REDUCED)를 각각 코멘트 3개로 말해줘.
 
-            화면은 이 3개를 차례로 돌려 보여준다. 같은 말을 바꿔 쓰면 돌리는 의미가 없으니
-            세 개가 서로 다른 각도여야 한다.
+            이 화면은 소비와 목표 도달 시점만 다룬다. 세 코멘트 모두 돈 이야기여야 한다.
+            화면은 3개를 차례로 돌려 보여주니 같은 말을 바꿔 쓰지 말고 근거를 하나씩 옮겨라.
             1번째: 언제 목표에 닿는지 (개월 수를 넣는다)
-            2번째: 그 목표가 사용자에게 어떤 의미일지
-            3번째: 다음 한 걸음으로 해볼 만한 것
+            2번째: 그 개월 수가 어디서 나온 숫자인지 (이번 달 지출·월 저축·줄일 항목 금액 중 하나를 근거로)
+            3번째: CURRENT 는 이 소비 흐름이 이어질 때의 이야기,
+                   REDUCED 는 줄여서 생기는 차이(빨라지는 개월 수나 매달 더 남는 금액)
 
             말투는 담백하고 다정하게. 다그치거나 훈계하지 마라.
+
+            절대 하지 말 것:
+            - 목표가 어떤 경험인지·어떤 의미인지 말하지 마라.
+              ("새로운 경험", "소중한 추억", "설렘을 더해요" 같은 말 금지)
+            - 소비와 무관한 조언을 하지 마라. (마음가짐·취미·습관 일반론 금지)
+            - 감정은 언급하지 마라.
 
             반드시 지킬 것:
             - 목표 이름을 그대로 불러줘라. '목표'라고만 뭉뚱그리지 마라.
             - REDUCED 는 줄일 소비 항목 이름을 그대로 불러줘라. 무엇을 줄이는지가 문장에 있어야 한다.
-            - 감정은 언급하지 마라. 이 화면은 소비 항목만 다룬다.
-            - 개월 수는 입력으로 주어진 값만 써라. 네가 계산하거나 다른 숫자를 지어내지 마라.
+            - 숫자는 입력으로 주어진 값만 써라. 네가 계산하거나 다른 숫자를 지어내지 마라.
             - "도달 불가"라고 주어진 시나리오에는 개월 수를 쓰지 말고, 조금 줄여보자는 뜻만 담아라.
-            - REDUCED 의 1번째 코멘트는 CURRENT 보다 얼마나 빨라지는지가 드러나면 좋다.
             - 각 코멘트는 60자 이내로.
 
             JSON 배열의 배열만 출력하고 다른 말은 붙이지 마라.
@@ -114,6 +120,9 @@ public class GptScenarioNarrator implements ScenarioNarrator {
         input.append("줄일 소비 항목: ")
                 .append(context.focusCategoryName() == null ? "특정 항목 없음" : context.focusCategoryName())
                 .append('\n');
+        input.append(String.format(Locale.KOREA, "이번 달 지출: %,d원%n", context.monthlyExpense()));
+        input.append(String.format(Locale.KOREA, "지금 매달 모으는 금액: %,d원%n", context.currentSaving()));
+        input.append(String.format(Locale.KOREA, "줄이면 매달 더 남는 금액: %,d원%n", context.savedPerMonth()));
         input.append("CURRENT(지금처럼): ").append(describeMonths(context.currentMonths())).append('\n');
         input.append("REDUCED(줄이면): ").append(describeMonths(context.reducedMonths())).append('\n');
         return input.toString();

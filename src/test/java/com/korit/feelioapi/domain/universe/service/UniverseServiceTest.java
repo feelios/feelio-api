@@ -187,6 +187,32 @@ class UniverseServiceTest {
     }
 
     @Test
+    void 롤링_코멘트는_전부_소비_숫자_이야기다() {
+        // income 3,000,000 / expense 2,000,000 → 현행 저축 1,000,000
+        // 배달 1,000,000 의 절반을 줄여 지출 1,500,000 → 감축 저축 1,500,000, 매달 +500,000
+        when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 20_000_000, 0));
+        when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
+        when(universeMapper.findMonthlyTotals(100L, 2026, 7))
+                .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
+        when(universeMapper.findTopCategory(100L, 2026, 7))
+                .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
+
+        UniverseResponse res = universeService.simulate(100L, 1L);
+
+        // 소비 시뮬레이션 화면이다. 응원·덕담이 아니라 근거가 되는 금액이 나와야 한다.
+        assertThat(res.scenarios().get(0).narrations())
+                .containsExactly(
+                        "지금 속도라면 약 20개월 뒤 제주도 여행에 닿아요.",
+                        "이번 달 지출 2,000,000원 기준이에요.",
+                        "지금은 매달 1,000,000원씩 모으고 있어요.");
+        assertThat(res.scenarios().get(1).narrations())
+                .containsExactly(
+                        "이렇게 줄이면 약 14개월 뒤 제주도 여행 도착, 6개월 빨라져요.",
+                        "배달 지출을 줄이면 매달 500,000원이 더 남아요.",
+                        "그만큼 제주도 여행 도착이 앞당겨져요.");
+    }
+
+    @Test
     void 목표_이름이_비면_목표라고만_부른다() {
         when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 20_000_000, 0, "  "));
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));

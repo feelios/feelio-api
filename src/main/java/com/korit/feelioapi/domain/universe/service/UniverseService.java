@@ -69,9 +69,13 @@ public class UniverseService {
         Projection reduced = project(income, reducedExpense, remaining);
 
         // 숫자를 모두 확정한 뒤 문장을 한 번에 받는다. 두 문장은 서로를 참조해야(몇 개월 빨라지는지) 자연스럽다.
+        // 금액도 함께 넘긴다 — 숫자를 안 주면 모델이 소비와 무관한 말로 칸을 채운다.
         List<List<String>> narrations = scenarioNarrator.narrate(new NarrationContext(
                 goal.name(),
                 topCategory == null ? null : topCategory.name(),
+                expense,
+                current.saving(),
+                reduced.saving() - current.saving(),
                 current.months(),
                 reduced.months()));
 
