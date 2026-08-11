@@ -517,8 +517,8 @@ Response(200) `data`:
   "topCategory": { "categoryId": 2, "name": "배달", "monthlyAmount": 120000 },
   "reductionRate": 0.5,
   "scenarios": [
-    { "key": "CURRENT", "title": "지금처럼 쓴다면",     "monthlyExpense": 250000, "monthlySaving": 150000, "monthsToGoal": 12, "estimatedAchieveDate": "2027-07", "narrations": ["지금 속도라면 약 12개월 뒤 제주도 여행에 닿아요.", "제주도 여행에 한 걸음씩 가까워지고 있어요.", "지금 속도를 지키는 것만으로도 충분해요."] },
-    { "key": "REDUCED", "title": "배달 소비를 줄이면",   "monthlyExpense": 190000, "monthlySaving": 210000, "monthsToGoal": 9,  "estimatedAchieveDate": "2027-04", "narrations": ["배달 소비를 절반 줄이면 3개월 빨라져요.", "제주도 여행이 3개월 앞당겨져요.", "이번 주 배달을 한 번만 줄여볼까요?"] }
+    { "key": "CURRENT", "title": "지금처럼 쓴다면",     "monthlyExpense": 250000, "monthlySaving": 150000, "monthsToGoal": 12, "daysToGoal": 355, "estimatedAchieveDate": "2027-07", "narrations": ["지금 속도라면 약 12개월 뒤 제주도 여행에 닿아요.", "제주도 여행에 한 걸음씩 가까워지고 있어요.", "지금 속도를 지키는 것만으로도 충분해요."] },
+    { "key": "REDUCED", "title": "배달 소비를 줄이면",   "monthlyExpense": 190000, "monthlySaving": 210000, "monthsToGoal": 9,  "daysToGoal": 259, "estimatedAchieveDate": "2027-04", "narrations": ["배달 소비를 절반 줄이면 3개월 빨라져요.", "제주도 여행이 3개월 앞당겨져요.", "이번 주 배달을 한 번만 줄여볼까요?"] }
   ]
 }
 ```
@@ -531,7 +531,10 @@ Response(200) `data`:
   - `narrations`: 시나리오당 문장 배열. 프론트가 차례로 돌려 보여준다.
   - `REDUCED.monthlyExpense = monthlyExpense − round(topCategory.monthlyAmount × reductionRate)` (topCategory 가 `null`이면 CURRENT 와 동일).
   - `monthlySaving = monthlyIncome − 시나리오 monthlyExpense` (음수면 0 처리).
-  - `monthsToGoal = ceil((targetAmount − currentAmount) / monthlySaving)`. `monthlySaving ≤ 0`이면 `monthsToGoal`·`estimatedAchieveDate` 모두 `null`(도달 불가).
+  - `monthsToGoal = ceil((targetAmount − currentAmount) / monthlySaving)`. `monthlySaving ≤ 0`이면 `monthsToGoal`·`daysToGoal`·`estimatedAchieveDate` 모두 `null`(도달 불가).
+  - `daysToGoal = ceil(정확한 개월수 × 30)`. 개월은 올림이라 한 달 안쪽에서 두 시나리오가 같은 값이 된다
+    (0.90개월과 0.84개월이 둘 다 1개월). 더 모으는 쪽이 같은 시점에 닿는 것처럼 보이므로 잔 단위를 함께 준다.
+    프론트는 `monthsToGoal ≤ 1` 일 때 일수로 바꿔 보여준다.
 - 에러: `NOT_FOUND`(목표 없음) · `FORBIDDEN`(타인 목표) · `VALIDATION_ERROR`(goalId 누락).
 
 ## 10. 캐시 무효화 규칙 (프론트 TanStack Query)
