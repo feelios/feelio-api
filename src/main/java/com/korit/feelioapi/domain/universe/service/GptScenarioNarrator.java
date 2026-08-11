@@ -78,8 +78,8 @@ public class GptScenarioNarrator implements ScenarioNarrator {
 
             아래는 모양을 보여주는 예시일 뿐이다. 숫자도 문장도 전부 입력에 맞게 새로 써라.
             예시 문장을 그대로 베끼지 마라.
-            [["지금 속도라면 약 12개월 뒤 유럽 여행에 닿아요.","이번 달 지출 250,000원 기준이에요.","이 속도면 내년 여름에 도착해요."],
-             ["카페 지출을 줄이면 약 9개월, 3개월 빨라져요.","줄이면 매달 60,000원이 더 남아요.","그만큼 유럽 여행 도착이 앞당겨져요."]]
+            [["지금 속도라면 약 12개월 뒤 유럽 여행에 닿아요.","유럽 여행까지 3,600,000원 남았어요.","지금은 매달 300,000원씩 모으고 있어요."],
+             ["카페 지출을 줄이면 약 9개월, 3개월 빨라져요.","남은 3,600,000원을 더 빨리 채울 수 있어요.","줄이면 매달 모으는 돈이 400,000원이 돼요."]]
             """;
 
     /** 모델 응답 파싱 전용. 컨테이너에 ObjectMapper 빈이 없어 직접 만든다. */
@@ -95,7 +95,7 @@ public class GptScenarioNarrator implements ScenarioNarrator {
     public GptScenarioNarrator(OpenAIClient openAIClient,
                                RuleBasedScenarioNarrator fallback,
                                @Value("${openai.model}") String model,
-                               @Value("${openai.timeout-seconds}") long timeoutSeconds,
+                               @Value("${openai.timeout-seconds-universe:10}") long timeoutSeconds,
                                AiCallGuard guard) {
         this.openAIClient = openAIClient;
         this.fallback = fallback;
@@ -123,8 +123,10 @@ public class GptScenarioNarrator implements ScenarioNarrator {
                 log.warn("시나리오 문장에 사람 말이 아닌 값이 섞였다. 규칙기반으로 대체한다. 응답={}", cleaned);
                 return fallback.narrate(context);
             }
-            log.warn("시나리오 문장 형식 불일치(기대 {}행, 실제 {}행). 규칙기반으로 대체한다.",
-                    SCENARIO_COUNT, parsed.size());
+            // 원문을 남긴다. 형식이 왜 어긋났는지는 응답을 봐야만 알 수 있는데,
+            // 예전에는 개수만 찍어서 매번 추측으로 시작해야 했다.
+            log.warn("시나리오 문장 형식 불일치(기대 {}행, 실제 {}행). 규칙기반으로 대체한다. 파싱결과={}",
+                    SCENARIO_COUNT, parsed.size(), parsed);
         } catch (Exception e) {
             log.warn("시나리오 문장 생성 실패. 규칙기반으로 대체한다.", e);
         }
