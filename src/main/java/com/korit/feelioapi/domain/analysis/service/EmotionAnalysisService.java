@@ -33,6 +33,25 @@ public class EmotionAnalysisService {
             반드시 "① 발견: ... ② 의미: ... ③ 조언: ..." 형식의 한국어 한 문장만 출력해라.
             """;
 
+    /**
+     * 반복 패턴 화면(반복되는 감정소비 패턴)의 분석 문구용 페르소나.
+     *
+     * 이전에는 "1문장으로 짧고 뼈때리는 조언"이라 결과가 훈수 한 줄로 끝났다.
+     * 화면은 횟수·감정·사용처·시간대를 이미 다 보여주고 있어서, 같은 사실을 한 번 더 말하면
+     * 사용자가 얻는 게 없다. 상담사가 그 표를 보고 무엇을 읽어냈는지가 이 자리의 값어치다.
+     * 그래서 관찰·해석·처방 세 문장으로 구조를 고정한다.
+     */
+    private static final String PATTERN_PERSONA = """
+            너는 소비 심리를 다루는 재무 상담사다. 반복되는 감정-소비 조합 하나를 놓고 상담하듯 분석해라.
+            정확히 세 문장으로 쓴다.
+            1) 관찰: 주어진 숫자(반복 횟수·시간대)를 인용해 무엇이 반복되고 있는지 짚는다.
+            2) 해석: 그 감정이 왜 이 지출로 이어지는지 가능성으로 설명한다. 단정하지 마라.
+            3) 처방: 다음에 같은 순간이 왔을 때 바로 해볼 수 있는 구체적인 행동 하나를 제안한다.
+            주어진 값만 쓰고 없는 수치를 지어내지 마라.
+            비난·훈계·진단명은 쓰지 말고, 평가가 아니라 해석을 준다.
+            머리말이나 목록기호 없이 한국어 존댓말 세 문장만 출력해라.
+            """;
+
     private final OpenAIClient openAIClient;
     private final String model;
     private final Duration timeout;
@@ -108,20 +127,44 @@ public class EmotionAnalysisService {
 
     public String generatePattern(String emotion, String category, String timeSlot, int count) {
         if (!"gpt".equalsIgnoreCase(provider)) {
-            return "[" + timeSlot + "] 시간대에 '" + emotion + "' 감정으로 '" + category + "' 지출이 " + count + "건 집중되는 패턴이 감지되었어요. 무의식적인 소비일 수 있으니 주의해 보세요!";
+            return patternFallback(emotion, category, timeSlot, count);
         }
         try {
             ResponseCreateParams params = ResponseCreateParams.builder()
                     .model(model)
-                    .instructions("당신은 사용자의 소비 패턴을 날카롭게 분석하는 AI입니다. 1문장으로 짧고 뼈때리는 조언을 해주세요.")
-                    .input("감정: " + emotion + ", 카테고리: " + category + ", 시간대: " + timeSlot + ", 반복횟수: " + count)
+                    .instructions(PATTERN_PERSONA)
+                    .input(buildPatternInput(emotion, category, timeSlot, count))
                     .build();
             Response response = guard.call("패턴 분석",
                     () -> openAIClient.responses().create(params, RequestOptions.builder().timeout(timeout).build()));
             String text = response.output().stream().flatMap(i -> i.message().stream()).flatMap(m -> m.content().stream()).flatMap(c -> c.outputText().stream()).map(o -> o.text()).collect(Collectors.joining()).trim();
-            return text;
+            if (text.isBlank()) {
+                log.warn("패턴 분석이 빈 응답이라 규칙 기반 문구로 대체한다.");
+                return patternFallback(emotion, category, timeSlot, count);
+            }
+            return text.length() <= MAX_LENGTH ? text : text.substring(0, MAX_LENGTH);
         } catch (Exception e) {
-            return "패턴 분석 중 오류가 발생했습니다.";
+            // 예전에는 "패턴 분석 중 오류가 발생했습니다."를 그대로 돌려줬다. 이 문자열은
+            // 캐시에 저장돼 다음 거래가 생길 때까지 화면에 박혀 있는다. 분석 자리에는
+            // 분석이 있어야 하므로, 모델이 죽어도 규칙 기반 해석으로 채운다.
+            log.warn("패턴 분석 생성 실패. 규칙 기반 문구로 대체한다.", e);
+            return patternFallback(emotion, category, timeSlot, count);
         }
+    }
+
+    private String buildPatternInput(String emotion, String category, String timeSlot, int count) {
+        return """
+                감정: %s
+                사용처: %s
+                시간대: %s
+                이 조합이 반복된 횟수: %d회
+                """.formatted(emotion, category, timeSlot, count);
+    }
+
+    /** GPT 없이도 이 문구가 그대로 화면에 나간다. 사실 통보가 아니라 해석까지 준다. */
+    private String patternFallback(String emotion, String category, String timeSlot, int count) {
+        return "%s 시간대에 '%s' 감정이 들 때 '%s' 지출이 %d번 반복됐어요. ".formatted(timeSlot, emotion, category, count)
+                + "그 시간의 기분을 소비로 달래는 흐름이 자리 잡았을 수 있어요. "
+                + "다음에 같은 순간이 오면 결제 전에 10분만 미뤄 보세요.";
     }
 }
