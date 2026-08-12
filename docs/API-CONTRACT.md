@@ -309,6 +309,9 @@ Response `data`:
 }
 ```
 - 기록 없는 날짜는 배열에서 생략. 대표 감정 동률 시 최근 기록 우선(초안).
+- **지출(EXPENSE) 기록 기준 집계.** `transactionCount`도 그날의 지출 건수다.
+  수입만 있는 날은 배열에서 생략한다 — 감정 색은 감정 소비 회고이고,
+  `summary/emotions`(능선·대표 말랑이)와 기준이 갈리면 같은 홈에서 서로 다른 감정이 대표가 된다.
 
 ### GET /api/summary/emotions?year&month · 인증 필요
 Response `data`:
