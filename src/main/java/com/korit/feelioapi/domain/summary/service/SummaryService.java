@@ -27,7 +27,7 @@ public class SummaryService {
     private final RuleMallangCommentGenerator ruleMallangCommentGenerator;
     private final AnalysisService analysisService;
     private final ConcurrentHashMap<AiCommentCacheKey, SummaryAiCommentResponse> aiCommentCache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<AiCommentCacheKey, MallangCommentResponse> mallangCommentCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<MallangCacheKey, MallangCommentResponse> mallangCommentCache = new ConcurrentHashMap<>();
 
     @Transactional(readOnly = true)
     public CalendarSummaryResponse getCalendarSummary(Long userId, Integer year, Integer month) {
@@ -80,7 +80,16 @@ public class SummaryService {
     @Transactional(readOnly = true)
     public MallangCommentResponse getMallangComment(Long userId) {
         LocalDate today = LocalDate.now();
-        AiCommentCacheKey key = new AiCommentCacheKey(userId, today);
+        LocalDate prevMonth = today.minusMonths(1);
+
+        EmotionContext emotion = EmotionContext.of(
+                summaryMapper.findEmotionSummary(userId, today.getYear(), today.getMonthValue()),
+                summaryMapper.findEmotionSummary(userId, prevMonth.getYear(), prevMonth.getMonthValue())
+        );
+
+        // 대표 감정을 캐시 키에 넣는다. 감정이 그대로면 하루 1회로 묶이고, 오늘 새 감정을
+        // 기록해 1위가 바뀌면 그때만 다시 생성한다 — 문구가 감정을 못 따라가는 걸 막는다.
+        MallangCacheKey key = new MallangCacheKey(userId, today, emotion.name());
         mallangCommentCache.keySet().removeIf(existing -> existing.date().isBefore(today));
 
         return mallangCommentCache.computeIfAbsent(key, ignored -> {
@@ -89,14 +98,24 @@ public class SummaryService {
             SpendStatus status = SpendStatus.of(expense, budget);
             int usageRate = budget > 0 ? (int) Math.round(expense * 100.0 / budget) : 0;
 
-            MallangComment comment = mallangCommentGenerator.generate(status, expense, budget, usageRate);
+            MallangComment comment = mallangCommentGenerator.generate(status, expense, budget, usageRate, emotion);
             if (comment == null || !comment.isUsable()) {
-                comment = ruleMallangCommentGenerator.generate(status, expense, budget, usageRate);
+                comment = ruleMallangCommentGenerator.generate(status, expense, budget, usageRate, emotion);
             }
-            return new MallangCommentResponse(comment.evaluation(), comment.encouragement(), status.name());
+            return new MallangCommentResponse(
+                    comment.empathy(), comment.evaluation(), comment.encouragement(),
+                    status.name(), emotion.name());
         });
     }
 
     private record AiCommentCacheKey(Long userId, LocalDate date) {
+    }
+
+    /**
+     * 말랑이 코멘트 캐시 키. 날짜에 더해 대표 감정까지 묶는다(A12-3).
+     *
+     * <p>emotion 은 null 일 수 있다 — 당월 감정 기록이 없는 경우다.
+     */
+    private record MallangCacheKey(Long userId, LocalDate date, String emotion) {
     }
 }

@@ -41,7 +41,7 @@
 | [ ] | - | A6-2 | 거래내역 저축-목표 매핑 (FK) | feat/transaction-goal-mapping | 신규 API | Ctrl·Svc·DTO·Mapper+XML | transactions | 신규 | 카테고리가 '저축'인 지출 생성 시 goal_id(Nullable) 함께 매핑하여 저장 처리 |
 | [x] | - | A6-3 | 목표 달성액(모은 돈) 동적 산출 | feat/goal-amount-dynamic-calc | 신규 API | Ctrl·Svc·Mapper+XML | goals, transactions | 완료 | 목표의 현재 금액을 단순 DB 값이 아닌 `초기금액 + SUM(해당 goal_id 거래액)`으로 산출 반환 |
 | [x] | - | A6-4 | 동적 예산 분석 로직 개편 | feat/analysis-dynamic-budget | 신규 API | Ctrl·Svc·DTO | goals | 완료 | 기존 5% 로직 폐기, 모든 활성 목표의 월별 필요 저축액을 합산하여 이번 달 최종 예산으로 산출 및 초과/미달 판단 |
-| [ ] | - | A6-5 | 거래내역 정산금액 합치기(Merge) API | feat/transaction-merge | 신규 API | Ctrl·Svc·Mapper | transactions | 신규 | 거래내역 수정 모달에서 정산받은 금액(receivedAmount) 입력 시 원본 지출 금액에서 차감하여 단일 거래로 덮어씌우는 물리적 병합 API |
+| [-] | - | A6-5 | ~~거래내역 정산금액 합치기(Merge) API~~ | feat/transaction-merge | 신규 API | Ctrl·Svc·Mapper | transactions | **제거** | **더치페이 정산 기능 자체가 팀 결정으로 제거됨.** API·`is_settled` 컬럼 모두 없으며 다시 만들지 않는다. 계약서 §6 참조 |
 | [x] | - | FIX-1 | OAuth2 Stateless 세션 충돌 및 설정 오류 수정 | fix/oauth2-stateless | §3 | config | - | 완료 | 1. 쿠키 기반 인증 요청 저장소(HttpCookieOAuth2AuthorizationRequestRepository) 구현<br>2. SecurityConfig 권한 및 저장소 주입<br>3. OAuth2SuccessHandler ResponseCookie(SameSite=Lax) 적용<br>4. application.yaml 카카오/네이버 `client_secret_post` 및 `user-name-attribute` 오타 수정 |
 | [x] | 108 | A7-1 | 홈 화면 AI 멘트 — 계약 확정 및 구현 | feat/summary-ai-comment | §8 | Ctrl·Svc·DTO·Mapper | transactions(집계) | 완료 | `GET /api/summary/ai-comment` 분리 → 당월·전월 지출 비교 멘트, 사용자별 일 1회 메모리 캐시. 거래 없음·GPT 실패 시 `comment: null` 200 응답으로 홈 로딩과 분리 |
 | [x] | 106 | A7-2 | AI 분석 인사이트 GPT 연동 | feat/analysis-gpt-insights | §9 | Svc·Entity·Mapper+XML | ai_insights | 완료 (PR #121) | 1. `InsightCardGenerator` 인터페이스 + 규칙기반·GPT 구현체 2종<br>2. `AiQuickInsightAssembler`로 계약 §9 4건 고정·순서 고정 조립, `SpendStatus`로 전월 대비 소비 위험도<br>3. `AiInsight` 엔티티 + `AiInsightStore` + Mapper XML — `ai_insights` 저장(최초 생성 후 DB 조회, 당월 `INSIGHT_TTL_HOURS` 주기 재생성)<br>4. GPT 실패 시 규칙기반 폴백. **`INSIGHT_PROVIDER` 기본값이 `rule`이라 머지만으로는 GPT가 켜지지 않는다** — 활성화는 배포 `.env`에 `INSIGHT_PROVIDER=gpt` + `OPENAI_KEY` 필요 |
@@ -81,6 +81,7 @@
 | [ ] | - | A11-8 | 과거 달 예산 현황(Budget Status) 동적 조회 API 확장 | `feat/historical-budget-api` | - | Ctrl·Svc | - | 신규 | GET /api/analysis/budget API에 year, month 파라미터 추가 및 과거 지출 기반 예산 동적 산출 구현 (F17-5 연계) |
 | [ ] | - | A12-1 | AI 챌린지 주간 단위 갱신 적용 및 스키마 수정 | `feat/ai-challenge-weekly-update` | - | Svc·DB | - | 신규 | ai_insights 캐싱 기준을 year-month-week로 세분화하여 매주 새로운 챌린지를 반환하도록 로직 및 DB 유니크 키 확장 |
 | [ ] | - | A12-2 | 시스템 기본 카테고리 DB 리스트 전면 수정 | `feat/default-category-update` | - | DB | - | 신규 | 앱 초기화 시 제공되는 카테고리 17종(식비, 배달 등)으로 데이터베이스 기본 데이터 마이그레이션 |
+| [ ] | #240 | A12-3 | 말랑이 코멘트 당월 대표 감정 기반 개인화 | `feat/mallang-emotion-comment` | §7 | Svc·DTO | emotions, transactions | 신규 | 당월 최다 감정을 프롬프트에 주입해 감정 기반 문구 생성. 감정명·수치는 서버가 확정하고 AI는 문장만 생성. 규칙기반 폴백도 감정별로 분기 |
 
 
 
