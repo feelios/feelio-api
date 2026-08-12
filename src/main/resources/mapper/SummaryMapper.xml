@@ -22,6 +22,11 @@
       그래서 수입 기록이 하루의 색을 정해버리면 달력만 혼자 다른 감정을 칠했고,
       수입을 지워도 능선·말랑이는 꿈쩍하지 않아 "삭제해도 갱신이 안 된다"로 보였다.
       감정 색은 감정 소비 회고이므로 기준을 지출로 통일한다.
+
+      동점 처리도 홈과 같아야 한다. 예전엔 '가장 최근 기록'으로 갈랐는데, 하루에 한 건씩
+      네 감정을 적으면 전부 1건이라 늘 마지막에 적은 감정이 그날의 색이 됐다.
+      34만원짜리 뿌듯함을 2만원짜리 스트레스가 이기는 식이다. 홈의 대표 말랑이는
+      횟수 → 금액으로 가르므로 같은 규칙을 쓴다(최근 기록은 마지막 결정자로만 남긴다).
     -->
     <select id="findCalendarSummary" resultMap="calendarDayResultMap">
         WITH DailyEmotions AS (
@@ -29,6 +34,7 @@
                 DATE(t.occurred_at) as date,
                 t.emotion_id,
                 COUNT(*) as emotion_count,
+                SUM(t.amount) as emotion_amount,
                 MAX(t.occurred_at) as max_occurred_at
             FROM transactions t
             WHERE t.user_id = #{userId}
@@ -43,7 +49,10 @@
             SELECT
                 de.date,
                 de.emotion_id,
-                ROW_NUMBER() OVER (PARTITION BY de.date ORDER BY de.emotion_count DESC, de.max_occurred_at DESC) as rn
+                ROW_NUMBER() OVER (
+                    PARTITION BY de.date
+                    ORDER BY de.emotion_count DESC, de.emotion_amount DESC, de.max_occurred_at DESC
+                ) as rn
             FROM DailyEmotions de
         ),
         DailyStats AS (
