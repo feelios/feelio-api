@@ -14,6 +14,15 @@
         </association>
     </resultMap>
 
+    <!--
+      하루의 대표 감정을 뽑는다. 집계 대상은 지출(EXPENSE)뿐이다.
+
+      예전에는 type 을 가리지 않고 셌다. 그런데 홈의 다른 집계(감정 능선·대표 말랑이의
+      findEmotionSummary, 월 소비 findMonthlyExpense, analysis 쿼리 전부)는 지출만 센다.
+      그래서 수입 기록이 하루의 색을 정해버리면 달력만 혼자 다른 감정을 칠했고,
+      수입을 지워도 능선·말랑이는 꿈쩍하지 않아 "삭제해도 갱신이 안 된다"로 보였다.
+      감정 색은 감정 소비 회고이므로 기준을 지출로 통일한다.
+    -->
     <select id="findCalendarSummary" resultMap="calendarDayResultMap">
         WITH DailyEmotions AS (
             SELECT
@@ -23,6 +32,7 @@
                 MAX(t.occurred_at) as max_occurred_at
             FROM transactions t
             WHERE t.user_id = #{userId}
+              AND t.type = 'EXPENSE'
               AND YEAR(t.occurred_at) = #{year}
               <if test="month != null">
               AND MONTH(t.occurred_at) = #{month}
@@ -40,9 +50,10 @@
             SELECT
                 DATE(t.occurred_at) as date,
                 COUNT(*) as transaction_count,
-                COALESCE(SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END), 0) as total_expense
+                COALESCE(SUM(t.amount), 0) as total_expense
             FROM transactions t
             WHERE t.user_id = #{userId}
+              AND t.type = 'EXPENSE'
               AND YEAR(t.occurred_at) = #{year}
               <if test="month != null">
               AND MONTH(t.occurred_at) = #{month}
