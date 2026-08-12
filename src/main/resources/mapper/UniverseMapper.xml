@@ -5,12 +5,21 @@
 <!-- universe 도메인 SQL. namespace/id 는 UniverseMapper 인터페이스와 정확히 일치. #{} 만 사용. -->
 <mapper namespace="com.korit.feelioapi.domain.universe.mapper.UniverseMapper">
 
-    <!-- 목표 단건: 소유권은 Service 가 user_id 로 검증. -->
+    <!--
+      목표 단건: 소유권은 Service 가 user_id 로 검증.
+
+      모은 금액은 goals.current_amount 컬럼을 읽지 않는다. 그 컬럼은 갱신되지 않아 늘 0 이고,
+      GoalMapper 는 처음부터 '시드(initial_amount) + 목표에 연결된 거래 합' 으로 계산해 왔다.
+      여기만 컬럼을 읽어서 홈은 "45만원 남음", 평행우주는 "100만원 남음" 이라고 말했다.
+      계산식을 GoalMapper 와 같은 것으로 맞춘다.
+    -->
     <select id="findGoalById" resultType="com.korit.feelioapi.domain.universe.dto.GoalRow">
-        SELECT goal_id AS goalId, user_id AS userId, name AS name,
-               target_amount AS targetAmount, current_amount AS currentAmount
-        FROM goals
-        WHERE goal_id = #{goalId}
+        SELECT g.goal_id AS goalId, g.user_id AS userId, g.name AS name,
+               g.target_amount AS targetAmount,
+               (g.initial_amount + COALESCE((SELECT SUM(amount) FROM transactions
+                                             WHERE goal_id = g.goal_id AND user_id = g.user_id), 0)) AS currentAmount
+        FROM goals g
+        WHERE g.goal_id = #{goalId}
     </select>
 
     <!-- 거래가 있는 가장 최근 연·월. 거래 없으면 MAX(occurred_at)=NULL → year/month NULL. -->
