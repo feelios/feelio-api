@@ -103,7 +103,8 @@ public class SummaryService {
                 comment = ruleMallangCommentGenerator.generate(status, expense, budget, usageRate, emotion);
             }
             return new MallangCommentResponse(
-                    comment.evaluation(), comment.encouragement(), status.name(), emotion.name());
+                    comment.empathy(), comment.evaluation(), comment.encouragement(),
+                    status.name(), emotion.name());
         });
     }
 

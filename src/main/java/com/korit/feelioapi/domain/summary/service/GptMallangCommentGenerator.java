@@ -94,13 +94,19 @@ public class GptMallangCommentGenerator implements MallangCommentGenerator {
                 수치: %s
                 감정: %s
 
-                아래 두 문장을 '|' 하나로 이어서 한 줄로만 출력해라.
-                1) 현황 평가 — 위 수치 중 최소 하나를 그대로 문장에 넣어라. 숫자를 바꾸거나 새로 만들지 마라.
-                2) 다음 행동 독려 — 위 감정에 맞춘 구체적이고 부담 없는 제안 한 가지.
+                아래 세 문장을 '|' 두 개로 이어서 한 줄로만 출력해라.
+                1) 감정 공감 — 위 감정을 그대로 짚어주는 한마디. 수치는 넣지 마라.
+                2) 현황 평가 — 위 수치 중 최소 하나를 그대로 문장에 넣어라. 숫자를 바꾸거나 새로 만들지 마라.
+                3) 다음 행동 독려 — 구체적이고 부담 없는 제안 한 가지.
 
                 각 문장은 %d자 이내. 훈계·과장·이모지·따옴표·번호를 쓰지 마라.
                 감정을 진단하거나 고치려 들지 말고, 그 감정을 인정하는 톤으로 말해라.
-                예시 형식: 이번 달 320,000원 썼어. 예산의 78%%야.|스트레스받은 날이 많았네, 이번 주는 배달 대신 산책 한 번 어때?
+
+                여기는 돈을 아껴 목표를 모으는 앱이다. 3번 제안은 반드시 기록·절약·목표 저금 중
+                하나로 이어져야 한다. 카페·쇼핑·외식처럼 돈을 더 쓰는 행동을 권하지 마라.
+                돈이 드는 활동을 언급해야 한다면 '대신 줄여보자'는 방향으로만 써라.
+
+                예시 형식: 설렘이 가득한 달이었네.|이번 달 320,000원 썼어. 예산의 78%%야.|설레는 날 하나를 목표 저금으로 남겨볼까?
                 """.formatted(tone, numbers, emotionLine(emotion), MAX_LENGTH);
     }
 
@@ -137,15 +143,16 @@ public class GptMallangCommentGenerator implements MallangCommentGenerator {
         if (text == null || text.isBlank()) {
             return null;
         }
-        int separator = text.indexOf(SEPARATOR);
-        if (separator < 0) {
-            log.warn("말랑이 코멘트 형식 불일치(구분자 없음). 규칙기반으로 대체한다.");
+        // limit -1 로 뒤쪽 빈 조각까지 남긴다 — "공감||독려" 같은 응답을 통과시키면
+        // 빈 말풍선이 그대로 화면에 뜨므로 isUsable() 에서 걸러야 한다.
+        String[] parts = text.split("\\" + SEPARATOR, -1);
+        if (parts.length != 3) {
+            log.warn("말랑이 코멘트 형식 불일치(문장 {}개). 규칙기반으로 대체한다.", parts.length);
             return null;
         }
-        String evaluation = truncate(text.substring(0, separator).trim());
-        String encouragement = truncate(text.substring(separator + 1).trim());
 
-        MallangComment comment = new MallangComment(evaluation, encouragement);
+        MallangComment comment = new MallangComment(
+                truncate(parts[0].trim()), truncate(parts[1].trim()), truncate(parts[2].trim()));
         return comment.isUsable() ? comment : null;
     }
 

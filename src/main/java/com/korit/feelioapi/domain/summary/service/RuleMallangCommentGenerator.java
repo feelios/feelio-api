@@ -16,7 +16,28 @@ public class RuleMallangCommentGenerator implements MallangCommentGenerator {
 
     @Override
     public MallangComment generate(SpendStatus status, long expense, long budget, int usageRate, EmotionContext emotion) {
-        return new MallangComment(evaluation(status, expense, usageRate), encouragement(status, emotion));
+        return new MallangComment(
+                empathy(emotion), evaluation(status, expense, usageRate), encouragement(status, emotion));
+    }
+
+    /**
+     * 감정 공감 문장. 감정 기록이 없으면 감정을 지어내지 않고 기록을 권하는 말로 대신한다.
+     */
+    private String empathy(EmotionContext emotion) {
+        if (emotion == null || !emotion.hasEmotion()) {
+            return "이번 달은 아직 네 마음을 못 봤어.";
+        }
+        return switch (emotion.name()) {
+            case "신남" -> "이번 달은 신나는 날이 많았네.";
+            case "설렘" -> "이번 달은 설렘이 가득했구나.";
+            case "뿌듯함" -> "이번 달은 뿌듯한 날이 많았어.";
+            case "스트레스" -> "이번 달은 스트레스가 자주 쌓였구나.";
+            case "외로움" -> "이번 달은 혼자인 날이 많았구나.";
+            case "화남" -> "이번 달은 화날 일이 많았네.";
+            case "평온" -> "이번 달은 마음이 잔잔했구나.";
+            case "무덤덤" -> "이번 달은 담담하게 흘러갔네.";
+            default -> String.format("이번 달은 '%s'이 자주 찾아왔구나.", emotion.name());
+        };
     }
 
     private String evaluation(SpendStatus status, long expense, int usageRate) {
@@ -54,14 +75,14 @@ public class RuleMallangCommentGenerator implements MallangCommentGenerator {
      */
     private String byEmotion(String name) {
         return switch (name) {
-            case "신남" -> "신나는 날이 많았네. 그 기분 그대로 이번 주 한 번만 아껴볼까?";
-            case "설렘" -> "설렘이 자주 찾아왔네. 다음 설렘은 목표 저금으로 남겨볼까?";
-            case "뿌듯함" -> "뿌듯한 날이 많았어. 그 느낌 목표에도 한 번 담아볼까?";
-            case "스트레스" -> "스트레스가 자주 쌓였네. 오늘은 돈 안 드는 걸로 하나 풀어보자.";
-            case "외로움" -> "혼자인 날이 많았구나. 다음엔 사람 만나는 데 한 번 써볼까?";
-            case "화남" -> "화날 일이 많았네. 결제 전에 딱 10분만 미뤄보자.";
-            case "평온" -> "평온한 날이 많았어. 이 흐름이면 예산도 잘 지켜질 거야.";
-            case "무덤덤" -> "무덤덤한 날이 많았네. 작은 기록 하나로 흐름을 잡아볼까?";
+            case "신남" -> "그 기분 그대로 이번 주 한 번만 아껴볼까?";
+            case "설렘" -> "설레는 날 하나를 목표 저금으로 남겨볼까?";
+            case "뿌듯함" -> "그 뿌듯함, 목표 저금에도 한 번 담아볼까?";
+            case "스트레스" -> "오늘은 돈 안 드는 걸로 하나 풀어보자.";
+            case "외로움" -> "다음엔 돈 안 드는 약속 하나 잡아볼까?";
+            case "화남" -> "결제 버튼 누르기 전에 딱 10분만 미뤄보자.";
+            case "평온" -> "이 흐름이면 예산도 잘 지켜질 거야.";
+            case "무덤덤" -> "작은 기록 하나로 흐름을 잡아볼까?";
             default -> null;
         };
     }

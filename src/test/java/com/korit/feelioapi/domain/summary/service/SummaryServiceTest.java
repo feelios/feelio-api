@@ -147,7 +147,7 @@ class SummaryServiceTest {
                 .thenReturn(320_000L);
         when(analysisService.totalBudget(userId, today.getYear(), today.getMonthValue())).thenReturn(400_000L);   // 소진율 80% → WARNING
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt(), any()))
-                .thenReturn(new MallangComment("이번 달 320,000원 썼어. 예산의 80%야.", "이번 주는 한 번만 아껴볼까?"));
+                .thenReturn(new MallangComment("이번 달은 잔잔했네.", "이번 달 320,000원 썼어. 예산의 80%야.", "이번 주는 한 번만 아껴볼까?"));
 
         MallangCommentResponse response = summaryService.getMallangComment(userId);
 
@@ -183,7 +183,7 @@ class SummaryServiceTest {
                 .thenReturn(100_000L);
         when(analysisService.totalBudget(userId, today.getYear(), today.getMonthValue())).thenReturn(400_000L);   // 25% → SAVING
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt(), any()))
-                .thenReturn(new MallangComment("  ", ""));
+                .thenReturn(new MallangComment("  ", "", " "));
 
         MallangCommentResponse response = summaryService.getMallangComment(userId);
 
@@ -235,7 +235,7 @@ class SummaryServiceTest {
                 .thenReturn(320_000L);
         when(analysisService.totalBudget(userId, today.getYear(), today.getMonthValue())).thenReturn(400_000L);
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt(), any()))
-                .thenReturn(new MallangComment("평가", "독려"));
+                .thenReturn(new MallangComment("공감", "평가", "독려"));
 
         summaryService.getMallangComment(userId);
         summaryService.getMallangComment(userId);
@@ -261,7 +261,7 @@ class SummaryServiceTest {
         when(summaryMapper.findEmotionSummary(userId, prev.getYear(), prev.getMonthValue()))
                 .thenReturn(List.of(new EmotionSummaryDto(1L, "신남", 5, 90_000L)));
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt(), any()))
-                .thenReturn(new MallangComment("평가", "독려"));
+                .thenReturn(new MallangComment("공감", "평가", "독려"));
 
         MallangCommentResponse response = summaryService.getMallangComment(userId);
 
@@ -310,9 +310,12 @@ class SummaryServiceTest {
 
         assertThat(response.emotion()).isEqualTo("스트레스");
         // 개인화가 폴백에서도 살아 있어야 한다 — 상태 기본 문구로 떨어지면 안 된다
+        assertThat(response.empathy()).contains("스트레스");
         assertThat(response.encouragement()).isNotEqualTo("이번 주는 한 번만 아껴봐도 충분해.");
-        assertThat(response.encouragement()).contains("스트레스");
         assertThat(response.evaluation()).contains("320,000원");
+        // 말풍선 세 칸이 모두 차야 한다
+        assertThat(response.empathy()).isNotBlank();
+        assertThat(response.encouragement()).isNotBlank();
     }
 
     @Test
@@ -327,7 +330,7 @@ class SummaryServiceTest {
                 .thenReturn(List.of(new EmotionSummaryDto(4L, "스트레스", 9, 180_000L)))
                 .thenReturn(List.of(new EmotionSummaryDto(1L, "신남", 12, 200_000L)));
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt(), any()))
-                .thenReturn(new MallangComment("평가", "독려"));
+                .thenReturn(new MallangComment("공감", "평가", "독려"));
 
         MallangCommentResponse first = summaryService.getMallangComment(userId);
         MallangCommentResponse second = summaryService.getMallangComment(userId);
