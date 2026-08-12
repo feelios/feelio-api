@@ -58,9 +58,8 @@ public class CategoryService {
     }
 
     private void ensureCategoryOrdersInitialized(Long userId, String type) {
-        int orderCount = categoryMapper.countCategoryOrders(userId, type);
-        if (orderCount == 0) {
-            categoryMapper.initializeCategoryOrders(userId, type);
-        }
+        // 일부 순서 데이터가 남아 있어도 누락된 기본 카테고리는 다시 연결해야 한다.
+        // 단순 COUNT 검사로 초기화를 건너뛰면 조회 결과가 비거나 일부만 노출될 수 있다.
+        categoryMapper.initializeCategoryOrders(userId, type);
     }
 }
