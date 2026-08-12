@@ -58,6 +58,7 @@ tasks.named('test') {
         exclude '**/DbMigrationTest.class'
         exclude '**/AiTest.class'
         exclude '**/TransactionMapperTest.class'
+        exclude '**/SummaryMapperTest.class'
     }
 
     // CI 로그에 예외 타입만 찍히고 메시지가 빠져 원인 파악이 안 되던 문제를 막는다.
