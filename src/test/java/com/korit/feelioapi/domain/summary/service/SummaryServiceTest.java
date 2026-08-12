@@ -347,13 +347,15 @@ class SummaryServiceTest {
         when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
                 .thenReturn(320_000L);
         when(analysisService.totalBudget(userId, today.getYear(), today.getMonthValue())).thenReturn(400_000L);
-        when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt()))
-                .thenReturn(new MallangComment("평가", "격려"));
+        when(summaryMapper.findEmotionSummary(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(List.of(new EmotionSummaryDto(4L, "스트레스", 9, 180_000L)));
+        when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt(), any()))
+                .thenReturn(new MallangComment("공감", "평가", "격려"));
 
         summaryService.getMallangComment(userId);
         summaryService.evictCommentCache(new TransactionChangedEvent(userId));
         summaryService.getMallangComment(userId);
 
-        verify(mallangCommentGenerator, times(2)).generate(any(), anyLong(), anyLong(), anyInt());
+        verify(mallangCommentGenerator, times(2)).generate(any(), anyLong(), anyLong(), anyInt(), any());
     }
 }
