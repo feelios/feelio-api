@@ -50,16 +50,52 @@ class UniverseServiceTest {
     }
 
     @Test
+    void 고른_카테고리들을_합쳐서_줄인다() {
+        when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 20_000_000, 0));
+        when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
+        when(universeMapper.findMonthlyTotals(100L, 2026, 7))
+                .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
+        when(universeMapper.findExpenseCategories(100L, 2026, 7)).thenReturn(java.util.List.of(
+                new TopCategoryDto(2L, "배달", 400_000L),
+                new TopCategoryDto(3L, "카페", 300_000L),
+                new TopCategoryDto(4L, "쇼핑", 200_000L)));
+
+        UniverseResponse res = universeService.simulate(100L, 1L, java.util.List.of(3L, 4L));
+
+        // 고른 둘(300,000 + 200,000)의 절반인 250,000 만 줄어든다 — 가장 큰 '배달'은 손대지 않는다
+        assertThat(res.focusCategories()).extracting(TopCategoryDto::name).containsExactly("카페", "쇼핑");
+        assertThat(res.categories()).hasSize(3);
+        assertThat(res.scenarios().get(1).monthlyExpense()).isEqualTo(1_750_000L);
+        assertThat(res.scenarios().get(1).title()).isEqualTo("카페·쇼핑 소비를 줄이면");
+    }
+
+    @Test
+    void 고른_카테고리가_없으면_가장_많이_쓴_것을_기본으로_삼는다() {
+        when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 20_000_000, 0));
+        when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
+        when(universeMapper.findMonthlyTotals(100L, 2026, 7))
+                .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
+        when(universeMapper.findExpenseCategories(100L, 2026, 7)).thenReturn(java.util.List.of(
+                new TopCategoryDto(2L, "배달", 400_000L),
+                new TopCategoryDto(3L, "카페", 300_000L)));
+
+        // 그 달에 지출이 없는 id 만 보내도 조용히 기본값으로 되돌린다
+        UniverseResponse res = universeService.simulate(100L, 1L, java.util.List.of(999L));
+
+        assertThat(res.focusCategories()).extracting(TopCategoryDto::name).containsExactly("배달");
+    }
+
+    @Test
     void 두_시나리오를_계산한다_REDUCED가_더_빠르다() {
         // remaining=20,000,000, income=3,000,000, expense=2,000,000, focus=1,000,000
         when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 20_000_000, 0));
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
         when(universeMapper.findMonthlyTotals(100L, 2026, 7))
                 .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
-        when(universeMapper.findTopCategory(100L, 2026, 7))
-                .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
+        when(universeMapper.findExpenseCategories(100L, 2026, 7))
+                .thenReturn(java.util.List.of(new TopCategoryDto(2L, "배달", 1_000_000L)));
 
-        UniverseResponse res = universeService.simulate(100L, 1L);
+        UniverseResponse res = universeService.simulate(100L, 1L, null);
 
         assertThat(res.reductionRate()).isEqualTo(0.5);
         assertThat(res.topCategory().name()).isEqualTo("배달");
@@ -90,10 +126,10 @@ class UniverseServiceTest {
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
         when(universeMapper.findMonthlyTotals(100L, 2026, 7))
                 .thenReturn(new UniverseTotalDto(2_400_000L, 600_000L));
-        when(universeMapper.findTopCategory(100L, 2026, 7))
-                .thenReturn(new TopCategoryDto(2L, "배달", 400_000L));
+        when(universeMapper.findExpenseCategories(100L, 2026, 7))
+                .thenReturn(java.util.List.of(new TopCategoryDto(2L, "배달", 400_000L)));
 
-        UniverseResponse res = universeService.simulate(100L, 1L);
+        UniverseResponse res = universeService.simulate(100L, 1L, null);
         ScenarioDto current = res.scenarios().get(0);
         ScenarioDto reduced = res.scenarios().get(1);
 
@@ -110,9 +146,9 @@ class UniverseServiceTest {
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
         when(universeMapper.findMonthlyTotals(100L, 2026, 7))
                 .thenReturn(new UniverseTotalDto(1_000_000L, 1_200_000L));
-        when(universeMapper.findTopCategory(100L, 2026, 7)).thenReturn(null);
+        when(universeMapper.findExpenseCategories(100L, 2026, 7)).thenReturn(java.util.List.of());
 
-        UniverseResponse res = universeService.simulate(100L, 1L);
+        UniverseResponse res = universeService.simulate(100L, 1L, null);
 
         assertThat(res.topCategory()).isNull();
         assertThat(res.scenarios().get(0).monthsToGoal()).isNull();
@@ -124,7 +160,7 @@ class UniverseServiceTest {
         when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 2_000_000, 0));
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(null, null));
 
-        UniverseResponse res = universeService.simulate(100L, 1L);
+        UniverseResponse res = universeService.simulate(100L, 1L, null);
 
         assertThat(res.monthlyIncome()).isZero();
         assertThat(res.monthlyExpense()).isZero();
@@ -134,7 +170,7 @@ class UniverseServiceTest {
 
     @Test
     void goalId_누락은_VALIDATION_ERROR() {
-        assertThatThrownBy(() -> universeService.simulate(100L, null))
+        assertThatThrownBy(() -> universeService.simulate(100L, null, null))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
     }
@@ -143,7 +179,7 @@ class UniverseServiceTest {
     void 없는_목표는_NOT_FOUND() {
         when(universeMapper.findGoalById(9L)).thenReturn(null);
 
-        assertThatThrownBy(() -> universeService.simulate(100L, 9L))
+        assertThatThrownBy(() -> universeService.simulate(100L, 9L, null))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.NOT_FOUND);
     }
@@ -152,7 +188,7 @@ class UniverseServiceTest {
     void 타인_목표는_FORBIDDEN() {
         when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 200L, 2_000_000, 0));
 
-        assertThatThrownBy(() -> universeService.simulate(100L, 1L))
+        assertThatThrownBy(() -> universeService.simulate(100L, 1L, null))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.FORBIDDEN);
     }
@@ -168,10 +204,10 @@ class UniverseServiceTest {
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
         when(universeMapper.findMonthlyTotals(100L, 2026, 7))
                 .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
-        when(universeMapper.findTopCategory(100L, 2026, 7))
-                .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
+        when(universeMapper.findExpenseCategories(100L, 2026, 7))
+                .thenReturn(java.util.List.of(new TopCategoryDto(2L, "배달", 1_000_000L)));
 
-        UniverseResponse res = new UniverseService(universeMapper, narrator).simulate(100L, 1L);
+        UniverseResponse res = new UniverseService(universeMapper, narrator).simulate(100L, 1L, null);
 
         ArgumentCaptor<NarrationContext> captor = ArgumentCaptor.forClass(NarrationContext.class);
         verify(narrator).narrate(captor.capture());
@@ -194,10 +230,10 @@ class UniverseServiceTest {
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
         when(universeMapper.findMonthlyTotals(100L, 2026, 7))
                 .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
-        when(universeMapper.findTopCategory(100L, 2026, 7))
-                .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
+        when(universeMapper.findExpenseCategories(100L, 2026, 7))
+                .thenReturn(java.util.List.of(new TopCategoryDto(2L, "배달", 1_000_000L)));
 
-        UniverseResponse res = universeService.simulate(100L, 1L);
+        UniverseResponse res = universeService.simulate(100L, 1L, null);
 
         // GPT 가 죽으면 이 문장이 그대로 화면에 나간다. 폴백이 '목표'라고만 말하면
         // 어떤 목표 이야기인지 알 수 없어, AI 를 붙인 의미가 폴백에서 사라진다.
@@ -219,10 +255,10 @@ class UniverseServiceTest {
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
         when(universeMapper.findMonthlyTotals(100L, 2026, 7))
                 .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
-        when(universeMapper.findTopCategory(100L, 2026, 7))
-                .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
+        when(universeMapper.findExpenseCategories(100L, 2026, 7))
+                .thenReturn(java.util.List.of(new TopCategoryDto(2L, "배달", 1_000_000L)));
 
-        UniverseResponse res = universeService.simulate(100L, 1L);
+        UniverseResponse res = universeService.simulate(100L, 1L, null);
 
         // 소비 시뮬레이션 화면이다. 응원·덕담이 아니라 근거가 되는 금액이 나와야 한다.
         // 카드에 이미 적힌 값(이번 달 지출·도달 개월)은 되풀이하지 않는다 — 넘겨 읽을 이유가 없어진다.
@@ -247,10 +283,10 @@ class UniverseServiceTest {
         when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
         when(universeMapper.findMonthlyTotals(100L, 2026, 7))
                 .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
-        when(universeMapper.findTopCategory(100L, 2026, 7))
-                .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
+        when(universeMapper.findExpenseCategories(100L, 2026, 7))
+                .thenReturn(java.util.List.of(new TopCategoryDto(2L, "배달", 1_000_000L)));
 
-        UniverseResponse res = universeService.simulate(100L, 1L);
+        UniverseResponse res = universeService.simulate(100L, 1L, null);
 
         // 이름이 없다고 "  에 닿아요" 같은 문장이 나가면 안 된다.
         assertThat(res.scenarios().get(0).narrations().get(0))

@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 /**
  * 평행우주 API (API-CONTRACT §9). 인증 필요, 토큰 주체 user_id 기준.
  */
@@ -20,10 +22,16 @@ public class UniverseController {
 
     private final UniverseService universeService;
 
-    /** GET /api/universe/simulation?goalId — 목표 기반 두 미래 시나리오. goalId 누락 시 VALIDATION_ERROR. */
+    /**
+     * GET /api/universe/simulation?goalId&categoryId=1,2 — 목표 기반 두 미래 시나리오.
+     *
+     * goalId 누락 시 VALIDATION_ERROR. categoryId 는 '줄일 카테고리'로, 생략하면
+     * 가장 많이 쓴 카테고리 하나가 기본값이다.
+     */
     @GetMapping("/simulation")
     public ApiResponse<UniverseResponse> simulate(@AuthenticationPrincipal Long userId,
-                                                  @RequestParam(required = false) Long goalId) {
-        return ApiResponse.success(universeService.simulate(userId, goalId));
+                                                  @RequestParam(required = false) Long goalId,
+                                                  @RequestParam(required = false) List<Long> categoryId) {
+        return ApiResponse.success(universeService.simulate(userId, goalId, categoryId));
     }
 }

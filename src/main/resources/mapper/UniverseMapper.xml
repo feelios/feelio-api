@@ -44,7 +44,7 @@
          감정 기준(findFocusEmotion)을 대체한다 — REDUCED 시나리오가 "무엇을 줄이면"인지
          사용자가 바로 알아볼 수 있어야 해서 카테고리로 바꿨다.
          AnalysisMapper.findExpenseByCategory 와 같은 조인·집계 방식을 따른다. -->
-    <select id="findTopCategory" resultType="com.korit.feelioapi.domain.universe.dto.TopCategoryDto">
+    <select id="findExpenseCategories" resultType="com.korit.feelioapi.domain.universe.dto.TopCategoryDto">
         SELECT c.category_id AS categoryId, c.name AS name,
                SUM(t.amount) AS monthlyAmount
         FROM transactions t
@@ -55,7 +55,6 @@
           AND t.type = 'EXPENSE'
         GROUP BY c.category_id, c.name
         ORDER BY monthlyAmount DESC
-        LIMIT 1
     </select>
 
 </mapper>
