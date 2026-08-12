@@ -10,6 +10,7 @@ import com.korit.feelioapi.domain.summary.dto.SummaryAiCommentResponse;
 import com.korit.feelioapi.domain.summary.mapper.SummaryMapper;
 import com.korit.feelioapi.domain.analysis.service.AnalysisService;
 import com.korit.feelioapi.domain.analysis.service.SpendStatus;
+import com.korit.feelioapi.domain.transaction.event.TransactionChangedEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -240,5 +241,21 @@ class SummaryServiceTest {
         summaryService.getMallangComment(userId);
 
         verify(mallangCommentGenerator, times(1)).generate(any(), anyLong(), anyLong(), anyInt());
+    }
+    @Test
+    void transactionChangeEvictsMallangCommentCache() {
+        Long userId = 7L;
+        LocalDate today = LocalDate.now();
+        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(320_000L);
+        when(analysisService.totalBudget(userId, today.getYear(), today.getMonthValue())).thenReturn(400_000L);
+        when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt()))
+                .thenReturn(new MallangComment("평가", "격려"));
+
+        summaryService.getMallangComment(userId);
+        summaryService.evictCommentCache(new TransactionChangedEvent(userId));
+        summaryService.getMallangComment(userId);
+
+        verify(mallangCommentGenerator, times(2)).generate(any(), anyLong(), anyLong(), anyInt());
     }
 }
