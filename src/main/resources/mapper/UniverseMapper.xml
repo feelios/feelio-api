@@ -40,7 +40,25 @@
           AND MONTH(occurred_at) = #{month}
     </select>
 
-    <!-- 기준 월 소비가 가장 몰린 카테고리 1건(지출 기준).
+    <!--
+      기준 월 변동비 합계. 고정비(월세·구독료·보험·세금)는 제외한다 — 줄이라고 말할 수 없는 돈이다.
+
+      REDUCED 시나리오가 줄이는 대상이다. 예전에는 최상위 카테고리 1건만 줄였는데,
+      그게 전체 지출의 10~20%뿐이라 두 우주의 도달 시점이 늘 같은 개월로 뭉개졌다.
+      "지금의 절반만 쓰는 나"여야 평행우주가 평행우주다.
+    -->
+    <select id="findVariableExpense" resultType="long">
+        SELECT COALESCE(SUM(t.amount), 0)
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.category_id
+        WHERE t.user_id = #{userId}
+          AND YEAR(t.occurred_at) = #{year}
+          AND MONTH(t.occurred_at) = #{month}
+          AND t.type = 'EXPENSE'
+          AND c.is_fixed = 0
+    </select>
+
+    <!-- 기준 월 소비가 가장 몰린 카테고리 1건(지출 기준). 문구·태그가 가리킬 대표 항목이다.
          감정 기준(findFocusEmotion)을 대체한다 — REDUCED 시나리오가 "무엇을 줄이면"인지
          사용자가 바로 알아볼 수 있어야 해서 카테고리로 바꿨다.
          AnalysisMapper.findExpenseByCategory 와 같은 조인·집계 방식을 따른다. -->

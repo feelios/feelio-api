@@ -51,6 +51,7 @@ public class UniverseService {
 
         long income = 0L;
         long expense = 0L;
+        long variableExpense = 0L;
         TopCategoryDto topCategory = null;
 
         MonthKey latest = universeMapper.findLatestActivityMonth(userId);
@@ -58,10 +59,13 @@ public class UniverseService {
             UniverseTotalDto totals = universeMapper.findMonthlyTotals(userId, latest.year(), latest.month());
             income = totals.monthlyIncome();
             expense = totals.monthlyExpense();
+            variableExpense = universeMapper.findVariableExpense(userId, latest.year(), latest.month());
             topCategory = universeMapper.findTopCategory(userId, latest.year(), latest.month());
         }
 
-        long focusAmount = topCategory == null ? 0L : topCategory.monthlyAmount();
+        // 줄이는 대상은 변동비 전체다. 최상위 카테고리 하나만 줄이면 전체 지출의 10~20%뿐이라
+        // 두 우주의 도달 시점이 늘 같은 개월로 뭉개졌다 — 볼 이유가 없는 화면이 된다.
+        long focusAmount = variableExpense;
         long reducedExpense = Math.max(0L, expense - Math.round(focusAmount * REDUCTION_RATE));
         long remaining = (long) goal.targetAmount() - goal.currentAmount();
 
@@ -84,7 +88,11 @@ public class UniverseService {
         ScenarioDto currentScenario = new ScenarioDto("CURRENT", "지금처럼 쓴다면",
                 expense, current.saving(), current.months(), current.days(), current.achieveDate(), narrations.get(0));
 
-        String reducedTitle = (topCategory != null ? topCategory.name() : "전체") + " 소비를 줄이면";
+        // 대상은 변동비 전체지만, 제목은 가장 큰 항목을 앞세운다 — "변동비"보다 "패션,미용부터"가
+        // 무엇을 해야 하는지 바로 말해준다. 고정비만 있거나 지출이 없으면 대표 항목이 없다.
+        String reducedTitle = topCategory != null && variableExpense > 0
+                ? topCategory.name() + "부터 절반만 쓴다면"
+                : "덜 쓴다면";
         ScenarioDto reducedScenario = new ScenarioDto("REDUCED", reducedTitle,
                 reducedExpense, reduced.saving(), reduced.months(), reduced.days(), reduced.achieveDate(), narrations.get(1));
 
