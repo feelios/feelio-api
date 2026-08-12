@@ -15,8 +15,8 @@ import org.springframework.stereotype.Component;
 public class RuleMallangCommentGenerator implements MallangCommentGenerator {
 
     @Override
-    public MallangComment generate(SpendStatus status, long expense, long budget, int usageRate) {
-        return new MallangComment(evaluation(status, expense, usageRate), encouragement(status));
+    public MallangComment generate(SpendStatus status, long expense, long budget, int usageRate, EmotionContext emotion) {
+        return new MallangComment(evaluation(status, expense, usageRate), encouragement(status, emotion));
     }
 
     private String evaluation(SpendStatus status, long expense, int usageRate) {
@@ -31,7 +31,42 @@ public class RuleMallangCommentGenerator implements MallangCommentGenerator {
         };
     }
 
-    private String encouragement(SpendStatus status) {
+    /**
+     * 독려 문장. 감정 기록이 있으면 감정별 문장을 쓰고, 없으면 소비 상태로만 답한다.
+     *
+     * <p>GPT 를 꺼도(또는 실패해도) 개인화가 유지되도록 여기에도 감정 분기를 둔다.
+     * 지출이 0원이면 감정 기록도 있을 수 없으므로 ZERO 는 상태 문장을 그대로 쓴다.
+     */
+    private String encouragement(SpendStatus status, EmotionContext emotion) {
+        if (status != SpendStatus.ZERO && emotion != null && emotion.hasEmotion()) {
+            String byEmotion = byEmotion(emotion.name());
+            if (byEmotion != null) {
+                return byEmotion;
+            }
+        }
+        return byStatus(status);
+    }
+
+    /**
+     * 감정 8종별 독려 문장. 감정을 고치려 들지 않고 인정하는 톤으로 쓴다.
+     *
+     * <p>8종 밖의 이름(커스텀·미래 추가)이 오면 null 을 돌려 상태 문장으로 물러난다.
+     */
+    private String byEmotion(String name) {
+        return switch (name) {
+            case "신남" -> "신나는 날이 많았네. 그 기분 그대로 이번 주 한 번만 아껴볼까?";
+            case "설렘" -> "설렘이 자주 찾아왔네. 다음 설렘은 목표 저금으로 남겨볼까?";
+            case "뿌듯함" -> "뿌듯한 날이 많았어. 그 느낌 목표에도 한 번 담아볼까?";
+            case "스트레스" -> "스트레스가 자주 쌓였네. 오늘은 돈 안 드는 걸로 하나 풀어보자.";
+            case "외로움" -> "혼자인 날이 많았구나. 다음엔 사람 만나는 데 한 번 써볼까?";
+            case "화남" -> "화날 일이 많았네. 결제 전에 딱 10분만 미뤄보자.";
+            case "평온" -> "평온한 날이 많았어. 이 흐름이면 예산도 잘 지켜질 거야.";
+            case "무덤덤" -> "무덤덤한 날이 많았네. 작은 기록 하나로 흐름을 잡아볼까?";
+            default -> null;
+        };
+    }
+
+    private String byStatus(SpendStatus status) {
         return switch (status) {
             case ZERO -> "첫 기록을 남겨보면 내가 흐름을 읽어줄게.";
             case NO_BUDGET -> "목표를 하나 정해두면 예산도 같이 잡아줄게.";

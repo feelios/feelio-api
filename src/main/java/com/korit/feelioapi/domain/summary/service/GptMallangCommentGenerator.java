@@ -48,11 +48,11 @@ public class GptMallangCommentGenerator implements MallangCommentGenerator {
     }
 
     @Override
-    public MallangComment generate(SpendStatus status, long expense, long budget, int usageRate) {
+    public MallangComment generate(SpendStatus status, long expense, long budget, int usageRate, EmotionContext emotion) {
         try {
             ResponseCreateParams params = ResponseCreateParams.builder()
                     .model(model)
-                    .input(buildPrompt(status, expense, usageRate))
+                    .input(buildPrompt(status, expense, usageRate, emotion))
                     .build();
             RequestOptions options = RequestOptions.builder().timeout(timeout).build();
             Response response = guard.call("말랑이 한마디", () -> openAIClient.responses().create(params, options));
@@ -72,7 +72,7 @@ public class GptMallangCommentGenerator implements MallangCommentGenerator {
         }
     }
 
-    private String buildPrompt(SpendStatus status, long expense, int usageRate) {
+    private String buildPrompt(SpendStatus status, long expense, int usageRate, EmotionContext emotion) {
         String tone = switch (status) {
             case ZERO -> "아직 지출이 없다. 재촉하지 말고 가볍게 기록을 권해라.";
             case NO_BUDGET -> "예산을 아직 잡을 수 없다. 소진율을 언급하지 말고 지출 금액만 말해라.";
@@ -92,14 +92,39 @@ public class GptMallangCommentGenerator implements MallangCommentGenerator {
 
                 상황: %s
                 수치: %s
+                감정: %s
 
                 아래 두 문장을 '|' 하나로 이어서 한 줄로만 출력해라.
                 1) 현황 평가 — 위 수치 중 최소 하나를 그대로 문장에 넣어라. 숫자를 바꾸거나 새로 만들지 마라.
-                2) 다음 행동 독려 — 구체적이고 부담 없는 제안 한 가지.
+                2) 다음 행동 독려 — 위 감정에 맞춘 구체적이고 부담 없는 제안 한 가지.
 
                 각 문장은 %d자 이내. 훈계·과장·이모지·따옴표·번호를 쓰지 마라.
-                예시 형식: 이번 달 320,000원 썼어. 예산의 78%%야.|이번 주는 배달을 두 번만 시켜볼까?
-                """.formatted(tone, numbers, MAX_LENGTH);
+                감정을 진단하거나 고치려 들지 말고, 그 감정을 인정하는 톤으로 말해라.
+                예시 형식: 이번 달 320,000원 썼어. 예산의 78%%야.|스트레스받은 날이 많았네, 이번 주는 배달 대신 산책 한 번 어때?
+                """.formatted(tone, numbers, emotionLine(emotion), MAX_LENGTH);
+    }
+
+    /**
+     * 감정 블록. 감정명·횟수·금액은 서버 집계값을 그대로 박아 넣는다 — 수치와 같은 이유로
+     * GPT 가 감정을 지어내거나 8종 밖의 이름을 쓰지 못하게 한다.
+     *
+     * <p>기록이 없으면 감정을 언급하지 말라고 명시한다. 이 지시가 없으면 GPT 가
+     * 빈 자리를 임의의 감정으로 메운다.
+     */
+    private String emotionLine(EmotionContext emotion) {
+        if (emotion == null || !emotion.hasEmotion()) {
+            return "이번 달 감정 기록이 없다. 감정을 추측하거나 언급하지 마라.";
+        }
+
+        String trend = switch (emotion.trend()) {
+            case REPEATED -> " 지난달에도 같은 감정이 가장 많았다.";
+            case CHANGED -> " 지난달과는 다른 감정이 올라왔다.";
+            case UNKNOWN -> "";
+        };
+
+        return String.format(
+                "이번 달 가장 많이 기록된 감정은 '%s'(%d번, 관련 지출 %,d원).%s 이 감정을 반드시 문장에 담아라.",
+                emotion.name(), emotion.count(), emotion.amount(), trend);
     }
 
     /**
