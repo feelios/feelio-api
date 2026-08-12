@@ -5,26 +5,31 @@
 
     <insert id="initializeCategoryOrders">
         INSERT IGNORE INTO category_orders (user_id, category_id, type, sort_order)
-        SELECT #{userId}, c.category_id, c.type, c.sort_order
+        SELECT #{userId}, MIN(c.category_id), c.type, MIN(c.sort_order)
         FROM categories c
         WHERE c.type = #{type}
           AND c.is_active = 1
           AND c.user_id IS NULL
+        GROUP BY c.type, c.name
     </insert>
 
     <select id="findCategoriesWithOrder" resultType="com.korit.feelioapi.domain.category.dto.CategoryDto">
         SELECT
-            co.category_id as categoryId,
+            MIN(co.category_id) as categoryId,
             c.name as name,
             co.type as type,
-            (CASE WHEN c.user_id IS NOT NULL THEN 1 ELSE 0 END) as isCustom,
-            co.sort_order as sortOrder
+            MAX(CASE WHEN c.user_id IS NOT NULL THEN 1 ELSE 0 END) as isCustom,
+            MIN(co.sort_order) as sortOrder
         FROM category_orders co
         JOIN categories c ON co.category_id = c.category_id
         WHERE co.user_id = #{userId} 
           AND co.type = #{type}
           AND c.is_active = 1
-        ORDER BY co.sort_order ASC
+        GROUP BY
+            c.name,
+            co.type,
+            CASE WHEN c.user_id IS NULL THEN 0 ELSE c.category_id END
+        ORDER BY sortOrder ASC
     </select>
 
     <insert id="insertCustomCategory" useGeneratedKeys="true" keyProperty="categoryId">
