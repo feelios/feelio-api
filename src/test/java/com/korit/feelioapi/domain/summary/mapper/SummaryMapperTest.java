@@ -81,6 +81,19 @@ class SummaryMapperTest {
         assertThat(findDay(LocalDate.of(YEAR, MONTH, 11))).isNull();
     }
 
+    @Test
+    void 건수가_같으면_금액이_큰_감정이_그날을_대표한다() {
+        // 하루에 한 건씩 두 감정 — 건수는 1:1 이다.
+        // 나중에 적은 쪽(B, 2만원)이 아니라 금액이 큰 쪽(A, 34만원)이 대표여야 한다.
+        insertTx("EXPENSE", LocalDateTime.of(YEAR, MONTH, 12, 10, 42), expenseEmotionId, 343_434);
+        insertTx("EXPENSE", LocalDateTime.of(YEAR, MONTH, 12, 14, 25), incomeEmotionId, 24_000);
+
+        CalendarDayDto day = findDay(LocalDate.of(YEAR, MONTH, 12));
+
+        assertThat(day).isNotNull();
+        assertThat(day.getDominantEmotion().getEmotionId()).isEqualTo(expenseEmotionId);
+    }
+
     private CalendarDayDto findDay(LocalDate date) {
         return summaryMapper.findCalendarSummary(USER_ID, YEAR, MONTH).stream()
                 .filter(day -> date.equals(day.getDate()))
