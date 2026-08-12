@@ -30,7 +30,6 @@ class CategoryServiceTest {
         Long userId = 1L;
         String type = "EXPENSE";
 
-        when(categoryMapper.countCategoryOrders(userId, type)).thenReturn(0);
         when(categoryMapper.findCategoriesWithOrder(userId, type)).thenReturn(List.of(
                 new CategoryDto(1L, "식비", "EXPENSE", false, 1)
         ));

@@ -9,9 +9,12 @@ import com.korit.feelioapi.domain.summary.dto.SummaryAiCommentResponse;
 import com.korit.feelioapi.domain.summary.mapper.SummaryMapper;
 import com.korit.feelioapi.domain.analysis.service.AnalysisService;
 import com.korit.feelioapi.domain.analysis.service.SpendStatus;
+import com.korit.feelioapi.domain.transaction.event.TransactionChangedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.List;
 import java.time.LocalDate;
@@ -106,6 +109,14 @@ public class SummaryService {
                     comment.empathy(), comment.evaluation(), comment.encouragement(),
                     status.name(), emotion.name());
         });
+    }
+
+    /** 거래 CRUD가 커밋되면 홈에서 이전 거래 기준 AI 문구를 재사용하지 않는다. */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void evictCommentCache(TransactionChangedEvent event) {
+        Long userId = event.userId();
+        aiCommentCache.keySet().removeIf(key -> key.userId().equals(userId));
+        mallangCommentCache.keySet().removeIf(key -> key.userId().equals(userId));
     }
 
     private record AiCommentCacheKey(Long userId, LocalDate date) {

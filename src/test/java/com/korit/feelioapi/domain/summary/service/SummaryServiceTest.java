@@ -10,6 +10,7 @@ import com.korit.feelioapi.domain.summary.dto.SummaryAiCommentResponse;
 import com.korit.feelioapi.domain.summary.mapper.SummaryMapper;
 import com.korit.feelioapi.domain.analysis.service.AnalysisService;
 import com.korit.feelioapi.domain.analysis.service.SpendStatus;
+import com.korit.feelioapi.domain.transaction.event.TransactionChangedEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -337,6 +338,24 @@ class SummaryServiceTest {
 
         assertThat(first.emotion()).isEqualTo("스트레스");
         assertThat(second.emotion()).isEqualTo("신남");
+        verify(mallangCommentGenerator, times(2)).generate(any(), anyLong(), anyLong(), anyInt(), any());
+    }
+    @Test
+    void transactionChangeEvictsMallangCommentCache() {
+        Long userId = 7L;
+        LocalDate today = LocalDate.now();
+        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(320_000L);
+        when(analysisService.totalBudget(userId, today.getYear(), today.getMonthValue())).thenReturn(400_000L);
+        when(summaryMapper.findEmotionSummary(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(List.of(new EmotionSummaryDto(4L, "스트레스", 9, 180_000L)));
+        when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt(), any()))
+                .thenReturn(new MallangComment("공감", "평가", "격려"));
+
+        summaryService.getMallangComment(userId);
+        summaryService.evictCommentCache(new TransactionChangedEvent(userId));
+        summaryService.getMallangComment(userId);
+
         verify(mallangCommentGenerator, times(2)).generate(any(), anyLong(), anyLong(), anyInt(), any());
     }
 }
