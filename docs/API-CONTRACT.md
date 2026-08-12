@@ -309,6 +309,9 @@ Response `data`:
 }
 ```
 - 기록 없는 날짜는 배열에서 생략. 대표 감정 동률 시 최근 기록 우선(초안).
+- **지출(EXPENSE) 기록 기준 집계.** `transactionCount`도 그날의 지출 건수다.
+  수입만 있는 날은 배열에서 생략한다 — 감정 색은 감정 소비 회고이고,
+  `summary/emotions`(능선·대표 말랑이)와 기준이 갈리면 같은 홈에서 서로 다른 감정이 대표가 된다.
 
 ### GET /api/summary/emotions?year&month · 인증 필요
 Response `data`:
@@ -337,20 +340,27 @@ Response `data`:
 Response `data`:
 ```json
 {
+  "empathy": "이번 달은 설렘이 가득했구나.",
   "evaluation": "이번 달 320,000원 썼어. 예산의 78%야.",
-  "encouragement": "이번 주는 배달을 두 번만 시켜볼까?",
-  "status": "WARNING"
+  "encouragement": "설레는 날 하나를 목표 저금으로 남겨볼까?",
+  "status": "WARNING",
+  "emotion": "설렘"
 }
 ```
 
-- 홈 말랑이가 건네는 코멘트다. `evaluation`(현황 평가)과 `encouragement`(다음 행동 독려) 두 문장으로 나뉜다.
+- 홈 말랑이가 건네는 코멘트다. 말풍선 세 칸에 그대로 들어가도록 `empathy`(감정 공감) · `evaluation`(현황 평가) · `encouragement`(다음 행동 독려) 세 문장으로 나뉜다.
+- `encouragement`는 **기록·절약·목표 저금 중 하나로 이어져야 한다.** 카페·쇼핑·외식처럼 지출을 늘리는 제안은 금지다 — 감정에 맞더라도 앱 목적과 어긋난다.
+- `emotion`: 문구의 기준이 된 **당월 대표 감정**(기록 횟수 최다, 동률이면 관련 지출액이 큰 쪽). 감정 8종 중 하나이며, 당월 감정 기록이 없으면 `null`이다. 프론트가 말랑이 색·표정과 문구를 맞추는 데 쓴다.
+- `encouragement`는 대표 감정에 맞춰 개인화한다. `emotion`이 `null`이면 소비 기준 문구만 나간다 — **감정을 추측해 지어내지 않는다.**
+- 날짜별이 아니라 **당월 기준**이다. 달력에서 날짜를 바꿔도 문구는 바뀌지 않는다(말랑이 색만 날짜를 따른다).
 - `evaluation`에는 **근거 수치를 최소 1개 포함**한다. 예산을 산출할 수 있으면 `지출액 + 소진율`, 없으면 `지출액`만 쓴다.
 - `status`: `ZERO`(지출 없음) · `SAVING`(소진율 70% 미만) · `WARNING`(70% 이상 90% 미만) · `OVER`(90% 이상) · `NO_BUDGET`(활성 목표·전월 기록이 없어 소진율 산출 불가). 말랑이 표정·색을 고르는 데 쓴다.
 - **판정(`status`)은 서버 자바 계산이며 AI가 바꾸지 않는다.** AI는 문장만 만든다. 수치도 집계값을 그대로 쓴다.
 - 예산은 §9 `GET /api/analysis/budget`과 같은 로직(A6-4 동적 예산)으로 구한다.
 - 기존 `GET /api/summary/ai-comment`(전월 대비 총평)와 별개 엔드포인트다. 서로 대체하지 않는다.
-- 사용자별 하루 1회 생성하며 DB에 저장하지 않는다. 서버 재시작 시 당일에도 다시 생성될 수 있다.
-- AI 비활성화·실패·타임아웃·빈 응답이면 규칙기반 문장으로 채워 응답한다. **`evaluation`·`encouragement`는 항상 비어 있지 않으며 API는 200 성공한다.**
+- 사용자별 **하루 1회 + 대표 감정이 바뀔 때** 생성하며 DB에 저장하지 않는다. 캐시 키가 `(userId, 날짜, 대표 감정)`이라, 오늘 새 감정을 기록해 1위가 바뀌면 문구도 따라 갱신된다. 서버 재시작 시 당일에도 다시 생성될 수 있다.
+- AI 비활성화·실패·타임아웃·빈 응답이면 규칙기반 문장으로 채워 응답한다. **감정 개인화는 규칙기반 폴백에서도 유지된다.** `empathy`·`evaluation`·`encouragement`는 항상 비어 있지 않으며 API는 200 성공한다.
+- AI가 세 문장을 정확히 반환하지 않으면(2개·4개·빈 문장) 규칙기반으로 대체한다 — 말풍선이 빈 채로 뜨지 않게 하기 위해서다.
 
 ### AI 호출 방어 규칙 (모든 AI 문구 필드 공통, #197)
 
@@ -517,8 +527,8 @@ Response(200) `data`:
   "topCategory": { "categoryId": 2, "name": "배달", "monthlyAmount": 120000 },
   "reductionRate": 0.5,
   "scenarios": [
-    { "key": "CURRENT", "title": "지금처럼 쓴다면",     "monthlyExpense": 250000, "monthlySaving": 150000, "monthsToGoal": 12, "estimatedAchieveDate": "2027-07", "narrations": ["지금 속도라면 약 12개월 뒤 제주도 여행에 닿아요.", "제주도 여행에 한 걸음씩 가까워지고 있어요.", "지금 속도를 지키는 것만으로도 충분해요."] },
-    { "key": "REDUCED", "title": "배달 소비를 줄이면",   "monthlyExpense": 190000, "monthlySaving": 210000, "monthsToGoal": 9,  "estimatedAchieveDate": "2027-04", "narrations": ["배달 소비를 절반 줄이면 3개월 빨라져요.", "제주도 여행이 3개월 앞당겨져요.", "이번 주 배달을 한 번만 줄여볼까요?"] }
+    { "key": "CURRENT", "title": "지금처럼 쓴다면",     "monthlyExpense": 250000, "monthlySaving": 150000, "monthsToGoal": 12, "daysToGoal": 355, "estimatedAchieveDate": "2027-07", "narrations": ["지금 속도라면 약 12개월 뒤 제주도 여행에 닿아요.", "제주도 여행에 한 걸음씩 가까워지고 있어요.", "지금 속도를 지키는 것만으로도 충분해요."] },
+    { "key": "REDUCED", "title": "배달 소비를 줄이면",   "monthlyExpense": 190000, "monthlySaving": 210000, "monthsToGoal": 9,  "daysToGoal": 259, "estimatedAchieveDate": "2027-04", "narrations": ["배달 소비를 절반 줄이면 3개월 빨라져요.", "제주도 여행이 3개월 앞당겨져요.", "이번 주 배달을 한 번만 줄여볼까요?"] }
   ]
 }
 ```
@@ -531,7 +541,10 @@ Response(200) `data`:
   - `narrations`: 시나리오당 문장 배열. 프론트가 차례로 돌려 보여준다.
   - `REDUCED.monthlyExpense = monthlyExpense − round(topCategory.monthlyAmount × reductionRate)` (topCategory 가 `null`이면 CURRENT 와 동일).
   - `monthlySaving = monthlyIncome − 시나리오 monthlyExpense` (음수면 0 처리).
-  - `monthsToGoal = ceil((targetAmount − currentAmount) / monthlySaving)`. `monthlySaving ≤ 0`이면 `monthsToGoal`·`estimatedAchieveDate` 모두 `null`(도달 불가).
+  - `monthsToGoal = ceil((targetAmount − currentAmount) / monthlySaving)`. `monthlySaving ≤ 0`이면 `monthsToGoal`·`daysToGoal`·`estimatedAchieveDate` 모두 `null`(도달 불가).
+  - `daysToGoal = ceil(정확한 개월수 × 30)`. 개월은 올림이라 한 달 안쪽에서 두 시나리오가 같은 값이 된다
+    (0.90개월과 0.84개월이 둘 다 1개월). 더 모으는 쪽이 같은 시점에 닿는 것처럼 보이므로 잔 단위를 함께 준다.
+    프론트는 `monthsToGoal ≤ 1` 일 때 일수로 바꿔 보여준다.
 - 에러: `NOT_FOUND`(목표 없음) · `FORBIDDEN`(타인 목표) · `VALIDATION_ERROR`(goalId 누락).
 
 ## 10. 캐시 무효화 규칙 (프론트 TanStack Query)
