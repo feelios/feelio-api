@@ -178,14 +178,21 @@ jobs:
             echo "INSIGHT_PROVIDER=$IPROVIDER" >> .env
             
             # [자동 복구 및 진단]
-            # 1. DB_URL 양끝에 실수로 들어간 큰따옴표를 자동으로 제거합니다.
-            sed -i 's/^DB_URL="\(.*\)"$/DB_URL=\1/' .env
+            # 1. DB_URL 주변의 불필요한 공백과 큰따옴표를 모두 제거합니다. (예: DB_URL= "jdbc..." -> DB_URL=jdbc...)
+            sed -i 's/^DB_URL=[ "]\+/DB_URL=/' .env
+            sed -i '/^DB_URL=/ s/[ "]\+$//' .env
             
-            # 2. DB_URL 자체가 누락되었는지 확인하여 GitHub Actions 로그에 에러를 띄웁니다.
+            # 2. DB_URL이 누락되었거나 값 자체가 텅 비어있는지 꼼꼼히 확인합니다.
             if ! grep -q "^DB_URL=" .env; then
               echo "=========================================================="
-              echo "🚨 [치명적 오류] ENV_KMJ 시크릿 안에 DB_URL이 아예 없습니다!"
-              echo "🚨 시크릿 내용에 DB_URL=jdbc:mysql://... 가 포함되어 있는지 확인하세요."
+              echo "🚨 [치명적 오류] ENV_KMJ 시크릿 안에 DB_URL 항목 자체가 없습니다!"
+              echo "=========================================================="
+              exit 1
+            fi
+            if grep -q "^DB_URL=$" .env; then
+              echo "=========================================================="
+              echo "🚨 [치명적 오류] ENV_KMJ 시크릿 안에 DB_URL= 항목은 있지만 값이 텅 비어있습니다!"
+              echo "🚨 DB_URL=jdbc:mysql://... 처럼 주소를 끝까지 적어주세요!"
               echo "=========================================================="
               exit 1
             fi
