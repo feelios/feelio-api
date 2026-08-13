@@ -177,6 +177,19 @@ jobs:
             echo "OPENAI_KEY=$OAI_KEY" >> .env
             echo "INSIGHT_PROVIDER=$IPROVIDER" >> .env
             
+            # [자동 복구 및 진단]
+            # 1. DB_URL 양끝에 실수로 들어간 큰따옴표를 자동으로 제거합니다.
+            sed -i 's/^DB_URL="\(.*\)"$/DB_URL=\1/' .env
+            
+            # 2. DB_URL 자체가 누락되었는지 확인하여 GitHub Actions 로그에 에러를 띄웁니다.
+            if ! grep -q "^DB_URL=" .env; then
+              echo "=========================================================="
+              echo "🚨 [치명적 오류] ENV_KMJ 시크릿 안에 DB_URL이 아예 없습니다!"
+              echo "🚨 시크릿 내용에 DB_URL=jdbc:mysql://... 가 포함되어 있는지 확인하세요."
+              echo "=========================================================="
+              exit 1
+            fi
+            
             sudo docker compose -f api-docker-compose.yaml pull
             sudo docker compose -f api-docker-compose.yaml down
             sudo docker compose -f api-docker-compose.yaml up -d
