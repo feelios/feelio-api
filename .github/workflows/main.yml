@@ -25,10 +25,11 @@ jobs:
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_KMJ }}" >> $GITHUB_ENV
               
               echo "APPLICATION_SECRET<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.APPLICATION_SECRET_KMJ_CUSTOM }}" >> $GITHUB_ENV
+              echo "${{ secrets.APPLICATION_SECRET_KMJ }}" >> $GITHUB_ENV
               echo "EOF" >> $GITHUB_ENV
+              
               echo "ENV<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.ENV_KMJ_CUSTOM }}" >> $GITHUB_ENV
+              echo "${{ secrets.ENV_KMJ }}" >> $GITHUB_ENV
               echo "EOF" >> $GITHUB_ENV
               echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_KMJ }}" >> $GITHUB_ENV
               
@@ -46,8 +47,14 @@ jobs:
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_KEC }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_KEC }}" >> $GITHUB_ENV
               
-              echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_KEC }}" >> $GITHUB_ENV
-              echo "ENV=${{ secrets.ENV_KEC }}" >> $GITHUB_ENV
+              echo "APPLICATION_SECRET<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.APPLICATION_SECRET_KEC }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
+              
+              echo "ENV<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.ENV_KEC }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
+              
               echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_KEC }}" >> $GITHUB_ENV
               
               echo "OPENAI_KEY=${{ secrets.OPENAI_KEY_KEC }}" >> $GITHUB_ENV
@@ -64,8 +71,14 @@ jobs:
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_NPR }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_NPR }}" >> $GITHUB_ENV
               
-              echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_NPR }}" >> $GITHUB_ENV
-              echo "ENV=${{ secrets.ENV_NPR }}" >> $GITHUB_ENV
+              echo "APPLICATION_SECRET<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.APPLICATION_SECRET_NPR }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
+              
+              echo "ENV<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.ENV_NPR }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
+              
               echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_NPR }}" >> $GITHUB_ENV
               
               echo "OPENAI_KEY=${{ secrets.OPENAI_KEY_NPR }}" >> $GITHUB_ENV
@@ -143,20 +156,39 @@ jobs:
 
       - name: GCP SSH REMOTE 원격접속
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          ENV_PAYLOAD: ${{env.ENV}}
+          OAI_KEY: ${{env.OPENAI_KEY}}
+          IPROVIDER: ${{env.INSIGHT_PROVIDER}}
         with:
           host: ${{env.GCP_VM_HOST}}
           username: ${{env.GCP_VM_USERNAME}}
           key: ${{env.GCP_VM_SSHKEY}}
+          envs: ENV_PAYLOAD,OAI_KEY,IPROVIDER
           script: |
+            set -e # 에러 발생 시 즉시 실패 처리 (침묵 방지)
             cd /home/${{env.GCP_VM_USERNAME}}
             
-            # sudo echo 대신 일반 echo 사용 (권한 에러 방지)
-            echo ${{env.ENV}} | base64 --decode > .env
+            # 따옴표/줄바꿈 문자로 인한 디코딩 실패를 막기 위해 SSH envs 기능 사용
+            echo "$ENV_PAYLOAD" | base64 --decode > .env
             echo "" >> .env
             
             # AI 통신을 위한 환경변수 주입
-            echo "OPENAI_KEY=${{env.OPENAI_KEY}}" >> .env
-            echo "INSIGHT_PROVIDER=${{env.INSIGHT_PROVIDER}}" >> .env
+            echo "OPENAI_KEY=$OAI_KEY" >> .env
+            echo "INSIGHT_PROVIDER=$IPROVIDER" >> .env
+            
+            # [자동 복구 및 진단]
+            # 1. DB_URL 양끝에 실수로 들어간 큰따옴표를 자동으로 제거합니다.
+            sed -i 's/^DB_URL="\(.*\)"$/DB_URL=\1/' .env
+            
+            # 2. DB_URL 자체가 누락되었는지 확인하여 GitHub Actions 로그에 에러를 띄웁니다.
+            if ! grep -q "^DB_URL=" .env; then
+              echo "=========================================================="
+              echo "🚨 [치명적 오류] ENV_KMJ 시크릿 안에 DB_URL이 아예 없습니다!"
+              echo "🚨 시크릿 내용에 DB_URL=jdbc:mysql://... 가 포함되어 있는지 확인하세요."
+              echo "=========================================================="
+              exit 1
+            fi
             
             sudo docker compose -f api-docker-compose.yaml pull
             sudo docker compose -f api-docker-compose.yaml down
