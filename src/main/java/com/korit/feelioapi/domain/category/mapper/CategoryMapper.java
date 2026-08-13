@@ -11,8 +11,6 @@ import java.util.Map;
 
 @Mapper
 public interface CategoryMapper {
-    int countCategoryOrders(@Param("userId") Long userId, @Param("type") String type);
-    
     void initializeCategoryOrders(@Param("userId") Long userId, @Param("type") String type);
     
     List<CategoryDto> findCategoriesWithOrder(@Param("userId") Long userId, @Param("type") String type);
