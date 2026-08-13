@@ -53,8 +53,14 @@ jobs:
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_KEC }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_KEC }}" >> $GITHUB_ENV
               
-              echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_KEC }}" >> $GITHUB_ENV
-              echo "ENV=${{ secrets.ENV_KEC }}" >> $GITHUB_ENV
+              echo "APPLICATION_SECRET<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.APPLICATION_SECRET_KEC }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
+              
+              echo "ENV<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.ENV_KEC }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
+              
               echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_KEC }}" >> $GITHUB_ENV
               
               echo "OPENAI_KEY=${{ secrets.OPENAI_KEY_KEC }}" >> $GITHUB_ENV
@@ -71,8 +77,14 @@ jobs:
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME_NPR }}" >> $GITHUB_ENV
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_NPR }}" >> $GITHUB_ENV
               
-              echo "APPLICATION_SECRET=${{ secrets.APPLICATION_SECRET_NPR }}" >> $GITHUB_ENV
-              echo "ENV=${{ secrets.ENV_NPR }}" >> $GITHUB_ENV
+              echo "APPLICATION_SECRET<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.APPLICATION_SECRET_NPR }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
+              
+              echo "ENV<<EOF" >> $GITHUB_ENV
+              echo "${{ secrets.ENV_NPR }}" >> $GITHUB_ENV
+              echo "EOF" >> $GITHUB_ENV
+              
               echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_NPR }}" >> $GITHUB_ENV
               
               echo "OPENAI_KEY=${{ secrets.OPENAI_KEY_NPR }}" >> $GITHUB_ENV
