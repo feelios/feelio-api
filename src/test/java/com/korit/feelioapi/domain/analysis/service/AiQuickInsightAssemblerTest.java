@@ -73,7 +73,15 @@ class AiQuickInsightAssemblerTest {
         AiQuickInsight risk = assemble(950_000L, 1_000_000L).get(2);
 
         assertThat(risk.getValue()).isEqualTo("위험");
-        assertThat(risk.getNote()).isEqualTo("예산의 95% 사용");
+        assertThat(risk.getNote()).isEqualTo("50,000원밖에 안 남았어요");
+    }
+
+    @Test
+    void 예산을_넘겨_쓰면_남은_돈이_아니라_초과액을_말한다() {
+        AiQuickInsight risk = assemble(1_200_000L, 1_000_000L).get(2);
+
+        assertThat(risk.getValue()).isEqualTo("위험");
+        assertThat(risk.getNote()).isEqualTo("200,000원 넘게 썼어요");
     }
 
     @Test
@@ -81,12 +89,15 @@ class AiQuickInsightAssemblerTest {
         AiQuickInsight risk = assemble(700_000L, 1_000_000L).get(2);
 
         assertThat(risk.getValue()).isEqualTo("주의");
-        assertThat(risk.getNote()).isEqualTo("예산의 70% 사용");
+        assertThat(risk.getNote()).isEqualTo("이제 300,000원 남았어요");
     }
 
     @Test
     void 예산의_70퍼센트_미만이면_안전이다() {
-        assertThat(assemble(300_000L, 1_000_000L).get(2).getValue()).isEqualTo("안전");
+        AiQuickInsight risk = assemble(300_000L, 1_000_000L).get(2);
+
+        assertThat(risk.getValue()).isEqualTo("안전");
+        assertThat(risk.getNote()).isEqualTo("아직 700,000원 남았어요");
     }
 
     @Test
