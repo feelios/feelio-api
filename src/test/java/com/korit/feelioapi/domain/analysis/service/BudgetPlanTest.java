@@ -36,8 +36,8 @@ class BudgetPlanTest {
 
         BudgetPlan plan = BudgetPlan.of(prev, prevPrev, 80_000L);
 
-        // 줄인 카페는 전월 수준을 지켜준다.
-        assertThat(plan.budgetFor(카페, 20_000L, 0L, false)).isEqualTo(20_000L);
+        // 줄인 카페는 깎지 않는다. 삭감 대상이 아니므로 전월액에 여유분만 얹힌다.
+        assertThat(plan.budgetFor(카페, 20_000L, 0L, false)).isEqualTo(22_000L);
 
         // 늘어난 둘이 삭감을 나눠 진다. 삭감률 = 80,000 / 400,000 = 20%
         assertThat(plan.budgetFor(배달, 300_000L, 0L, false)).isEqualTo(240_000L);
@@ -52,7 +52,8 @@ class BudgetPlanTest {
 
         BudgetPlan plan = BudgetPlan.of(prev, prevPrev, 84_000L);
 
-        assertThat(plan.budgetFor(카페, 20_000L, 0L, false)).isEqualTo(20_000L);
+        // 삭감 대상이 아니므로 깎이지 않는다(전월액 + 여유분).
+        assertThat(plan.budgetFor(카페, 20_000L, 0L, false)).isEqualTo(22_000L);
     }
 
     @Test
@@ -64,19 +65,19 @@ class BudgetPlanTest {
         // 필요 저축 500,000 > 전월 변동지출 320,000 → 예전에는 삭감률 100% 로 전부 0원이었다.
         BudgetPlan plan = BudgetPlan.of(prev, List.of(), 500_000L);
 
-        assertThat(plan.budgetFor(배달, 300_000L, 0L, false)).isEqualTo(150_000L); // 상한 50%
-        assertThat(plan.budgetFor(카페, 20_000L, 0L, false)).isEqualTo(10_000L);
+        assertThat(plan.budgetFor(배달, 300_000L, 0L, false)).isEqualTo(210_000L); // 상한 30%
+        assertThat(plan.budgetFor(카페, 20_000L, 0L, false)).isEqualTo(14_000L);
     }
 
     @Test
-    void 삭감률이_아무리_커도_전월의_30퍼센트는_남는다() {
+    void 삭감률이_아무리_커도_전월의_절반은_남는다() {
         List<CategoryPrevStat> prev = List.of(변동(배달, "배달", 100_000L));
 
         BudgetPlan plan = BudgetPlan.of(prev, List.of(), 10_000_000L);
 
-        // 상한 50% 가 먼저 걸리므로 50,000. 하한(30,000)보다 위다.
-        assertThat(plan.budgetFor(배달, 100_000L, 0L, false)).isEqualTo(50_000L);
-        assertThat(plan.budgetFor(배달, 100_000L, 0L, false)).isGreaterThanOrEqualTo(30_000L);
+        // 상한 30% 가 먼저 걸리므로 70,000. 하한(50,000)보다 위다.
+        assertThat(plan.budgetFor(배달, 100_000L, 0L, false)).isEqualTo(70_000L);
+        assertThat(plan.budgetFor(배달, 100_000L, 0L, false)).isGreaterThanOrEqualTo(50_000L);
     }
 
     @Test
@@ -104,12 +105,14 @@ class BudgetPlanTest {
     }
 
     @Test
-    void 목표가_없으면_전월_수준_그대로다() {
+    void 삭감_대상이_아니면_전월보다_한_숨_여유를_준다() {
+        // 전월과 똑같이 쓰는 것은 '초과'가 아니다. 전월액을 그대로 목표로 주면
+        // 지난달에 아껴 쓴 항목일수록 조금만 더 써도 바로 초과로 넘어갔다.
         List<CategoryPrevStat> prev = List.of(변동(배달, "배달", 300_000L));
 
         BudgetPlan plan = BudgetPlan.of(prev, List.of(), 0L);
 
-        assertThat(plan.budgetFor(배달, 300_000L, 0L, false)).isEqualTo(300_000L);
+        assertThat(plan.budgetFor(배달, 300_000L, 0L, false)).isEqualTo(330_000L);
     }
 
     @Test

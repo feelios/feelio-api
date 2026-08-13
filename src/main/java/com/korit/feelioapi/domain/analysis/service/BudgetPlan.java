@@ -30,11 +30,29 @@ import java.util.stream.Collectors;
  */
 public final class BudgetPlan {
 
-    /** 한 달에 깎을 수 있는 최대 비율. 이보다 세게 깎으면 지킬 수 없는 예산이 된다. */
-    private static final double MAX_REDUCTION_RATIO = 0.5;
+    /**
+     * 한 달에 깎을 수 있는 최대 비율.
+     *
+     * 0.5 는 한 달 만에 절반을 줄이라는 뜻이라 지킬 수 없는 숫자였다. 화면에서도 예산이
+     * 실제 씀씀이보다 한참 낮게 잡혀 첫날부터 '초과'가 뜨는 일이 생겼다.
+     * 지킬 수 있어야 다음 달에도 볼 마음이 생기므로 30% 로 낮춘다.
+     */
+    private static final double MAX_REDUCTION_RATIO = 0.3;
 
-    /** 카테고리별 예산 하한 — 전월 지출의 30%. 어떤 항목도 0원으로 내려보내지 않는다. */
-    private static final double MIN_BUDGET_RATIO = 0.3;
+    /**
+     * 카테고리별 예산 하한 — 전월 지출 대비.
+     * 30% 는 사실상 '못 쓰게 한다'에 가까웠다. 절반은 남겨준다.
+     */
+    private static final double MIN_BUDGET_RATIO = 0.5;
+
+    /**
+     * 삭감 대상이 아닌 카테고리에 주는 여유분.
+     *
+     * 예전에는 전월 지출을 그대로 예산으로 줬다. 지난달에 아껴 쓴 항목은 그 빠듯한 수준이
+     * 그대로 이번 달 목표가 되어, 조금만 더 써도 바로 초과로 넘어갔다.
+     * 전월과 똑같이 쓰는 것이 '초과'는 아니므로 10% 숨통을 얹는다.
+     */
+    private static final double SLACK_RATIO = 1.1;
 
     /** 화면에 천 원 단위로 보이므로 여기서 맞춰 내보낸다. */
     private static final long ROUND_UNIT = 1000L;
@@ -96,7 +114,7 @@ public final class BudgetPlan {
             return Math.max(prevAmount, currentAmount);
         }
         if (!reductionTargets.contains(categoryId)) {
-            return round(prevAmount);
+            return round(Math.round(prevAmount * SLACK_RATIO));
         }
         long floor = Math.round(prevAmount * MIN_BUDGET_RATIO);
         long reduced = Math.round(prevAmount * (1.0 - reductionRatio));
