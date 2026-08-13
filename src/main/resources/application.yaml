@@ -17,11 +17,23 @@ spring:
 
     hikari:
       pool-name: HikariCP
-      maximum-pool-size: 5
+      # 2026-08-13 로그인·카테고리가 통째로 막혔다. 원인은 풀 고갈이었다:
+      #   HikariCP - Connection is not available, request timed out after 30000ms
+      #   (total=5, active=5, idle=0, waiting=0)
+      # 커넥션 5개가 전부 점유된 채 반납되지 않아, DB 를 쓰는 모든 요청이 30초 대기 후 실패했다.
+      # 코드에서 커넥션을 직접 다루는 곳·스케줄러·트랜잭션 안 외부호출은 모두 없어 원인을 못 좁혔다.
+      #
+      # 5 는 느린 쿼리 다섯 개면 전체가 멈추는 값이라 10 으로 올린다.
+      # 다만 이건 근본 해결이 아니라 버티는 시간을 벌어 아래 누수 감지 로그를 받아보기 위한 것이다.
+      maximum-pool-size: 10
       minimum-idle: 3
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
+      # 커넥션을 20초 넘게 붙들면 그 시점의 스택트레이스를 WARN 으로 남긴다.
+      # 멈춘 순간에 맞춰 SHOW PROCESSLIST 를 찍는 건 타이밍을 맞추기 어려워서,
+      # 서버가 스스로 범인을 지목하게 한다. 정상 요청은 20초를 넘지 않으므로 평소엔 조용하다.
+      leak-detection-threshold: 20000
 
   security:
     oauth2:
