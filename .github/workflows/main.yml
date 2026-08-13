@@ -25,10 +25,17 @@ jobs:
               echo "DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD_KMJ }}" >> $GITHUB_ENV
               
               echo "APPLICATION_SECRET<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.APPLICATION_SECRET_KMJ_CUSTOM }}" >> $GITHUB_ENV
+              # ==== 👥 팀원(공통) DB 설정 (현재 활성화됨) ====
+              echo "${{ secrets.APPLICATION_SECRET_KMJ }}" >> $GITHUB_ENV
+              # ==== 👤 내(개인) DB 설정 ====
+              # echo "${{ secrets.APPLICATION_SECRET_KMJ_CUSTOM }}" >> $GITHUB_ENV
               echo "EOF" >> $GITHUB_ENV
+              
               echo "ENV<<EOF" >> $GITHUB_ENV
-              echo "${{ secrets.ENV_KMJ_CUSTOM }}" >> $GITHUB_ENV
+              # ==== 👥 팀원(공통) ENV 설정 (현재 활성화됨) ====
+              echo "${{ secrets.ENV_KMJ }}" >> $GITHUB_ENV
+              # ==== 👤 내(개인) ENV 설정 ====
+              # echo "${{ secrets.ENV_KMJ_CUSTOM }}" >> $GITHUB_ENV
               echo "EOF" >> $GITHUB_ENV
               echo "FIREBASE_KEY=${{ secrets.FIREBASE_KEY_KMJ }}" >> $GITHUB_ENV
               

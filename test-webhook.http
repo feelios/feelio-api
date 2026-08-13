@@ -19,7 +19,7 @@ Content-Type: application/json
 {
   "merchant": "GS25",
   "amount": 1500,
-  "userId": 43
+  "userId": 55
 }
 
 
@@ -35,7 +35,7 @@ Content-Type: application/json
 {
   "merchant": "스타벅스",
   "amount": 4500,
-  "userId": 43
+  "userId": 55
 }
 
 
