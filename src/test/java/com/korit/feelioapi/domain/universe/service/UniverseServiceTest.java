@@ -58,6 +58,7 @@ class UniverseServiceTest {
                 .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
         when(universeMapper.findTopCategory(100L, 2026, 7))
                 .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
+        when(universeMapper.findVariableExpense(100L, 2026, 7)).thenReturn(1_000_000L);
 
         UniverseResponse res = universeService.simulate(100L, 1L);
 
@@ -74,7 +75,7 @@ class UniverseServiceTest {
         assertThat(reduced.key()).isEqualTo("REDUCED");
         assertThat(reduced.monthlyExpense()).isEqualTo(1_500_000L);
         assertThat(reduced.monthsToGoal()).isEqualTo(14);
-        assertThat(reduced.title()).isEqualTo("배달 소비를 줄이면");
+        assertThat(reduced.title()).isEqualTo("배달부터 절반만 쓴다면");
         assertThat(reduced.estimatedAchieveDate()).isNotNull();
 
         // 개월은 올림이라 한 달 안쪽에서 두 시나리오가 같은 값이 된다. 일수는 그 차이를 담아야 한다.
@@ -92,6 +93,7 @@ class UniverseServiceTest {
                 .thenReturn(new UniverseTotalDto(2_400_000L, 600_000L));
         when(universeMapper.findTopCategory(100L, 2026, 7))
                 .thenReturn(new TopCategoryDto(2L, "배달", 400_000L));
+        when(universeMapper.findVariableExpense(100L, 2026, 7)).thenReturn(400_000L);
 
         UniverseResponse res = universeService.simulate(100L, 1L);
         ScenarioDto current = res.scenarios().get(0);
@@ -101,6 +103,26 @@ class UniverseServiceTest {
         assertThat(current.monthsToGoal()).isEqualTo(reduced.monthsToGoal());
         assertThat(reduced.monthlySaving()).isGreaterThan(current.monthlySaving());
         assertThat(reduced.daysToGoal()).isLessThan(current.daysToGoal());
+    }
+
+    @Test
+    void 고정비는_줄이는_대상에서_빠진다() {
+        // 지출 200,000 중 변동비 150,000 · 고정비 50,000(월세·구독료 등)
+        when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 1_000_000, 0));
+        when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
+        when(universeMapper.findMonthlyTotals(100L, 2026, 7))
+                .thenReturn(new UniverseTotalDto(600_000L, 200_000L));
+        when(universeMapper.findVariableExpense(100L, 2026, 7)).thenReturn(150_000L);
+        when(universeMapper.findTopCategory(100L, 2026, 7))
+                .thenReturn(new TopCategoryDto(2L, "배달", 60_000L));
+
+        UniverseResponse res = universeService.simulate(100L, 1L);
+        ScenarioDto reduced = res.scenarios().get(1);
+
+        // 변동비 150,000 의 절반인 75,000 만 줄어든다 — 고정비 50,000 은 그대로 남는다
+        assertThat(reduced.monthlyExpense()).isEqualTo(125_000L);
+        // 최상위 카테고리(60,000)만 줄이던 옛 규칙이었다면 170,000 이었을 자리다
+        assertThat(reduced.monthlySaving()).isEqualTo(475_000L);
     }
 
     @Test
@@ -129,7 +151,7 @@ class UniverseServiceTest {
         assertThat(res.monthlyIncome()).isZero();
         assertThat(res.monthlyExpense()).isZero();
         assertThat(res.topCategory()).isNull();
-        assertThat(res.scenarios().get(1).title()).isEqualTo("전체 소비를 줄이면");
+        assertThat(res.scenarios().get(1).title()).isEqualTo("덜 쓴다면");
     }
 
     @Test
@@ -170,6 +192,7 @@ class UniverseServiceTest {
                 .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
         when(universeMapper.findTopCategory(100L, 2026, 7))
                 .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
+        when(universeMapper.findVariableExpense(100L, 2026, 7)).thenReturn(1_000_000L);
 
         UniverseResponse res = new UniverseService(universeMapper, narrator).simulate(100L, 1L);
 
@@ -196,6 +219,7 @@ class UniverseServiceTest {
                 .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
         when(universeMapper.findTopCategory(100L, 2026, 7))
                 .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
+        when(universeMapper.findVariableExpense(100L, 2026, 7)).thenReturn(1_000_000L);
 
         UniverseResponse res = universeService.simulate(100L, 1L);
 
@@ -221,6 +245,7 @@ class UniverseServiceTest {
                 .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
         when(universeMapper.findTopCategory(100L, 2026, 7))
                 .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
+        when(universeMapper.findVariableExpense(100L, 2026, 7)).thenReturn(1_000_000L);
 
         UniverseResponse res = universeService.simulate(100L, 1L);
 
@@ -249,6 +274,7 @@ class UniverseServiceTest {
                 .thenReturn(new UniverseTotalDto(3_000_000L, 2_000_000L));
         when(universeMapper.findTopCategory(100L, 2026, 7))
                 .thenReturn(new TopCategoryDto(2L, "배달", 1_000_000L));
+        when(universeMapper.findVariableExpense(100L, 2026, 7)).thenReturn(1_000_000L);
 
         UniverseResponse res = universeService.simulate(100L, 1L);
 

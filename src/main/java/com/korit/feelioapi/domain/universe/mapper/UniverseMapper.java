@@ -25,7 +25,12 @@ public interface UniverseMapper {
                                        @Param("year") int year,
                                        @Param("month") int month);
 
-    /** 기준 월 소비가 가장 몰린 카테고리 1건(지출 기준). 없으면 null. */
+    /** 기준 월 변동비 합계(고정비 제외). REDUCED 가 줄이는 대상이다. */
+    long findVariableExpense(@Param("userId") Long userId,
+                             @Param("year") int year,
+                             @Param("month") int month);
+
+    /** 기준 월 소비가 가장 몰린 카테고리 1건(지출 기준). 문구·태그용. 없으면 null. */
     TopCategoryDto findTopCategory(@Param("userId") Long userId,
                                    @Param("year") int year,
                                    @Param("month") int month);
