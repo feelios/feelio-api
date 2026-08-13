@@ -99,6 +99,11 @@ public class AiQuickInsightAssembler {
     /**
      * 예산 소진율로 판정한다(GPT 호출 없음 — 속도·비용 모두 유리하고 결과가 흔들리지 않는다).
      * 프론트 신호등은 value 로 불을 고른다: 위험=Red · 주의=Yellow · 안전=Green.
+     *
+     * note 는 소진율(%)이 아니라 '남은 금액'을 말한다. 같은 화면 아래 '목표 예산 현황' 카드가
+     * 이미 소진율을 총예산과 함께 크게 보여줘서, 여기서 %를 반복하면 같은 숫자가 두 번 나올 뿐
+     * 판정을 뒷받침하지 못했다. 남은 금액은 소진율의 반대편 정보라 겹치지 않고 바로 쓸 수 있다.
+     * 문구는 등급마다 다르다 — 같은 '남았어요'라도 안전과 위험이 같은 말투면 신호가 죽는다.
      */
     private AiQuickInsight riskLevel(SpendStatus status, long expense, long budget) {
         String value = switch (status) {
@@ -107,10 +112,16 @@ public class AiQuickInsightAssembler {
             case SAVING, ZERO -> "안전";
             case NO_BUDGET -> "예산 미설정";
         };
+        long remaining = budget - expense;
         String note = switch (status) {
             case NO_BUDGET -> "목표를 정하면 예산이 잡혀요";
             case ZERO -> "이번 달 지출 없음";
-            default -> String.format("예산의 %d%% 사용", Math.round(expense * 100.0 / budget));
+            case SAVING -> String.format("아직 %,d원 남았어요", remaining);
+            case WARNING -> String.format("이제 %,d원 남았어요", remaining);
+            // 90% 이상이라도 아직 예산이 남아 있을 수 있다. 남은 돈을 '넘게 썼다'고 말하면 거짓말이 된다.
+            case OVER -> remaining >= 0
+                    ? String.format("%,d원밖에 안 남았어요", remaining)
+                    : String.format("%,d원 넘게 썼어요", -remaining);
         };
 
         return card("소비 위험도", value, note, COLOR_POINT, "risk");

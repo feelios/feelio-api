@@ -156,20 +156,26 @@ jobs:
 
       - name: GCP SSH REMOTE 원격접속
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          ENV_PAYLOAD: ${{env.ENV}}
+          OAI_KEY: ${{env.OPENAI_KEY}}
+          IPROVIDER: ${{env.INSIGHT_PROVIDER}}
         with:
           host: ${{env.GCP_VM_HOST}}
           username: ${{env.GCP_VM_USERNAME}}
           key: ${{env.GCP_VM_SSHKEY}}
+          envs: ENV_PAYLOAD,OAI_KEY,IPROVIDER
           script: |
+            set -e # 에러 발생 시 즉시 실패 처리 (침묵 방지)
             cd /home/${{env.GCP_VM_USERNAME}}
             
-            # sudo echo 대신 일반 echo 사용 (권한 에러 방지)
-            echo "${{env.ENV}}" | base64 --decode > .env
+            # 따옴표/줄바꿈 문자로 인한 디코딩 실패를 막기 위해 SSH envs 기능 사용
+            echo "$ENV_PAYLOAD" | base64 --decode > .env
             echo "" >> .env
             
             # AI 통신을 위한 환경변수 주입
-            echo "OPENAI_KEY=${{env.OPENAI_KEY}}" >> .env
-            echo "INSIGHT_PROVIDER=${{env.INSIGHT_PROVIDER}}" >> .env
+            echo "OPENAI_KEY=$OAI_KEY" >> .env
+            echo "INSIGHT_PROVIDER=$IPROVIDER" >> .env
             
             sudo docker compose -f api-docker-compose.yaml pull
             sudo docker compose -f api-docker-compose.yaml down
