@@ -2,6 +2,7 @@ package com.korit.feelioapi.domain.summary.controller;
 
 import com.korit.feelioapi.domain.summary.dto.CalendarSummaryResponse;
 import com.korit.feelioapi.domain.summary.dto.EmotionSummaryResponse;
+import com.korit.feelioapi.domain.summary.dto.EmotionSignalCommentResponse;
 import com.korit.feelioapi.domain.summary.dto.MallangCommentResponse;
 import com.korit.feelioapi.domain.summary.dto.SummaryAiCommentResponse;
 import com.korit.feelioapi.domain.summary.service.SummaryService;
@@ -38,6 +39,16 @@ public class SummaryController {
             @RequestParam Integer month
     ) {
         return ApiResponse.success(summaryService.getEmotionSummary(userId, year, month));
+    }
+
+    /** GET /api/summary/emotion-signal?year&month — 홈 감정 신호 AI 문구. */
+    @GetMapping("/emotion-signal")
+    public ApiResponse<EmotionSignalCommentResponse> getEmotionSignalComment(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam Integer year,
+            @RequestParam Integer month
+    ) {
+        return ApiResponse.success(summaryService.getEmotionSignalComment(userId, year, month));
     }
 
     /** GET /api/summary/mallang-comment — 홈 말랑이 코멘트(평가 + 독려). 인증 필요. */
