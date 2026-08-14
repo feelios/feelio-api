@@ -29,6 +29,44 @@ public class RuleBasedInsightCardGenerator implements InsightCardGenerator {
         };
     }
 
+    /**
+     * {@link ConsumptionRiskCommentService} 의 폴백.
+     *
+     * 남은 금액을 되풀이하지 않는다 — 그건 옆 칸의 등급이 이미 말한 것이고, 이 자리는
+     * '이번 달 소비의 무엇이 이 등급을 만들었는지'를 말하는 자리다.
+     * 카테고리와 감정이 둘 다 있으면 둘을 이어서 말한다. 감정 기반 분석이 이 서비스의 초점이다.
+     */
+    public String riskComment(SpendStatus status, int usageRate, String topCategory, String topEmotion) {
+        if (status == SpendStatus.NO_BUDGET) {
+            // 예산이 안 잡히는 이유는 둘이다 — 활성 목표가 없거나, 기준선을 만들 3개월치 기록이 아직 없거나.
+            // 어느 쪽인지 여기서는 알 수 없으므로 한쪽만 짚지 않는다. '목표를 정하면'만 말하면
+            // 목표를 이미 세운 신규 사용자에게는 틀린 안내가 된다.
+            return "목표와 3개월 기록이 모이면 속도를 봐드려요.";
+        }
+        if (status == SpendStatus.ZERO) {
+            return "아직 이번 달 소비가 없어요.";
+        }
+        if (topCategory == null) {
+            return switch (status) {
+                case OVER -> String.format("예산의 %d%%를 벌써 썼어요.", usageRate);
+                case WARNING -> String.format("소비 속도가 예산의 %d%%까지 왔어요.", usageRate);
+                default -> String.format("예산의 %d%% 선에서 잘 잡고 있어요.", usageRate);
+            };
+        }
+        if (topEmotion == null) {
+            return switch (status) {
+                case OVER -> String.format("'%s'이(가) 예산을 끝까지 밀어붙였어요.", topCategory);
+                case WARNING -> String.format("'%s' 지출이 예산의 %d%%를 끌고 갔어요.", topCategory, usageRate);
+                default -> String.format("'%s' 위주지만 아직 여유가 있어요.", topCategory);
+            };
+        }
+        return switch (status) {
+            case OVER -> String.format("'%s'일 때의 %s 소비가 예산을 다 썼어요.", topEmotion, topCategory);
+            case WARNING -> String.format("'%s'일 때 쓴 %s이(가) 속도를 올렸어요.", topEmotion, topCategory);
+            default -> String.format("'%s'일 때 %s에 쓰지만 아직 안정적이에요.", topEmotion, topCategory);
+        };
+    }
+
     /** {@link ChallengeService} 의 폴백. */
     public String challenge(String riskRoute) {
         if (riskRoute == null || riskRoute.isBlank()) {

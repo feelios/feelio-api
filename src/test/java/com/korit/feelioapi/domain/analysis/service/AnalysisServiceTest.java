@@ -194,10 +194,6 @@ class AnalysisServiceTest {
         java.time.LocalDate now = java.time.LocalDate.now();
         int currentYear = now.getYear();
         int currentMonth = now.getMonthValue();
-        
-        java.time.LocalDate prevDate = now.minusMonths(1);
-        int prevYear = prevDate.getYear();
-        int prevMonth = prevDate.getMonthValue();
 
         com.korit.feelioapi.domain.goal.entity.Goal goal1 = new com.korit.feelioapi.domain.goal.entity.Goal();
         goal1.setStatus("ACTIVE");
@@ -214,11 +210,15 @@ class AnalysisServiceTest {
         // totalRequiredSavings = 240,000
         when(goalMapper.findGoalsByUserId(1L)).thenReturn(List.of(goal1, goal2));
 
-        // Prev Stats: total expense = 1,000,000
-        when(analysisMapper.findPrevCategoryStats(1L, prevYear, prevMonth))
+        // 최근 3개월 합계 → 기준선은 식비 600,000 · 교통 400,000 (합 1,000,000).
+        // 전월이 기준선보다 크므로 둘 다 '늘어나는 추세'라 삭감 대상이 된다.
+        when(analysisMapper.countActiveMonths(eq(1L), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(3);
+        when(analysisMapper.findRecentCategoryStats(
+                eq(1L), any(LocalDateTime.class), any(LocalDateTime.class), any(LocalDateTime.class)))
                 .thenReturn(List.of(
-                        new com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat(1L, "식비", 600000L, false, true),
-                        new com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat(2L, "교통", 400000L, false, true)
+                        new com.korit.feelioapi.domain.analysis.dto.CategoryRecentStat(1L, "식비", 1800000L, 700000L, false, true),
+                        new com.korit.feelioapi.domain.analysis.dto.CategoryRecentStat(2L, "교통", 1200000L, 500000L, false, true)
                 ));
 
         // Current Stats
@@ -248,17 +248,91 @@ class AnalysisServiceTest {
     }
 
     @Test
+    void 기준선_3개월이_다_차지_않으면_예산을_매기지_않는다() {
+        // 기록을 막 시작한 사용자의 지난 달 화면이 그랬다 — 창에 한 달치뿐인데 그 값을 기준선으로
+        // 삼아 예산이 실제 지출의 1/8 로 잡히고, 화면은 754% 초과라고 판정했다.
+        // 근거가 없을 때는 판정을 미룬다: 지출은 그대로 보여주고 예산만 0(프론트 '측정중')으로 둔다.
+        java.time.LocalDate now = java.time.LocalDate.now();
+
+        when(goalMapper.findGoalsByUserId(1L)).thenReturn(List.of());
+        when(analysisMapper.findCurrentCategoryStats(1L, now.getYear(), now.getMonthValue()))
+                .thenReturn(List.of(
+                        new com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat(1L, "문화,취미", "설렘", 120600L, false, true),
+                        new com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat(9L, "경조사", "평온", 50000L, false, false)
+                ));
+        // 창(3개월)에 기록이 있는 달이 2개월뿐이다.
+        when(analysisMapper.countActiveMonths(eq(1L), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(2);
+
+        var response = analysisService.getBudgetStatus(1L, null, null);
+
+        // 예산 제외 항목(경조사)은 여전히 빠지고, 남은 항목은 지출만 담긴 채 예산 0 이다.
+        assertThat(response.budgetItems()).hasSize(1);
+        var item = response.budgetItems().get(0);
+        assertThat(item.name()).isEqualTo("문화,취미");
+        assertThat(item.currentAmount()).isEqualTo(120600L);
+        assertThat(item.budget()).isZero();
+
+        // 기준선 조회는 아예 하지 않는다 — 어차피 쓸 수 없는 값이다.
+        verify(analysisMapper, never()).findRecentCategoryStats(any(), any(), any(), any());
+    }
+
+    @Test
+    void 지출_추이의_요약_숫자는_조회한_달을_따라간다() {
+        // 예전에는 인자를 안 받아 늘 오늘 기준이었고, 달을 바꿔 눌러도 총액과 '전월 대비 N%' 가 그대로였다.
+        LocalDate today = LocalDate.now();
+        LocalDate selected = today.withDayOfMonth(1).minusMonths(2);
+        LocalDate selectedPrev = selected.minusMonths(1);
+        var fmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM");
+
+        when(analysisMapper.findMonthlyTrend(eq(1L), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of(
+                        new com.korit.feelioapi.domain.analysis.dto.MonthlyDataStat(selectedPrev.format(fmt), 200000L),
+                        new com.korit.feelioapi.domain.analysis.dto.MonthlyDataStat(selected.format(fmt), 100000L)
+                ));
+
+        var response = analysisService.getMonthlyTrend(1L, selected.getYear(), selected.getMonthValue());
+
+        assertThat(response.currentTotalAmount()).isEqualTo(100000L);
+        assertThat(response.comparedToLastMonth()).isEqualTo(-50.0);
+        assertThat(response.trendMessage()).isEqualTo("저번 달보다 지출이 줄었어요");
+    }
+
+    @Test
+    void 지출_추이의_막대_7개는_조회한_달과_무관하게_오늘_기준으로_고정된다() {
+        // 창까지 선택을 따라 미끄러지면, 막대를 누를 때마다 창이 다시 잡혀 방금 누른 막대가 자리를 옮긴다.
+        LocalDate today = LocalDate.now();
+        var fmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM");
+
+        when(analysisMapper.findMonthlyTrend(eq(1L), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of());
+
+        var response = analysisService.getMonthlyTrend(1L, today.getYear(), today.getMonthValue() - 3 > 0 ? today.getMonthValue() - 3 : 1);
+
+        assertThat(response.monthlyData()).hasSize(7);
+        // 마지막 칸은 조회한 달이 아니라 당월이다.
+        assertThat(response.monthlyData().get(6).yearMonth()).isEqualTo(today.format(fmt));
+        assertThat(response.monthlyData().get(0).yearMonth())
+                .isEqualTo(today.withDayOfMonth(1).minusMonths(6).format(fmt));
+        // 연도를 실어 보내야 프론트가 막대 클릭 시 연도를 추측하지 않는다.
+        assertThat(response.monthlyData()).allSatisfy(
+                data -> assertThat(data.yearMonth()).matches("\\d{4}-\\d{2}"));
+    }
+
+    @Test
     void AI를_호출하지_않고_분석_리포트_뼈대를_반환한다() {
         LocalDate today = LocalDate.now();
         LocalDate previousMonth = today.minusMonths(1);
 
-        when(analysisMapper.findMonthlyTotals(1L, today.getYear(), today.getMonthValue()))
-                .thenReturn(new AnalysisTotalDto(0L, 250000L));
+        // 지출 250,000 은 예산 항목에서 나온다 — 소진율의 분자·분모는 같은 목록에서 뽑는다.
+        // 기준선 창을 채울 3개월치 기록이 없어(activeMonths = 0) 예산을 매기지 않으므로 NO_BUDGET 이다.
+        // 이때는 기준선 조회 자체를 건너뛴다.
         when(goalMapper.findGoalsByUserId(1L)).thenReturn(List.of());
         when(analysisMapper.findCurrentCategoryStats(1L, today.getYear(), today.getMonthValue()))
-                .thenReturn(List.of());
-        when(analysisMapper.findPrevCategoryStats(1L, previousMonth.getYear(), previousMonth.getMonthValue()))
-                .thenReturn(List.of());
+                .thenReturn(List.of(new com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat(
+                        3L, "카페", "스트레스", 250000L, false, true)));
+        when(analysisMapper.countActiveMonths(eq(1L), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(0);
         when(analysisMapper.findExpenseByCategory(1L, today.getYear(), today.getMonthValue()))
                 .thenReturn(List.of(new CategoryStatDto(3L, "카페", "EXPENSE", 200000L, 8L)));
         when(factReportService.generate(SpendStatus.NO_BUDGET, 250000L, 0L, "카페"))
