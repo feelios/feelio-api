@@ -5,6 +5,7 @@ import com.korit.feelioapi.domain.summary.dto.CalendarSummaryResponse;
 import com.korit.feelioapi.domain.summary.dto.EmotionDto;
 import com.korit.feelioapi.domain.summary.dto.EmotionSummaryDto;
 import com.korit.feelioapi.domain.summary.dto.EmotionSummaryResponse;
+import com.korit.feelioapi.domain.summary.dto.EmotionSignalCommentResponse;
 import com.korit.feelioapi.domain.summary.dto.MallangCommentResponse;
 import com.korit.feelioapi.domain.summary.dto.SummaryAiCommentResponse;
 import com.korit.feelioapi.domain.summary.mapper.SummaryMapper;
@@ -46,6 +47,9 @@ class SummaryServiceTest {
 
     /** 폴백은 실제 구현을 그대로 쓴다 — 문장이 비지 않는지가 검증 대상이라 mock 이면 의미가 없다. */
     private final RuleMallangCommentGenerator ruleMallangCommentGenerator = new RuleMallangCommentGenerator();
+    @Mock
+    private EmotionSignalCommentGenerator emotionSignalCommentGenerator;
+    private final RuleEmotionSignalCommentGenerator ruleEmotionSignalCommentGenerator = new RuleEmotionSignalCommentGenerator();
 
     private SummaryService summaryService;
 
@@ -53,7 +57,8 @@ class SummaryServiceTest {
     void setUp() {
         summaryService = new SummaryService(
                 summaryMapper, aiCommentGenerator, mallangCommentGenerator,
-                ruleMallangCommentGenerator, analysisService);
+                ruleMallangCommentGenerator, emotionSignalCommentGenerator,
+                ruleEmotionSignalCommentGenerator, analysisService);
     }
 
     @Test
@@ -99,6 +104,31 @@ class SummaryServiceTest {
 
         verify(summaryMapper).findEmotionSummary(userId, 2026, 1);
         verify(summaryMapper).findEmotionSummary(userId, 2025, 12);
+    }
+
+    @Test
+    void 홈_감정_신호는_실제_전월대비_수치를_AI에_넘긴다() {
+        when(summaryMapper.findEmotionSummary(1L, 2026, 8)).thenReturn(List.of(
+                new EmotionSummaryDto(7L, "평온", 6, 180_000L),
+                new EmotionSummaryDto(8L, "무덤덤", 1, 20_000L)));
+        when(summaryMapper.findEmotionSummary(1L, 2026, 7)).thenReturn(List.of(
+                new EmotionSummaryDto(7L, "평온", 3, 70_000L),
+                new EmotionSummaryDto(8L, "무덤덤", 2, 40_000L)));
+        when(emotionSignalCommentGenerator.generate(anyInt(), anyInt(), any()))
+                .thenReturn("평온 소비가 지난달보다 늘었어. 반복된 순간을 같이 확인해보자.");
+
+        EmotionSignalCommentResponse response = summaryService.getEmotionSignalComment(1L, 2026, 8);
+
+        assertThat(response.comment()).contains("평온 소비");
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<EmotionSignal>> captor = ArgumentCaptor.forClass(List.class);
+        verify(emotionSignalCommentGenerator).generate(org.mockito.ArgumentMatchers.eq(2026),
+                org.mockito.ArgumentMatchers.eq(8), captor.capture());
+        assertThat(captor.getValue())
+                .extracting(EmotionSignal::name, EmotionSignal::rate)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("평온", 100),
+                        org.assertj.core.groups.Tuple.tuple("무덤덤", -50));
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.korit.feelioapi.domain.summary.dto.CalendarDayDto;
 import com.korit.feelioapi.domain.summary.dto.CalendarSummaryResponse;
 import com.korit.feelioapi.domain.summary.dto.EmotionSummaryDto;
 import com.korit.feelioapi.domain.summary.dto.EmotionSummaryResponse;
+import com.korit.feelioapi.domain.summary.dto.EmotionSignalCommentResponse;
 import com.korit.feelioapi.domain.summary.dto.MallangCommentResponse;
 import com.korit.feelioapi.domain.summary.dto.SummaryAiCommentResponse;
 import com.korit.feelioapi.domain.summary.mapper.SummaryMapper;
@@ -17,6 +18,11 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.time.LocalDate;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -28,9 +34,12 @@ public class SummaryService {
     private final SummaryAiCommentGenerator aiCommentGenerator;
     private final MallangCommentGenerator mallangCommentGenerator;
     private final RuleMallangCommentGenerator ruleMallangCommentGenerator;
+    private final EmotionSignalCommentGenerator emotionSignalCommentGenerator;
+    private final RuleEmotionSignalCommentGenerator ruleEmotionSignalCommentGenerator;
     private final AnalysisService analysisService;
     private final ConcurrentHashMap<AiCommentCacheKey, SummaryAiCommentResponse> aiCommentCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<MallangCacheKey, MallangCommentResponse> mallangCommentCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<EmotionSignalCacheKey, EmotionSignalCommentResponse> emotionSignalCache = new ConcurrentHashMap<>();
 
     @Transactional(readOnly = true)
     public CalendarSummaryResponse getCalendarSummary(Long userId, Integer year, Integer month) {
@@ -48,6 +57,49 @@ public class SummaryService {
         List<EmotionSummaryDto> prevMonthEmotions = summaryMapper.findEmotionSummary(userId, prevYear, prevMonth);
 
         return new EmotionSummaryResponse(currentMonthEmotions, prevMonthEmotions);
+    }
+
+    /**
+     * 선택한 달의 감정 소비 변화를 AI가 해석한다. 집계·증감률은 서버가 확정하고 AI는 문장만 만든다.
+     * 별도 엔드포인트라 GPT 지연이 캘린더·능선 로딩을 막지 않는다.
+     */
+    public EmotionSignalCommentResponse getEmotionSignalComment(Long userId, Integer year, Integer month) {
+        EmotionSummaryResponse summary = getEmotionSummary(userId, year, month);
+        List<EmotionSignal> signals = emotionSignals(summary.getEmotions(), summary.getPrevMonth());
+        int fingerprint = 31 * summary.getEmotions().hashCode() + summary.getPrevMonth().hashCode();
+        EmotionSignalCacheKey key = new EmotionSignalCacheKey(userId, year, month, fingerprint);
+
+        return emotionSignalCache.computeIfAbsent(key, ignored -> {
+            if (summary.getEmotions().isEmpty()) return new EmotionSignalCommentResponse(null);
+            String comment = emotionSignalCommentGenerator.generate(year, month, signals);
+            if (comment == null || comment.isBlank()) {
+                comment = ruleEmotionSignalCommentGenerator.generate(year, month, signals);
+            }
+            return new EmotionSignalCommentResponse(comment);
+        });
+    }
+
+    private List<EmotionSignal> emotionSignals(List<EmotionSummaryDto> current,
+                                               List<EmotionSummaryDto> previous) {
+        Map<String, EmotionSummaryDto> previousByName = previous.stream()
+                .collect(Collectors.toMap(EmotionSummaryDto::getName, Function.identity(), (left, right) -> left));
+        List<EmotionSignal> signals = new ArrayList<>();
+        for (EmotionSummaryDto now : current) {
+            int currentCount = now.getCount() == null ? 0 : now.getCount();
+            EmotionSummaryDto before = previousByName.get(now.getName());
+            int previousCount = before == null || before.getCount() == null ? 0 : before.getCount();
+            int rate = previousCount == 0
+                    ? (currentCount > 0 ? 100 : 0)
+                    : (int) Math.round((currentCount - previousCount) * 100.0 / previousCount);
+            if (rate != 0) {
+                signals.add(new EmotionSignal(now.getName(), rate, currentCount, previousCount,
+                        now.getAmount() == null ? 0L : now.getAmount()));
+            }
+        }
+        return signals.stream()
+                .sorted(Comparator.comparingInt((EmotionSignal signal) -> Math.abs(signal.rate())).reversed())
+                .limit(3)
+                .toList();
     }
 
     /**
@@ -120,6 +172,7 @@ public class SummaryService {
         Long userId = event.userId();
         aiCommentCache.keySet().removeIf(key -> key.userId().equals(userId));
         mallangCommentCache.keySet().removeIf(key -> key.userId().equals(userId));
+        emotionSignalCache.keySet().removeIf(key -> key.userId().equals(userId));
     }
 
     private record AiCommentCacheKey(Long userId, LocalDate date) {
@@ -131,5 +184,8 @@ public class SummaryService {
      * <p>emotion 은 null 일 수 있다 — 당월 감정 기록이 없는 경우다.
      */
     private record MallangCacheKey(Long userId, LocalDate date, String emotion) {
+    }
+
+    private record EmotionSignalCacheKey(Long userId, int year, int month, int fingerprint) {
     }
 }
