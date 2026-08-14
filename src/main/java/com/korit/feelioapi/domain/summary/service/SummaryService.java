@@ -96,8 +96,11 @@ public class SummaryService {
         mallangCommentCache.keySet().removeIf(existing -> existing.date().isBefore(today));
 
         return mallangCommentCache.computeIfAbsent(key, ignored -> {
-            long expense = summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue());
-            long budget = analysisService.totalBudget(userId, today.getYear(), today.getMonthValue());
+            // 분자·분모를 한 쌍으로 받는다. 지출만 따로 세면 AI 분석 화면의 소진율과 다른 등급이 나와,
+            // 같은 달을 놓고 말랑이는 '주의', 화면은 '안전'이라고 말하게 된다.
+            var usage = analysisService.budgetUsage(userId, today.getYear(), today.getMonthValue());
+            long expense = usage.expense();
+            long budget = usage.budget();
             SpendStatus status = SpendStatus.of(expense, budget);
             int usageRate = budget > 0 ? (int) Math.round(expense * 100.0 / budget) : 0;
 
