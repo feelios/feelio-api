@@ -375,10 +375,8 @@ public class AnalysisService {
         BudgetPlan plan = BudgetPlan.of(prevStats, prevPrevStats, totalRequiredSavings);
 
         List<com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem> budgetItems = new ArrayList<>();
-        java.util.Set<Long> processedCategories = new java.util.HashSet<>();
 
         for (com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat currentStat : currentStats) {
-            processedCategories.add(currentStat.categoryId());
 
             if (!currentStat.isBudgetable()) {
                 continue; // 예산 제외 항목
@@ -398,21 +396,19 @@ public class AnalysisService {
         }
 
         // 전월엔 썼는데 이번 달엔 아직 안 쓴 카테고리. 예산은 잡아줘야 화면에서 사라지지 않는다.
-        for (com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat prevStat : prevStats) {
-            if (processedCategories.contains(prevStat.categoryId()) || !prevStat.isBudgetable()) {
-                continue;
-            }
-
-            long budget = plan.budgetFor(prevStat.categoryId(), prevStat.prevAmount(), 0L, prevStat.isFixed());
-
-            budgetItems.add(new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem(
-                    prevStat.categoryName() != null ? prevStat.categoryName() : "기타",
-                    "보통",
-                    0L,
-                    prevStat.prevAmount(),
-                    budget
-            ));
-        }
+        /*
+         * 전월에만 있던 카테고리는 목록에 넣지 않는다.
+         *
+         * 예전에는 이번 달 지출이 0원이어도 전월 기록만 있으면 줄을 만들었다. 화면에는
+         * '0원 · 0% · 안정 · 목표 20,000원' 같은 줄이 남는데, 감정은 이번 달 기록에서 오므로
+         * 말랑이 자리가 비어 라벨만 덩그러니 놓였다. 아직 쓰지 않은 카테고리라 알려줄 것도 없다.
+         *
+         * '이번 달에 실제로 쓴 것'만 보여주면 목록이 짧아지고, 남은 줄은 전부 지금 조정할 수 있는
+         * 항목이 된다 — 카드 부제("지금 바로 조정해야 할 예산부터 보여줘요")와도 맞는다.
+         *
+         * 전월 통계 자체는 계속 필요하다. 예산의 기준이자 삭감 대상을 고르는 근거이므로
+         * prevStats/prevStatMap 은 그대로 두고, 목록에 줄을 만드는 것만 그만둔다.
+         */
 
         return new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse(budgetItems);
     }
