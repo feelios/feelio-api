@@ -53,6 +53,17 @@
           AND YEAR(t.occurred_at) = #{year}
           AND MONTH(t.occurred_at) = #{month}
           AND t.type = 'EXPENSE'
+          <!--
+            '줄이라고 권할 수 있는' 카테고리만 후보로 둔다.
+
+            예산 제외 항목(is_budgetable = 0)에는 '저축'이 들어 있다. 이 화면은 "그 항목을 줄이면
+            목표에 얼마나 빨리 닿는가"를 말하는데, 저축을 줄여서 저축 목표에 빨리 닿는다는 건
+            앞뒤가 맞지 않는다. 실제로 화면에 "저축 줄인 나"가 떴다.
+            고정지출(is_fixed = 1: 주거·통신·보험·세금)도 뺀다. 이번 달에 줄일 수 있는 성질이 아니라,
+            권해도 사용자가 할 수 있는 게 없다.
+          -->
+          AND c.is_budgetable = 1
+          AND c.is_fixed = 0
         GROUP BY c.category_id, c.name
         ORDER BY monthlyAmount DESC
         LIMIT 1

@@ -51,10 +51,13 @@ public class AnalysisController {
         return ApiResponse.success(analysisService.getAiReport(userId, year, month));
     }
 
-    /** GET /api/analysis/trend — 최근 7개월 지출 추이. */
+    /** GET /api/analysis/trend — 조회 대상 월까지의 최근 7개월 지출 추이. year·month 생략 시 이번 달. */
     @GetMapping("/trend")
-    public ApiResponse<com.korit.feelioapi.domain.analysis.dto.MonthlyTrendResponse> getMonthlyTrend(@AuthenticationPrincipal Long userId) {
-        return ApiResponse.success(analysisService.getMonthlyTrend(userId));
+    public ApiResponse<com.korit.feelioapi.domain.analysis.dto.MonthlyTrendResponse> getMonthlyTrend(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month) {
+        return ApiResponse.success(analysisService.getMonthlyTrend(userId, year, month));
     }
 
     /** GET /api/analysis/budget : 월별 예산 현황 API. */

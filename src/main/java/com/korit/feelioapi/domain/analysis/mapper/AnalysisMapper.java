@@ -52,6 +52,21 @@ public interface AnalysisMapper {
                                                                                          @Param("year") int year,
                                                                                          @Param("month") int month);
 
+    /**
+     * 예산 기준선용 최근 구간 집계. [startAt, endAt) 반개구간이며 lastMonthStart 이후가 전월분이다.
+     * 세 파라미터 모두 Service 가 조회 대상 월을 기준으로 계산해 넘긴다(오늘 날짜 기준이 아니다).
+     */
+    List<com.korit.feelioapi.domain.analysis.dto.CategoryRecentStat> findRecentCategoryStats(
+            @Param("userId") Long userId,
+            @Param("startAt") java.time.LocalDateTime startAt,
+            @Param("endAt") java.time.LocalDateTime endAt,
+            @Param("lastMonthStart") java.time.LocalDateTime lastMonthStart);
+
+    /** 위 구간에서 지출 기록이 있는 달 수. 평균의 분모. */
+    int countActiveMonths(@Param("userId") Long userId,
+                          @Param("startAt") java.time.LocalDateTime startAt,
+                          @Param("endAt") java.time.LocalDateTime endAt);
+
     /** 저장된 월간 인사이트 조회. 없으면 빈 리스트 — 호출 측이 생성 여부를 판단한다. */
     List<AiInsight> findInsights(@Param("userId") Long userId,
                                  @Param("year") int year,
