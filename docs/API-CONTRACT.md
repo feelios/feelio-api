@@ -568,7 +568,9 @@ Response(200) `data`:
 - `scenarios`: `CURRENT`(현행)·`REDUCED`(감축) 2건 고정. `REDUCED.title`은 topCategory 이름을 반영(예: "배달 소비를 줄이면"). topCategory 가 `null` 이면 "전체 소비를 줄이면".
   - `narrations`: 시나리오당 문장 배열. 프론트가 차례로 돌려 보여준다.
   - `REDUCED.monthlyExpense = monthlyExpense − round(topCategory.monthlyAmount × reductionRate)` (topCategory 가 `null`이면 CURRENT 와 동일).
-  - `monthlySaving = monthlyIncome − 시나리오 monthlyExpense` (음수면 0 처리).
+  - `CURRENT.monthlySaving = max(monthlyIncome − monthlyExpense, 0)`.
+  - `REDUCED.monthlySaving = CURRENT.monthlySaving + (CURRENT.monthlyExpense − REDUCED.monthlyExpense)`.
+    줄인 소비액을 매달 목표 저금으로 옮긴 미래이므로 현재 수지가 적자여도 감축액은 0원이 되지 않는다.
   - `monthsToGoal = ceil((targetAmount − currentAmount) / monthlySaving)`. `monthlySaving ≤ 0`이면 `monthsToGoal`·`daysToGoal`·`estimatedAchieveDate` 모두 `null`(도달 불가).
   - `daysToGoal = ceil(정확한 개월수 × 30)`. 개월은 올림이라 한 달 안쪽에서 두 시나리오가 같은 값이 된다
     (0.90개월과 0.84개월이 둘 다 1개월). 더 모으는 쪽이 같은 시점에 닿는 것처럼 보이므로 잔 단위를 함께 준다.

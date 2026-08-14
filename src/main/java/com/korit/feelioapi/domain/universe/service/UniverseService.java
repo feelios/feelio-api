@@ -66,7 +66,11 @@ public class UniverseService {
         long remaining = (long) goal.targetAmount() - goal.currentAmount();
 
         Projection current = project(income, expense, remaining);
-        Projection reduced = project(income, reducedExpense, remaining);
+        long savedByReduction = expense - reducedExpense;
+
+        // REDUCED는 줄인 소비를 목표 저금으로 옮긴 미래다. 현재가 적자여도 실제 감축액을
+        // 0원으로 없애지 않고 현재 저축 여력에 더해 목표 도달 기간을 계산한다.
+        Projection reduced = projectWithSaving(current.saving() + savedByReduction, remaining);
 
         // 숫자를 모두 확정한 뒤 문장을 한 번에 받는다. 두 문장은 서로를 참조해야(몇 개월 빨라지는지) 자연스럽다.
         // 금액도 함께 넘긴다 — 숫자를 안 주면 모델이 소비와 무관한 말로 칸을 채운다.
@@ -76,10 +80,14 @@ public class UniverseService {
                 expense,
                 Math.max(0L, remaining),
                 current.saving(),
-                reduced.saving() - current.saving(),
+                // '아낀 금액'은 저축액 차이가 아니라 실제 지출 감소액이다. 두 시나리오 모두
+                // 적자라 saving이 0이어도 사용자가 줄인 소비액은 사라지면 안 된다.
+                savedByReduction,
                 reduced.saving(),
                 current.months(),
-                reduced.months()));
+                reduced.months(),
+                current.days(),
+                reduced.days()));
 
         ScenarioDto currentScenario = new ScenarioDto("CURRENT", "지금처럼 쓴다면",
                 expense, current.saving(), current.months(), current.days(), current.achieveDate(), narrations.get(0));
@@ -113,6 +121,11 @@ public class UniverseService {
     /** 계약 §9: 월 저축 = 수입 − 지출(≥0), 도달 개월 = ceil(남은액/저축), 저축 ≤ 0 이면 도달 불가(null). */
     private Projection project(long income, long monthlyExpense, long remaining) {
         long saving = Math.max(0L, income - monthlyExpense);
+
+        return projectWithSaving(saving, remaining);
+    }
+
+    private Projection projectWithSaving(long saving, long remaining) {
 
         if (remaining <= 0) {
             return new Projection(saving, 0, 0, YearMonth.now().toString());
