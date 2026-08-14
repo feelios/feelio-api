@@ -10,14 +10,14 @@ public class RuleEmotionSignalCommentGenerator implements EmotionSignalCommentGe
     @Override
     public String generate(int year, int month, List<EmotionSignal> signals) {
         if (signals == null || signals.isEmpty()) {
-            return "감정 소비가 지난달과 비슷하게 이어지고 있어. 지금 흐름을 같이 살펴보자.";
+            return "감정 소비가 지난달과 비슷해요, 요즘 마음을 천천히 돌아보세요.";
         }
         EmotionSignal top = signals.get(0);
         if (top.rate() > 0) {
-            return String.format("이번 달은 %s 소비가 지난달보다 %d%% 늘었어. 어떤 순간에 늘었는지 같이 들여다보자.",
+            return String.format("이번 달 %s 소비가 지난달보다 %d%% 늘었어요, 어떤 순간이었는지 떠올려보세요.",
                     top.name(), top.rate());
         }
-        return String.format("이번 달은 %s 소비가 지난달보다 %d%% 줄었어. 달라진 흐름을 같이 살펴보자.",
+        return String.format("이번 달 %s 소비가 지난달보다 %d%% 줄었어요, 달라진 마음을 천천히 돌아보세요.",
                 top.name(), Math.abs(top.rate()));
     }
 }

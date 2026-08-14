@@ -19,11 +19,13 @@ public record NarrationContext(
         long remaining,
         /** 지금 흐름에서 매달 모으는 금액. */
         long currentSaving,
-        /** 줄였을 때 매달 더 남는 금액(= 감축 저축 − 현행 저축). */
+        /** 해당 소비를 줄여 실제로 아낀 금액(= 현행 지출 − 감축 지출). */
         long savedPerMonth,
         /** 줄였을 때 매달 모으게 되는 금액. */
         long reducedSaving,
         Integer currentMonths,
-        Integer reducedMonths
+        Integer reducedMonths,
+        Integer currentDays,
+        Integer reducedDays
 ) {
 }

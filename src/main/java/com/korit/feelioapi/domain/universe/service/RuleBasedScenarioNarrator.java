@@ -46,7 +46,8 @@ public class RuleBasedScenarioNarrator implements ScenarioNarrator {
             // 수입보다 지출이 많아 모이는 돈이 없는 상태. 개월 수를 말할 수가 없다.
             verdict = String.format("이대로면 %s에 닿지 못해요. 쓰는 돈이 버는 돈을 넘고 있어요.", goal);
         } else {
-            verdict = String.format(Locale.KOREA, "이대로 쓰면 %s까지 %d개월 걸려요.", goal, months);
+            verdict = String.format(Locale.KOREA, "이대로 쓰면 %s까지 %s이나 걸려요.",
+                    goal, displayDuration(months, context.currentDays()));
         }
 
         String cause = focus == null
@@ -78,26 +79,42 @@ public class RuleBasedScenarioNarrator implements ScenarioNarrator {
         if (months != null && months == 0) {
             verdict = "이미 " + goal + " 목표 금액을 모았어요.";
         } else if (months == null) {
-            verdict = String.format("조금 더 줄이면 %s에 닿을 수 있어요.", goal);
+            verdict = focus == null || context.savedPerMonth() <= 0
+                    ? String.format("조금 더 줄이면 %s에 닿을 수 있어요.", goal)
+                    : String.format(Locale.KOREA, "%s 지출을 줄여 매달 %,d원을 아꼈어요.",
+                            focus, context.savedPerMonth());
         } else if (currentMonths != null && currentMonths > months) {
             // 목표 이름을 넣는다. GPT 가 죽으면 이 문장이 그대로 나가는데, 이름이 없으면
             // 어떤 목표 이야기인지 알 수 없어 폴백에서 AI 를 붙인 의미가 사라진다.
-            verdict = String.format("이렇게 줄이면 %d개월 뒤 %s 도착, %d개월 빨라져요.",
-                    months, goal, currentMonths - months);
+            verdict = String.format("잘하셨어요! 이렇게 줄이면 %s까지 %s이고, %d일 빨라져요.",
+                    goal, displayDuration(months, context.reducedDays()), context.currentDays() - context.reducedDays());
+        } else if (context.currentDays() != null && context.reducedDays() != null
+                && context.currentDays() > context.reducedDays()) {
+            verdict = String.format("잘하셨어요! 이렇게 줄이면 %s까지 %s이고, %d일 빨라져요.",
+                    goal, displayDuration(months, context.reducedDays()), context.currentDays() - context.reducedDays());
         } else {
-            verdict = String.format("이렇게 줄이면 %d개월 뒤 %s에 닿아요.", months, goal);
+            verdict = String.format("잘하셨어요! 이렇게 줄이면 %s까지 %s이에요.",
+                    goal, displayDuration(months, context.reducedDays()));
         }
 
-        String gain = focus == null
+        String gain = months == null && context.savedPerMonth() > 0
+                ? "아낀 만큼 적자는 줄었지만 아직 매달 모이는 돈은 없어요."
+                : focus == null
                 ? String.format(Locale.KOREA, "줄이면 매달 %,d원씩 모으게 돼요.", context.reducedSaving())
                 : String.format(Locale.KOREA, "%s 지출을 줄이면 매달 %,d원이 더 남아요.",
                         focus, context.savedPerMonth());
 
-        String effect = months != null && months == 0
+        String effect = months == null
+                ? String.format("%s에 닿으려면 다른 지출도 함께 줄여야 해요.", goal)
+                : months == 0
                 ? "다음 목표에도 같은 속도를 이어가 봐요."
                 : String.format(Locale.KOREA, "그 돈이 남은 %,d원을 앞당겨 줘요.", context.remaining());
 
         return List.of(verdict, gain, effect);
+    }
+
+    private String displayDuration(Integer months, Integer days) {
+        return days != null && days < 30 ? days + "일" : months + "개월";
     }
 
     /**

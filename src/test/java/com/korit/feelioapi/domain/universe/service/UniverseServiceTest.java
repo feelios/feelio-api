@@ -102,6 +102,10 @@ class UniverseServiceTest {
         assertThat(current.monthsToGoal()).isEqualTo(reduced.monthsToGoal());
         assertThat(reduced.monthlySaving()).isGreaterThan(current.monthlySaving());
         assertThat(reduced.daysToGoal()).isLessThan(current.daysToGoal());
+        assertThat(current.narrations().get(0))
+                .isEqualTo("이대로 쓰면 제주도 여행까지 27일이나 걸려요.");
+        assertThat(reduced.narrations().get(0))
+                .isEqualTo("잘하셨어요! 이렇게 줄이면 제주도 여행까지 24일이고, 3일 빨라져요.");
     }
 
     @Test
@@ -118,6 +122,27 @@ class UniverseServiceTest {
         assertThat(res.topCategory()).isNull();
         assertThat(res.scenarios().get(0).monthsToGoal()).isNull();
         assertThat(res.scenarios().get(0).estimatedAchieveDate()).isNull();
+    }
+
+    @Test
+    void 적자여도_줄인_소비를_목표에_옮기면_감축우주는_도달가능하다() {
+        // 수입 100만원, 지출 140만원. 문화·취미 20만원의 절반을 줄여도 지출 130만원이라
+        // 두 시나리오의 monthlySaving은 모두 0이다. 그래도 실제 감축액 10만원은 보여줘야 한다.
+        when(universeMapper.findGoalById(1L)).thenReturn(goal(1L, 100L, 2_000_000, 0));
+        when(universeMapper.findLatestActivityMonth(100L)).thenReturn(new MonthKey(2026, 7));
+        when(universeMapper.findMonthlyTotals(100L, 2026, 7))
+                .thenReturn(new UniverseTotalDto(1_000_000L, 1_400_000L));
+        when(universeMapper.findTopCategory(100L, 2026, 7))
+                .thenReturn(new TopCategoryDto(2L, "문화, 취미", 200_000L));
+
+        UniverseResponse res = universeService.simulate(100L, 1L);
+
+        assertThat(res.scenarios().get(0).monthlySaving()).isZero();
+        assertThat(res.scenarios().get(1).monthlySaving()).isEqualTo(100_000L);
+        assertThat(res.scenarios().get(1).monthlyExpense()).isEqualTo(1_300_000L);
+        assertThat(res.scenarios().get(1).narrations().get(0))
+                .isEqualTo("잘하셨어요! 이렇게 줄이면 제주도 여행까지 20개월이에요.");
+        assertThat(res.scenarios().get(1).monthsToGoal()).isEqualTo(20);
     }
 
     @Test
@@ -203,9 +228,9 @@ class UniverseServiceTest {
         // GPT 가 죽으면 이 문장이 그대로 화면에 나간다. 폴백이 '목표'라고만 말하면
         // 어떤 목표 이야기인지 알 수 없어, AI 를 붙인 의미가 폴백에서 사라진다.
         assertThat(res.scenarios().get(0).narrations().get(0))
-                .isEqualTo("이대로 쓰면 제주도 여행까지 20개월 걸려요.");
+                .isEqualTo("이대로 쓰면 제주도 여행까지 20개월이나 걸려요.");
         assertThat(res.scenarios().get(1).narrations().get(0))
-                .isEqualTo("이렇게 줄이면 14개월 뒤 제주도 여행 도착, 6개월 빨라져요.");
+                .isEqualTo("잘하셨어요! 이렇게 줄이면 제주도 여행까지 14개월이고, 200일 빨라져요.");
 
         // 롤링용 나머지 코멘트에도 목표 이름이 살아 있어야 한다.
         assertThat(res.scenarios().get(0).narrations()).anyMatch(line -> line.contains("제주도 여행"));
@@ -230,12 +255,12 @@ class UniverseServiceTest {
         // 이어지는 보상이다. 양쪽이 같은 틀로 사실만 나열하면 나란히 둘 이유가 없다.
         assertThat(res.scenarios().get(0).narrations())
                 .containsExactly(
-                        "이대로 쓰면 제주도 여행까지 20개월 걸려요.",
+                        "이대로 쓰면 제주도 여행까지 20개월이나 걸려요.",
                         "발목을 잡는 건 배달 지출이에요. 이번 달에 가장 많이 썼어요.",
                         "배달 지출을 줄이는 게 가장 빠른 길이에요.");
         assertThat(res.scenarios().get(1).narrations())
                 .containsExactly(
-                        "이렇게 줄이면 14개월 뒤 제주도 여행 도착, 6개월 빨라져요.",
+                        "잘하셨어요! 이렇게 줄이면 제주도 여행까지 14개월이고, 200일 빨라져요.",
                         "배달 지출을 줄이면 매달 500,000원이 더 남아요.",
                         "그 돈이 남은 20,000,000원을 앞당겨 줘요.");
 
@@ -256,6 +281,6 @@ class UniverseServiceTest {
 
         // 이름이 없다고 "  에 닿아요" 같은 문장이 나가면 안 된다.
         assertThat(res.scenarios().get(0).narrations().get(0))
-                .isEqualTo("이대로 쓰면 목표까지 20개월 걸려요.");
+                .isEqualTo("이대로 쓰면 목표까지 20개월이나 걸려요.");
     }
 }

@@ -57,14 +57,16 @@ public class GptScenarioNarrator implements ScenarioNarrator {
             REDUCED — 보상을 보여준다.
               줄이면 얼마나 당겨지는지, 매달 얼마가 더 남는지 구체적으로 말해라.
               "이렇게 하면 이만큼 빨라진다"가 읽혀야 한다. 격려하되 근거는 숫자로 댄다.
+              REDUCED도 도달 불가라면 실패 판정부터 말하지 말고, 먼저 실제로 줄인 지출액을
+              성과로 인정한 뒤 아직 매달 모이는 돈이 없고 추가 절약이 필요하다고 말해라.
 
             각 미래의 코멘트 3개는 이 순서로 이어져야 한다.
             CURRENT
-              1번째: 이대로면 언제 닿는지 (개월 수를 넣는다)
+              1번째: 이대로면 언제 닿는지. 한 달 미만이면 정확한 일수, 그 이상이면 개월 수를 넣고 팩폭한다. 괄호 안 일수는 쓰지 않는다
               2번째: 무엇 때문인지 — 가장 많이 쓴 항목 이름을 대서 지목한다
               3번째: 그래서 무엇을 하면 되는지 (줄일 항목과 방향)
             REDUCED
-              1번째: 줄이면 언제 닿는지, 몇 개월 빨라지는지
+              1번째: 줄이면 언제 닿는지 한 달 미만이면 정확한 일수, 그 이상이면 개월 수를 넣고 단축 일수와 함께 먼저 칭찬한다. 괄호 안 일수는 쓰지 않는다
               2번째: 줄이면 매달 얼마가 더 남는지
               3번째: 그 돈이 남은 금액을 어떻게 앞당기는지
 
@@ -77,6 +79,7 @@ public class GptScenarioNarrator implements ScenarioNarrator {
               문장은 숫자가 아니라 '그래서 무엇을 뜻하는지'를 말해야 한다.
 
             반드시 지킬 것:
+            - 모든 문장은 반드시 존댓말(요/습니다)로 써라. 반말은 절대 쓰지 마라.
             - 목표 이름을 그대로 불러줘라. '목표'라고만 뭉뚱그리지 마라.
             - 줄일 소비 항목 이름을 그대로 불러줘라. 무엇을 줄이는지가 문장에 있어야 한다.
             - 숫자는 입력으로 주어진 값만 써라. 네가 계산하거나 다른 숫자를 지어내지 마라.
@@ -129,10 +132,11 @@ public class GptScenarioNarrator implements ScenarioNarrator {
                                 .map(text -> truncate(stripQuotes(text)))
                                 .toList())
                         .toList();
-                if (cleaned.stream().flatMap(List::stream).allMatch(this::looksLikeSentence)) {
+                if (cleaned.stream().flatMap(List::stream).allMatch(this::looksLikeHonorificSentence)
+                        && containsRequiredProjectionFacts(cleaned, context)) {
                     return cleaned;
                 }
-                log.warn("시나리오 문장에 사람 말이 아닌 값이 섞였다. 규칙기반으로 대체한다. 응답={}", cleaned);
+                log.warn("시나리오 문장에 필수 목표·기간 정보가 빠졌다. 규칙기반으로 대체한다. 응답={}", cleaned);
                 return fallback.narrate(context);
             }
             // 원문을 남긴다. 형식이 왜 어긋났는지는 응답을 봐야만 알 수 있는데,
@@ -155,17 +159,49 @@ public class GptScenarioNarrator implements ScenarioNarrator {
         input.append(String.format(Locale.KOREA, "목표까지 남은 금액: %,d원%n", context.remaining()));
         input.append(String.format(Locale.KOREA, "지금 매달 모으는 금액: %,d원%n", context.currentSaving()));
         input.append(String.format(Locale.KOREA, "줄이면 매달 모으게 되는 금액: %,d원%n", context.reducedSaving()));
-        input.append(String.format(Locale.KOREA, "줄이면 매달 더 남는 금액: %,d원%n", context.savedPerMonth()));
-        input.append("CURRENT(지금처럼): ").append(describeMonths(context.currentMonths())).append('\n');
-        input.append("REDUCED(줄이면): ").append(describeMonths(context.reducedMonths())).append('\n');
+        input.append(String.format(Locale.KOREA, "해당 소비를 줄여 실제로 아낀 금액: 매달 %,d원%n", context.savedPerMonth()));
+        input.append("CURRENT(지금처럼): ").append(describeDuration(context.currentMonths(), context.currentDays())).append('\n');
+        input.append("REDUCED(줄이면): ").append(describeDuration(context.reducedMonths(), context.reducedDays())).append('\n');
+        if (context.currentDays() != null && context.reducedDays() != null) {
+            input.append("줄였을 때 단축되는 정확한 일수: ")
+                    .append(Math.max(0, context.currentDays() - context.reducedDays())).append("일\n");
+        }
         return input.toString();
     }
 
-    private String describeMonths(Integer months) {
+    private String describeDuration(Integer months, Integer days) {
         if (months == null) {
             return "도달 불가";
         }
-        return months == 0 ? "이미 목표 금액 달성" : months + "개월 뒤 도달";
+        if (months == 0) {
+            return "이미 목표 금액 달성";
+        }
+        return days != null && days < 30
+                ? days + "일 뒤 도달"
+                : months + "개월 뒤 도달 (단축 일수 계산값: " + days + "일)";
+    }
+
+    /** AI가 그럴듯한 빈말로 핵심 숫자를 빼면 계산이 보장된 폴백을 사용한다. */
+    private boolean containsRequiredProjectionFacts(List<List<String>> rows, NarrationContext context) {
+        String current = rows.get(0).get(0);
+        String reduced = rows.get(1).get(0);
+        String goal = context.goalName() == null ? "" : context.goalName().trim();
+        boolean goalPresent = goal.isBlank() || current.contains(goal) && reduced.contains(goal);
+        boolean currentDuration = context.currentMonths() == null
+                ? current.contains("도달") || current.contains("넘")
+                : containsDisplayedDuration(current, context.currentMonths(), context.currentDays());
+        boolean reducedDuration = context.reducedMonths() == null
+                ? reduced.contains("아꼈") || reduced.contains("줄")
+                : containsDisplayedDuration(reduced, context.reducedMonths(), context.reducedDays());
+        boolean noParenthesizedDays = !current.matches(".*\\(\\d+일\\).*")
+                && !reduced.matches(".*\\(\\d+일\\).*");
+        return goalPresent && currentDuration && reducedDuration && noParenthesizedDays;
+    }
+
+    private boolean containsDisplayedDuration(String sentence, Integer months, Integer days) {
+        return days != null && days < 30
+                ? sentence.contains(days + "일")
+                : sentence.contains(months + "개월");
     }
 
     private String callModel(String input) {
@@ -231,6 +267,14 @@ public class GptScenarioNarrator implements ScenarioNarrator {
         return value != null
                 && value.length() >= MIN_NARRATION_LENGTH
                 && value.codePoints().anyMatch(c -> c >= 0xAC00 && c <= 0xD7A3);
+    }
+
+    private boolean looksLikeHonorificSentence(String value) {
+        if (!looksLikeSentence(value)) {
+            return false;
+        }
+        String sentence = value.trim().replaceFirst("[.!?]+$", "");
+        return sentence.endsWith("요") || sentence.endsWith("니다") || sentence.endsWith("까요");
     }
 
     /** 모델이 문장을 따옴표로 감싸는 경우가 잦다. 카드에 그대로 노출되면 어색하다. */
