@@ -5,6 +5,7 @@ import com.korit.feelioapi.domain.summary.dto.CalendarSummaryResponse;
 import com.korit.feelioapi.domain.summary.dto.EmotionDto;
 import com.korit.feelioapi.domain.summary.dto.EmotionSummaryDto;
 import com.korit.feelioapi.domain.summary.dto.EmotionSummaryResponse;
+import com.korit.feelioapi.domain.summary.dto.EmotionSignalCommentResponse;
 import com.korit.feelioapi.domain.summary.dto.MallangCommentResponse;
 import com.korit.feelioapi.domain.summary.dto.SummaryAiCommentResponse;
 import com.korit.feelioapi.domain.summary.mapper.SummaryMapper;
@@ -46,6 +47,9 @@ class SummaryServiceTest {
 
     /** 폴백은 실제 구현을 그대로 쓴다 — 문장이 비지 않는지가 검증 대상이라 mock 이면 의미가 없다. */
     private final RuleMallangCommentGenerator ruleMallangCommentGenerator = new RuleMallangCommentGenerator();
+    @Mock
+    private EmotionSignalCommentGenerator emotionSignalCommentGenerator;
+    private final RuleEmotionSignalCommentGenerator ruleEmotionSignalCommentGenerator = new RuleEmotionSignalCommentGenerator();
 
     private SummaryService summaryService;
 
@@ -53,7 +57,8 @@ class SummaryServiceTest {
     void setUp() {
         summaryService = new SummaryService(
                 summaryMapper, aiCommentGenerator, mallangCommentGenerator,
-                ruleMallangCommentGenerator, analysisService);
+                ruleMallangCommentGenerator, emotionSignalCommentGenerator,
+                ruleEmotionSignalCommentGenerator, analysisService);
     }
 
     @Test
@@ -102,6 +107,31 @@ class SummaryServiceTest {
     }
 
     @Test
+    void 홈_감정_신호는_실제_전월대비_수치를_AI에_넘긴다() {
+        when(summaryMapper.findEmotionSummary(1L, 2026, 8)).thenReturn(List.of(
+                new EmotionSummaryDto(7L, "평온", 6, 180_000L),
+                new EmotionSummaryDto(8L, "무덤덤", 1, 20_000L)));
+        when(summaryMapper.findEmotionSummary(1L, 2026, 7)).thenReturn(List.of(
+                new EmotionSummaryDto(7L, "평온", 3, 70_000L),
+                new EmotionSummaryDto(8L, "무덤덤", 2, 40_000L)));
+        when(emotionSignalCommentGenerator.generate(anyInt(), anyInt(), any()))
+                .thenReturn("평온 소비가 지난달보다 늘었어. 반복된 순간을 같이 확인해보자.");
+
+        EmotionSignalCommentResponse response = summaryService.getEmotionSignalComment(1L, 2026, 8);
+
+        assertThat(response.comment()).contains("평온 소비");
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<EmotionSignal>> captor = ArgumentCaptor.forClass(List.class);
+        verify(emotionSignalCommentGenerator).generate(org.mockito.ArgumentMatchers.eq(2026),
+                org.mockito.ArgumentMatchers.eq(8), captor.capture());
+        assertThat(captor.getValue())
+                .extracting(EmotionSignal::name, EmotionSignal::rate)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("평온", 100),
+                        org.assertj.core.groups.Tuple.tuple("무덤덤", -50));
+    }
+
+    @Test
     void 당월과_전월_지출로_홈_AI_멘트를_생성한다() {
         Long userId = 2L;
         LocalDate today = LocalDate.now();
@@ -144,9 +174,8 @@ class SummaryServiceTest {
         Long userId = 1L;
         LocalDate today = LocalDate.now();
 
-        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
-                .thenReturn(320_000L);
-        when(analysisService.totalBudget(userId, today.getYear(), today.getMonthValue())).thenReturn(400_000L);   // 소진율 80% → WARNING
+        when(analysisService.budgetUsage(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(new AnalysisService.BudgetUsage(320_000L, 400_000L));   // 소진율 80% → WARNING
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt(), any()))
                 .thenReturn(new MallangComment("이번 달은 잔잔했네.", "이번 달 320,000원 썼어. 예산의 80%야.", "이번 주는 한 번만 아껴볼까?"));
 
@@ -162,9 +191,8 @@ class SummaryServiceTest {
         Long userId = 2L;
         LocalDate today = LocalDate.now();
 
-        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
-                .thenReturn(380_000L);
-        when(analysisService.totalBudget(userId, today.getYear(), today.getMonthValue())).thenReturn(400_000L);   // 95% → OVER
+        when(analysisService.budgetUsage(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(new AnalysisService.BudgetUsage(380_000L, 400_000L));   // 95% → OVER
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt(), any())).thenReturn(null);
 
         MallangCommentResponse response = summaryService.getMallangComment(userId);
@@ -180,9 +208,8 @@ class SummaryServiceTest {
         Long userId = 3L;
         LocalDate today = LocalDate.now();
 
-        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
-                .thenReturn(100_000L);
-        when(analysisService.totalBudget(userId, today.getYear(), today.getMonthValue())).thenReturn(400_000L);   // 25% → SAVING
+        when(analysisService.budgetUsage(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(new AnalysisService.BudgetUsage(100_000L, 400_000L));   // 25% → SAVING
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt(), any()))
                 .thenReturn(new MallangComment("  ", "", " "));
 
@@ -198,9 +225,8 @@ class SummaryServiceTest {
         Long userId = 4L;
         LocalDate today = LocalDate.now();
 
-        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
-                .thenReturn(50_000L);
-        when(analysisService.totalBudget(userId, today.getYear(), today.getMonthValue())).thenReturn(0L);         // 활성 목표·전월 기록 없음
+        when(analysisService.budgetUsage(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(new AnalysisService.BudgetUsage(50_000L, 0L));         // 활성 목표·전월 기록 없음
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt(), any())).thenReturn(null);
 
         MallangCommentResponse response = summaryService.getMallangComment(userId);
@@ -215,9 +241,8 @@ class SummaryServiceTest {
         Long userId = 5L;
         LocalDate today = LocalDate.now();
 
-        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
-                .thenReturn(0L);
-        when(analysisService.totalBudget(userId, today.getYear(), today.getMonthValue())).thenReturn(400_000L);
+        when(analysisService.budgetUsage(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(new AnalysisService.BudgetUsage(0L, 400_000L));
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt(), any())).thenReturn(null);
 
         MallangCommentResponse response = summaryService.getMallangComment(userId);
@@ -232,9 +257,8 @@ class SummaryServiceTest {
         Long userId = 6L;
         LocalDate today = LocalDate.now();
 
-        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
-                .thenReturn(320_000L);
-        when(analysisService.totalBudget(userId, today.getYear(), today.getMonthValue())).thenReturn(400_000L);
+        when(analysisService.budgetUsage(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(new AnalysisService.BudgetUsage(320_000L, 400_000L));
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt(), any()))
                 .thenReturn(new MallangComment("공감", "평가", "독려"));
 
@@ -252,9 +276,8 @@ class SummaryServiceTest {
         LocalDate today = LocalDate.now();
         LocalDate prev = today.minusMonths(1);
 
-        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
-                .thenReturn(320_000L);
-        when(analysisService.totalBudget(userId, today.getYear(), today.getMonthValue())).thenReturn(400_000L);
+        when(analysisService.budgetUsage(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(new AnalysisService.BudgetUsage(320_000L, 400_000L));
         when(summaryMapper.findEmotionSummary(userId, today.getYear(), today.getMonthValue()))
                 .thenReturn(List.of(
                         new EmotionSummaryDto(4L, "스트레스", 9, 180_000L),
@@ -283,9 +306,8 @@ class SummaryServiceTest {
         Long userId = 8L;
         LocalDate today = LocalDate.now();
 
-        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
-                .thenReturn(320_000L);
-        when(analysisService.totalBudget(userId, today.getYear(), today.getMonthValue())).thenReturn(400_000L);
+        when(analysisService.budgetUsage(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(new AnalysisService.BudgetUsage(320_000L, 400_000L));
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt(), any())).thenReturn(null);
 
         MallangCommentResponse response = summaryService.getMallangComment(userId);
@@ -300,9 +322,8 @@ class SummaryServiceTest {
         Long userId = 9L;
         LocalDate today = LocalDate.now();
 
-        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
-                .thenReturn(320_000L);
-        when(analysisService.totalBudget(userId, today.getYear(), today.getMonthValue())).thenReturn(400_000L);
+        when(analysisService.budgetUsage(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(new AnalysisService.BudgetUsage(320_000L, 400_000L));
         when(summaryMapper.findEmotionSummary(userId, today.getYear(), today.getMonthValue()))
                 .thenReturn(List.of(new EmotionSummaryDto(4L, "스트레스", 9, 180_000L)));
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt(), any())).thenReturn(null);
@@ -324,9 +345,8 @@ class SummaryServiceTest {
         Long userId = 10L;
         LocalDate today = LocalDate.now();
 
-        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
-                .thenReturn(320_000L);
-        when(analysisService.totalBudget(userId, today.getYear(), today.getMonthValue())).thenReturn(400_000L);
+        when(analysisService.budgetUsage(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(new AnalysisService.BudgetUsage(320_000L, 400_000L));
         when(summaryMapper.findEmotionSummary(userId, today.getYear(), today.getMonthValue()))
                 .thenReturn(List.of(new EmotionSummaryDto(4L, "스트레스", 9, 180_000L)))
                 .thenReturn(List.of(new EmotionSummaryDto(1L, "신남", 12, 200_000L)));
@@ -344,9 +364,8 @@ class SummaryServiceTest {
     void transactionChangeEvictsMallangCommentCache() {
         Long userId = 7L;
         LocalDate today = LocalDate.now();
-        when(summaryMapper.findMonthlyExpense(userId, today.getYear(), today.getMonthValue()))
-                .thenReturn(320_000L);
-        when(analysisService.totalBudget(userId, today.getYear(), today.getMonthValue())).thenReturn(400_000L);
+        when(analysisService.budgetUsage(userId, today.getYear(), today.getMonthValue()))
+                .thenReturn(new AnalysisService.BudgetUsage(320_000L, 400_000L));
         when(summaryMapper.findEmotionSummary(userId, today.getYear(), today.getMonthValue()))
                 .thenReturn(List.of(new EmotionSummaryDto(4L, "스트레스", 9, 180_000L)));
         when(mallangCommentGenerator.generate(any(), anyLong(), anyLong(), anyInt(), any()))

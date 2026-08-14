@@ -14,6 +14,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 /**
  * 문장 생성은 각 정본 서비스 소관이므로 여기서는 **숫자 판정과 카드 구조**만 검증한다.
@@ -23,13 +24,16 @@ class AiQuickInsightAssemblerTest {
 
     private final FactReportService factReportService = mock(FactReportService.class);
     private final ChallengeService challengeService = mock(ChallengeService.class);
+    private final ConsumptionRiskCommentService riskCommentService = mock(ConsumptionRiskCommentService.class);
 
-    private final AiQuickInsightAssembler assembler =
-            new AiQuickInsightAssembler(new RuleBasedInsightCardGenerator(), factReportService, challengeService);
+    private final AiQuickInsightAssembler assembler = new AiQuickInsightAssembler(
+            new RuleBasedInsightCardGenerator(), factReportService, challengeService, riskCommentService);
 
     {
         lenient().when(factReportService.generate(any(), anyLong(), anyLong(), any())).thenReturn("팩트 문장");
         lenient().when(challengeService.generate(any())).thenReturn("챌린지 문장");
+        lenient().when(riskCommentService.generate(any(), anyLong(), anyLong(), any(), any()))
+                .thenReturn("위험도 코멘트");
     }
 
     private final List<EmotionStatDto> byEmotion = List.of(
@@ -70,43 +74,34 @@ class AiQuickInsightAssemblerTest {
 
     @Test
     void 예산의_90퍼센트_이상_쓰면_위험이다() {
-        AiQuickInsight risk = assemble(950_000L, 1_000_000L).get(2);
-
-        assertThat(risk.getValue()).isEqualTo("위험");
-        assertThat(risk.getNote()).isEqualTo("50,000원밖에 안 남았어요");
-    }
-
-    @Test
-    void 예산을_넘겨_쓰면_남은_돈이_아니라_초과액을_말한다() {
-        AiQuickInsight risk = assemble(1_200_000L, 1_000_000L).get(2);
-
-        assertThat(risk.getValue()).isEqualTo("위험");
-        assertThat(risk.getNote()).isEqualTo("200,000원 넘게 썼어요");
+        assertThat(assemble(950_000L, 1_000_000L).get(2).getValue()).isEqualTo("위험");
     }
 
     @Test
     void 예산의_70퍼센트_이상_90퍼센트_미만이면_주의다() {
-        AiQuickInsight risk = assemble(700_000L, 1_000_000L).get(2);
-
-        assertThat(risk.getValue()).isEqualTo("주의");
-        assertThat(risk.getNote()).isEqualTo("이제 300,000원 남았어요");
+        assertThat(assemble(700_000L, 1_000_000L).get(2).getValue()).isEqualTo("주의");
     }
 
     @Test
     void 예산의_70퍼센트_미만이면_안전이다() {
-        AiQuickInsight risk = assemble(300_000L, 1_000_000L).get(2);
-
-        assertThat(risk.getValue()).isEqualTo("안전");
-        assertThat(risk.getNote()).isEqualTo("아직 700,000원 남았어요");
+        assertThat(assemble(300_000L, 1_000_000L).get(2).getValue()).isEqualTo("안전");
     }
 
     @Test
     void 예산을_산출할_수_없으면_예산_미설정으로_표시한다() {
-        // 활성 목표가 없거나 전월 기록이 없으면 예산이 0 이라 비율 판정 자체가 불가능하다.
-        AiQuickInsight risk = assemble(1_000_000L, 0L).get(2);
+        // 활성 목표가 없거나 최근 기록이 없으면 예산이 0 이라 비율 판정 자체가 불가능하다.
+        assertThat(assemble(1_000_000L, 0L).get(2).getValue()).isEqualTo("예산 미설정");
+    }
 
-        assertThat(risk.getValue()).isEqualTo("예산 미설정");
-        assertThat(risk.getNote()).isEqualTo("목표를 정하면 예산이 잡혀요");
+    @Test
+    void 위험도_문구는_남은_금액이_아니라_소비_코멘트를_받아_쓴다() {
+        // 예전에는 여기서 budget - expense 를 찍었다. 옆 칸의 등급을 금액으로 되풀이할 뿐이라,
+        // 왜 그 등급인지는 알려주지 않았다. 이제 최다 카테고리·지배 감정까지 넘겨 근거를 받는다.
+        AiQuickInsight risk = assemble(700_000L, 1_000_000L).get(2);
+
+        assertThat(risk.getNote()).isEqualTo("위험도 코멘트");
+        verify(riskCommentService).generate(
+                SpendStatus.WARNING, 700_000L, 1_000_000L, "패션/미용", "무덤덤");
     }
 
     @Test

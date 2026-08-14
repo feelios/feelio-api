@@ -4,6 +4,7 @@ import com.korit.feelioapi.domain.analysis.dto.AiInsightsResponse;
 import com.korit.feelioapi.domain.analysis.dto.AiReportResponseDto;
 import com.korit.feelioapi.domain.analysis.dto.AnalysisResponse;
 import com.korit.feelioapi.domain.analysis.dto.AnalysisTotalDto;
+import com.korit.feelioapi.domain.analysis.dto.CategoryBaseline;
 import com.korit.feelioapi.domain.analysis.dto.CategoryStatDto;
 import com.korit.feelioapi.domain.analysis.dto.EmotionStatDto;
 import com.korit.feelioapi.domain.analysis.dto.InsightDto;
@@ -25,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -36,6 +38,14 @@ import java.util.stream.Collectors;
 public class AnalysisService {
 
     private static final Logger log = LoggerFactory.getLogger(AnalysisService.class);
+
+    /**
+     * 예산 기준선을 만들 때 되돌아보는 개월 수.
+     *
+     * 1개월은 흔들림이 너무 컸고, 6개월은 반년 전 씀씀이가 이번 달 목표를 붙잡아 최근 변화를 못 따라간다.
+     * 3개월이면 여행처럼 몰아 쓰는 항목도 한 번은 걸리면서 최근 추세도 남는다.
+     */
+    private static final int BASELINE_MONTHS = 3;
 
     /** 시간대 코드 → 한글 라벨 + 표시 순서(시간 순). */
     private static final List<Map.Entry<String, String>> TIME_SLOTS = List.of(
@@ -162,7 +172,9 @@ public class AnalysisService {
         List<EmotionStatDto> byEmotion = analysisMapper.findExpenseByEmotion(userId, year, month);
         List<TimeSlotStatDto> byTimeSlot = toTimeSlotDtos(analysisMapper.findExpenseByTimeSlot(userId, year, month));
 
-        long currentExpense = analysisMapper.findMonthlyTotals(userId, year, month).totalExpense();
+        // 소진율은 분자·분모를 한 곳에서 받는다. 예산 항목 밖의 지출을 분자에만 넣으면
+        // 같은 화면의 '예산 소진율'과 다른 숫자가 나온다.
+        BudgetUsage usage = budgetUsage(userId, reqYear, reqMonth);
 
         // 챌린지는 ChallengeService 가 최근 7일 카테고리별 지출로 만든다(ai-report 와 같은 정본).
 
@@ -175,7 +187,7 @@ public class AnalysisService {
 
         return AiInsightsResponse.builder()
                 .aiQuickInsights(quickInsightAssembler.assembleQuickInsights(
-                        byEmotion, byCategory, byTimeSlot, weeklyCategories, currentExpense, totalBudget(userId, reqYear, reqMonth)))
+                        byEmotion, byCategory, byTimeSlot, weeklyCategories, usage.expense(), usage.budget()))
                 .emotionCards(quickInsightAssembler.assembleEmotionCards(byEmotion, byCategory, byTimeSlot))
                 .evidence(List.of())
                 .pattern(AiInsightsResponse.AiPattern.builder().count(0).build())
@@ -191,8 +203,10 @@ public class AnalysisService {
         int year = (reqYear != null) ? reqYear : today.getYear();
         int month = (reqMonth != null) ? reqMonth : today.getMonthValue();
 
-        long totalExpense = analysisMapper.findMonthlyTotals(userId, year, month).totalExpense();
-        long budget = totalBudget(userId, reqYear, reqMonth);
+        // 분자·분모를 한 쌍으로 받는다(#2 소진율·위험도 색 불일치).
+        BudgetUsage usage = budgetUsage(userId, reqYear, reqMonth);
+        long totalExpense = usage.expense();
+        long budget = usage.budget();
         SpendStatus spendStatus = SpendStatus.of(totalExpense, budget);
         List<CategoryStatDto> monthlyCategories = analysisMapper.findExpenseByCategory(userId, year, month);
         String topCategory = monthlyCategories.stream()
@@ -269,46 +283,89 @@ public class AnalysisService {
     }
 
     /**
-     * 이번 달 예산 총액(A6-4 동적 예산의 카테고리별 합).
-     * 활성 목표가 없거나 전월 기록이 없으면 0 이 나오고, 그 경우 위험도는 '예산 미설정'으로 처리된다.
+     * 예산 소진율의 분자와 분모. 둘을 <b>같은 카테고리 집합</b>에서 뽑는다.
+     *
+     * <p>예전에는 분모만 예산 항목의 합이고 분자는 {@code findMonthlyTotals} 의 월 전체 지출이었다.
+     * 예산 대상이 아닌 카테고리(is_budgetable = 0)의 지출까지 분자에 들어가, 정의가 짝이 맞지 않는
+     * 비율이 나왔다. 화면에서도 같은 달을 놓고 '예산 소진율 59%(초록)' 옆에 '소비 위험도 주의(노랑)'가
+     * 나란히 떴다 — 프론트는 예산 항목만 세고 서버는 전액을 세서 생긴 차이였다.
      */
-    public long totalBudget(Long userId, Integer reqYear, Integer reqMonth) {
-        return getBudgetStatus(userId, reqYear, reqMonth).budgetItems().stream()
+    public record BudgetUsage(long expense, long budget) {}
+
+    /**
+     * 이번 달 예산 대비 지출. 예산 항목 목록 한 벌에서 분자·분모를 함께 만든다.
+     * 활성 목표가 없거나 최근 기록이 없으면 예산이 0 이 나오고, 그 경우 위험도는 '예산 미설정'이 된다.
+     */
+    public BudgetUsage budgetUsage(Long userId, Integer reqYear, Integer reqMonth) {
+        List<com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem> items =
+                getBudgetStatus(userId, reqYear, reqMonth).budgetItems();
+        long expense = items.stream()
+                .mapToLong(item -> item.currentAmount() == null ? 0L : item.currentAmount())
+                .sum();
+        long budget = items.stream()
                 .mapToLong(item -> item.budget() == null ? 0L : item.budget())
                 .sum();
+        return new BudgetUsage(expense, budget);
     }
 
-    @Transactional(readOnly = true)
-    public com.korit.feelioapi.domain.analysis.dto.MonthlyTrendResponse getMonthlyTrend(Long userId) {
-        java.time.LocalDate now = java.time.LocalDate.now();
-        java.time.LocalDate startDate = now.minusMonths(6).withDayOfMonth(1);
-        java.time.LocalDate endDate = now.plusMonths(1).withDayOfMonth(1);
+    /**
+     * 이번 달 예산 총액(A6-4 동적 예산의 카테고리별 합).
+     * 소진율을 낼 때는 {@link #budgetUsage} 를 쓴다 — 분자를 따로 구하면 정의가 갈라진다.
+     */
+    public long totalBudget(Long userId, Integer reqYear, Integer reqMonth) {
+        return budgetUsage(userId, reqYear, reqMonth).budget();
+    }
 
-        List<com.korit.feelioapi.domain.analysis.dto.MonthlyDataStat> stats = analysisMapper.findMonthlyTrend(userId, startDate, endDate);
+    /**
+     * 지출 추이 카드. <b>막대 7개는 오늘 기준으로 고정</b>하고, 요약 숫자만 조회한 달을 따라간다.
+     *
+     * <p>둘을 나눈 이유가 있다. 예전에는 인자를 아예 안 받아 오늘에만 묶여 있었고, 달을 바꿔 눌러도
+     * 총액과 '전월 대비 N%' 가 그대로였다 — 월 전환이 동작하지 않는 것처럼 보였다.
+     * 그렇다고 창까지 조회한 달을 따라 미끄러지게 하면, 막대를 누를 때마다 창이 다시 잡혀
+     * 방금 누른 막대가 자리를 옮긴다. 누를 때마다 차트가 통째로 재배열되는 셈이다.
+     * 창은 '최근 7개월'이라는 고정된 배경으로 두고, 그 위에서 어느 달을 보고 있는지만 바뀌는 게 맞다.
+     *
+     * <p>조회한 달이 창 밖일 수 있으므로(월 전환기로 7개월보다 더 거슬러 갈 수 있다)
+     * SQL 구간은 창과 조회 달을 모두 덮도록 잡는다.
+     */
+    @Transactional(readOnly = true)
+    public com.korit.feelioapi.domain.analysis.dto.MonthlyTrendResponse getMonthlyTrend(Long userId,
+                                                                                        Integer reqYear,
+                                                                                        Integer reqMonth) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+
+        // 창의 마지막 칸은 언제나 당월. 1일로 맞춰야 말일 근처에서 달이 밀리지 않는다.
+        java.time.LocalDate windowEnd = today.withDayOfMonth(1);
+        java.time.LocalDate windowStart = windowEnd.minusMonths(6);
+
+        java.time.LocalDate selected = java.time.LocalDate.of(
+                (reqYear != null) ? reqYear : today.getYear(),
+                (reqMonth != null) ? reqMonth : today.getMonthValue(),
+                1);
+        java.time.LocalDate selectedPrev = selected.minusMonths(1);
+
+        java.time.LocalDate queryStart = windowStart.isBefore(selectedPrev) ? windowStart : selectedPrev;
+        java.time.LocalDate queryEnd = (windowEnd.isAfter(selected) ? windowEnd : selected).plusMonths(1);
+
+        List<com.korit.feelioapi.domain.analysis.dto.MonthlyDataStat> stats = analysisMapper.findMonthlyTrend(userId, queryStart, queryEnd);
         Map<String, Long> statMap = stats.stream()
                 .collect(Collectors.toMap(com.korit.feelioapi.domain.analysis.dto.MonthlyDataStat::yearMonth, com.korit.feelioapi.domain.analysis.dto.MonthlyDataStat::amount));
 
-        List<com.korit.feelioapi.domain.analysis.dto.MonthlyTrendResponse.MonthlyData> monthlyData = new ArrayList<>();
-        Long currentMonthAmount = 0L;
-        Long previousMonthAmount = 0L;
-
         java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM");
 
+        List<com.korit.feelioapi.domain.analysis.dto.MonthlyTrendResponse.MonthlyData> monthlyData = new ArrayList<>();
         for (int i = 6; i >= 0; i--) {
-            java.time.LocalDate targetMonth = now.minusMonths(i);
+            java.time.LocalDate targetMonth = windowEnd.minusMonths(i);
             String yearMonthStr = targetMonth.format(formatter);
-            Long amount = statMap.getOrDefault(yearMonthStr, 0L);
             monthlyData.add(new com.korit.feelioapi.domain.analysis.dto.MonthlyTrendResponse.MonthlyData(
+                    yearMonthStr,
                     targetMonth.getMonthValue() + "월",
-                    amount
+                    statMap.getOrDefault(yearMonthStr, 0L)
             ));
-
-            if (i == 0) {
-                currentMonthAmount = amount;
-            } else if (i == 1) {
-                previousMonthAmount = amount;
-            }
         }
+
+        long currentMonthAmount = statMap.getOrDefault(selected.format(formatter), 0L);
+        long previousMonthAmount = statMap.getOrDefault(selectedPrev.format(formatter), 0L);
 
         Double comparedToLastMonth = 0.0;
         if (previousMonthAmount > 0) {
@@ -322,7 +379,7 @@ public class AnalysisService {
             trendMessage = "저번 달보다 지출이 늘었어요";
         } else if (currentMonthAmount < previousMonthAmount && previousMonthAmount > 0) {
             trendMessage = "저번 달보다 지출이 줄었어요";
-        } else if (currentMonthAmount > 0 && currentMonthAmount.equals(previousMonthAmount)) {
+        } else if (currentMonthAmount > 0 && currentMonthAmount == previousMonthAmount) {
             trendMessage = "저번 달과 지출이 비슷해요";
         }
 
@@ -341,9 +398,6 @@ public class AnalysisService {
         int currentMonth = (reqMonth != null) ? reqMonth : now.getMonthValue();
 
         java.time.LocalDate targetDate = java.time.LocalDate.of(currentYear, currentMonth, 1);
-        java.time.LocalDate prevDate = targetDate.minusMonths(1);
-        int prevYear = prevDate.getYear();
-        int prevMonth = prevDate.getMonthValue();
 
         // 1. Calculate required savings (S)
         List<com.korit.feelioapi.domain.goal.entity.Goal> goals = goalMapper.findGoalsByUserId(userId);
@@ -362,55 +416,98 @@ public class AnalysisService {
         }
 
         List<com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat> currentStats = analysisMapper.findCurrentCategoryStats(userId, currentYear, currentMonth);
-        List<com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat> prevStats = analysisMapper.findPrevCategoryStats(userId, prevYear, prevMonth);
 
-        // 전전월도 함께 본다. 전월 대비 늘었는지 줄었는지를 알아야 삭감을 늘어난 쪽에만 몰아줄 수 있다 (#196).
-        java.time.LocalDate prevPrevDate = now.minusMonths(2);
-        List<com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat> prevPrevStats =
-                analysisMapper.findPrevCategoryStats(userId, prevPrevDate.getYear(), prevPrevDate.getMonthValue());
+        /*
+         * 예산 기준선은 최근 3개월 평균이다(전월 한 달이 아니다).
+         *
+         * 구간은 모두 '조회 대상 월'을 기준으로 잡는다. 예전에는 전전월만 now.minusMonths(2) 로
+         * 오늘 날짜에서 구해, 지난달 화면을 열면 엉뚱한 달과 비교하고 있었다.
+         */
+        java.time.LocalDateTime windowStart = targetDate.minusMonths(BASELINE_MONTHS).atStartOfDay();
+        java.time.LocalDateTime windowEnd = targetDate.atStartOfDay();
+        java.time.LocalDateTime lastMonthStart = targetDate.minusMonths(1).atStartOfDay();
 
-        Map<Long, Long> prevStatMap = prevStats.stream()
-                .collect(Collectors.toMap(com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat::categoryId, com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat::prevAmount));
+        int activeMonths = analysisMapper.countActiveMonths(userId, windowStart, windowEnd);
 
-        BudgetPlan plan = BudgetPlan.of(prevStats, prevPrevStats, totalRequiredSavings);
+        /*
+         * 기준선 창이 다 차지 않으면 예산을 매기지 않는다.
+         *
+         * 3개월 평균을 기준으로 삼기로 했으면 3개월이 있어야 한다. 없는 달을 0원으로 세든
+         * 기록이 있는 달 수로 나누든, 둘 다 실제 씀씀이보다 한참 낮은 기준선을 만든다.
+         * 기록을 막 시작한 사용자의 7월 화면이 그랬다 — 창(4·5·6월)에 6월 하나뿐이라
+         * 문화·취미 기준선이 14,450원으로 잡혔고, 정작 그 달에 120,600원을 써서 754% 초과가 떴다.
+         * 기록 첫 달인 5월은 총예산이 8,900원인데도 화면은 그냥 '초과'라고 판정했다.
+         *
+         * 예산 0원은 프론트에서 '측정중'이 된다. 지출 실적은 그대로 보여주되 초과 판정만 하지 않는다 —
+         * 근거가 없을 때 판정을 미루는 쪽이, 근거 없는 숫자로 초과를 선언하는 것보다 정직하다.
+         */
+        if (activeMonths < BASELINE_MONTHS) {
+            return new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse(currentStats.stream()
+                    .filter(com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat::isBudgetable)
+                    .map(stat -> new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem(
+                            stat.categoryName(),
+                            stat.dominantEmotion() != null ? stat.dominantEmotion() : "보통",
+                            stat.currentAmount(),
+                            0L,
+                            0L))
+                    .toList());
+        }
+
+        List<CategoryBaseline> baselines = analysisMapper
+                .findRecentCategoryStats(userId, windowStart, windowEnd, lastMonthStart).stream()
+                .map(stat -> stat.toBaseline(activeMonths))
+                .toList();
+
+        Map<Long, CategoryBaseline> baselineMap = baselines.stream()
+                .collect(Collectors.toMap(CategoryBaseline::categoryId, b -> b));
+
+        BudgetPlan plan = BudgetPlan.of(baselines, totalRequiredSavings);
 
         List<com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem> budgetItems = new ArrayList<>();
-        java.util.Set<Long> processedCategories = new java.util.HashSet<>();
+        Set<Long> seen = new java.util.HashSet<>();
 
         for (com.korit.feelioapi.domain.analysis.dto.CategoryCurrentStat currentStat : currentStats) {
-            processedCategories.add(currentStat.categoryId());
 
             if (!currentStat.isBudgetable()) {
                 continue; // 예산 제외 항목
             }
 
-            Long prevAmount = prevStatMap.getOrDefault(currentStat.categoryId(), 0L);
+            CategoryBaseline baseline = baselineMap.get(currentStat.categoryId());
+            long baseAmount = baseline == null ? 0L : baseline.baselineAmount();
             long budget = plan.budgetFor(
-                    currentStat.categoryId(), prevAmount, currentStat.currentAmount(), currentStat.isFixed());
+                    currentStat.categoryId(), baseAmount, currentStat.currentAmount(), currentStat.isFixed());
 
+            seen.add(currentStat.categoryId());
             budgetItems.add(new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem(
                     currentStat.categoryName(),
                     currentStat.dominantEmotion() != null ? currentStat.dominantEmotion() : "보통",
                     currentStat.currentAmount(),
-                    prevAmount,
+                    baseAmount,
                     budget
             ));
         }
 
-        // 전월엔 썼는데 이번 달엔 아직 안 쓴 카테고리. 예산은 잡아줘야 화면에서 사라지지 않는다.
-        for (com.korit.feelioapi.domain.analysis.dto.CategoryPrevStat prevStat : prevStats) {
-            if (processedCategories.contains(prevStat.categoryId()) || !prevStat.isBudgetable()) {
+        /*
+         * 최근에 쓰던 카테고리인데 이번 달엔 아직 지출이 없는 경우에도 줄을 만든다.
+         *
+         * 예전에는 이번 달 지출이 있는 카테고리만 예산을 잡았다. 그래서 매달 쓰던 식비·생활용품이
+         * 월초에 통째로 총예산에서 빠졌고, 총예산이 실제 생활비보다 한참 작게 잡혀 소진율이
+         * 금방 올라갔다. 위 '소비 위험도'의 분모가 되는 값이라 이게 틀리면 판정 전체가 틀린다.
+         *
+         * 화면이 지저분해지지는 않는다. 지출 0원이면 진행률도 0이라 목록 맨 아래로 밀리고,
+         * 프론트는 급박도순 상위 5개만 노출한다 — '지금 조정해야 할 예산'이 여전히 위에 온다.
+         * 이번 달 기록이 없어 감정(말랑이)은 비는데, 그 자리는 프론트가 이미 비워 그린다.
+         */
+        for (CategoryBaseline baseline : baselines) {
+            if (!baseline.isBudgetable() || seen.contains(baseline.categoryId()) || baseline.baselineAmount() <= 0) {
                 continue;
             }
-
-            long budget = plan.budgetFor(prevStat.categoryId(), prevStat.prevAmount(), 0L, prevStat.isFixed());
-
             budgetItems.add(new com.korit.feelioapi.domain.analysis.dto.BudgetStatusResponse.BudgetItem(
-                    prevStat.categoryName() != null ? prevStat.categoryName() : "기타",
+                    baseline.categoryName(),
                     "보통",
                     0L,
-                    prevStat.prevAmount(),
-                    budget
+                    baseline.baselineAmount(),
+                    plan.budgetFor(baseline.categoryId(), baseline.baselineAmount(), 0L, baseline.isFixed())
             ));
         }
 

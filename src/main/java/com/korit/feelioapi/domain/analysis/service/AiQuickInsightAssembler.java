@@ -37,6 +37,7 @@ public class AiQuickInsightAssembler {
     private final InsightCardGenerator cardGenerator;
     private final FactReportService factReportService;
     private final ChallengeService challengeService;
+    private final ConsumptionRiskCommentService riskCommentService;
 
     /**
      * 지출 기록이 없으면 빈 리스트를 반환한다.
@@ -71,7 +72,8 @@ public class AiQuickInsightAssembler {
                 factReportService.generate(status, currentExpense, budget, topCategoryName),
                 String.format("이번 달 %,d원", currentExpense),
                 COLOR_POINT, "fact"));
-        insights.add(riskLevel(status, currentExpense, budget));
+        insights.add(riskLevel(status, currentExpense, budget,
+                topCategoryName, topEmotion == null ? null : topEmotion.name()));
         insights.add(card("AI 맞춤 챌린지",
                 challengeService.generate(weeklyCategories),
                 "이번 주",
@@ -97,32 +99,23 @@ public class AiQuickInsightAssembler {
     }
 
     /**
-     * 예산 소진율로 판정한다(GPT 호출 없음 — 속도·비용 모두 유리하고 결과가 흔들리지 않는다).
-     * 프론트 신호등은 value 로 불을 고른다: 위험=Red · 주의=Yellow · 안전=Green.
+     * 등급(value)은 예산 소진율로 판정한다 — GPT 없이 자바 계산이라 빠르고 결과가 흔들리지 않는다.
+     * 프론트 신호등은 이 값으로 불을 고른다: 위험=Red · 주의=Yellow · 안전=Green.
      *
-     * note 는 소진율(%)이 아니라 '남은 금액'을 말한다. 같은 화면 아래 '목표 예산 현황' 카드가
-     * 이미 소진율을 총예산과 함께 크게 보여줘서, 여기서 %를 반복하면 같은 숫자가 두 번 나올 뿐
-     * 판정을 뒷받침하지 못했다. 남은 금액은 소진율의 반대편 정보라 겹치지 않고 바로 쓸 수 있다.
-     * 문구는 등급마다 다르다 — 같은 '남았어요'라도 안전과 위험이 같은 말투면 신호가 죽는다.
+     * <p>note 는 {@link ConsumptionRiskCommentService} 가 만든다. 예전에는 여기서 {@code budget - expense}
+     * 를 찍었는데("이제 143,502원 남았어요"), 그건 옆 칸의 등급을 금액으로 되풀이한 것일 뿐 <b>왜</b>
+     * 그 등급인지는 말해 주지 않았다. 이 카드는 그 달의 소비를 두고 위험도를 말하는 자리이므로,
+     * 소진율·최다 소비 카테고리·지배 감정을 넘겨 근거가 담긴 한 줄을 받는다.
      */
-    private AiQuickInsight riskLevel(SpendStatus status, long expense, long budget) {
+    private AiQuickInsight riskLevel(SpendStatus status, long expense, long budget,
+                                     String topCategoryName, String topEmotionName) {
         String value = switch (status) {
             case OVER -> "위험";
             case WARNING -> "주의";
             case SAVING, ZERO -> "안전";
             case NO_BUDGET -> "예산 미설정";
         };
-        long remaining = budget - expense;
-        String note = switch (status) {
-            case NO_BUDGET -> "목표를 정하면 예산이 잡혀요";
-            case ZERO -> "이번 달 지출 없음";
-            case SAVING -> String.format("아직 %,d원 남았어요", remaining);
-            case WARNING -> String.format("이제 %,d원 남았어요", remaining);
-            // 90% 이상이라도 아직 예산이 남아 있을 수 있다. 남은 돈을 '넘게 썼다'고 말하면 거짓말이 된다.
-            case OVER -> remaining >= 0
-                    ? String.format("%,d원밖에 안 남았어요", remaining)
-                    : String.format("%,d원 넘게 썼어요", -remaining);
-        };
+        String note = riskCommentService.generate(status, expense, budget, topCategoryName, topEmotionName);
 
         return card("소비 위험도", value, note, COLOR_POINT, "risk");
     }
