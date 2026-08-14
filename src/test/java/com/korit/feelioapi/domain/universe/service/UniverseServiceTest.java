@@ -74,7 +74,8 @@ class UniverseServiceTest {
         assertThat(reduced.key()).isEqualTo("REDUCED");
         assertThat(reduced.monthlyExpense()).isEqualTo(1_500_000L);
         assertThat(reduced.monthsToGoal()).isEqualTo(14);
-        assertThat(reduced.title()).isEqualTo("배달 소비를 줄이면");
+        // 제목에는 카테고리를 넣지 않는다 — 어떤 항목을 줄일지는 말랑이 문구가 짚어 준다.
+        assertThat(reduced.title()).isEqualTo("소비를 줄이면");
         assertThat(reduced.estimatedAchieveDate()).isNotNull();
 
         // 개월은 올림이라 한 달 안쪽에서 두 시나리오가 같은 값이 된다. 일수는 그 차이를 담아야 한다.
@@ -129,7 +130,7 @@ class UniverseServiceTest {
         assertThat(res.monthlyIncome()).isZero();
         assertThat(res.monthlyExpense()).isZero();
         assertThat(res.topCategory()).isNull();
-        assertThat(res.scenarios().get(1).title()).isEqualTo("전체 소비를 줄이면");
+        assertThat(res.scenarios().get(1).title()).isEqualTo("소비를 줄이면");
     }
 
     @Test
@@ -202,9 +203,9 @@ class UniverseServiceTest {
         // GPT 가 죽으면 이 문장이 그대로 화면에 나간다. 폴백이 '목표'라고만 말하면
         // 어떤 목표 이야기인지 알 수 없어, AI 를 붙인 의미가 폴백에서 사라진다.
         assertThat(res.scenarios().get(0).narrations().get(0))
-                .isEqualTo("지금 속도라면 약 20개월 뒤 제주도 여행에 닿아요.");
+                .isEqualTo("이대로 쓰면 제주도 여행까지 20개월 걸려요.");
         assertThat(res.scenarios().get(1).narrations().get(0))
-                .isEqualTo("이렇게 줄이면 약 14개월 뒤 제주도 여행 도착, 6개월 빨라져요.");
+                .isEqualTo("이렇게 줄이면 14개월 뒤 제주도 여행 도착, 6개월 빨라져요.");
 
         // 롤링용 나머지 코멘트에도 목표 이름이 살아 있어야 한다.
         assertThat(res.scenarios().get(0).narrations()).anyMatch(line -> line.contains("제주도 여행"));
@@ -224,18 +225,19 @@ class UniverseServiceTest {
 
         UniverseResponse res = universeService.simulate(100L, 1L);
 
-        // 소비 시뮬레이션 화면이다. 응원·덕담이 아니라 근거가 되는 금액이 나와야 한다.
-        // 카드에 이미 적힌 값(이번 달 지출·도달 개월)은 되풀이하지 않는다 — 넘겨 읽을 이유가 없어진다.
+        // 두 우주는 역할이 다르다. CURRENT 는 [언제 닿는지 → 무엇이 발목을 잡는지 → 무엇을 할지] 로
+        // 이어지는 진단이고, REDUCED 는 [얼마나 빨라지는지 → 얼마가 더 남는지 → 무엇을 앞당기는지] 로
+        // 이어지는 보상이다. 양쪽이 같은 틀로 사실만 나열하면 나란히 둘 이유가 없다.
         assertThat(res.scenarios().get(0).narrations())
                 .containsExactly(
-                        "지금 속도라면 약 20개월 뒤 제주도 여행에 닿아요.",
-                        "제주도 여행까지 20,000,000원 남았어요.",
-                        "지금은 매달 1,000,000원씩 모으고 있어요.");
+                        "이대로 쓰면 제주도 여행까지 20개월 걸려요.",
+                        "발목을 잡는 건 배달 지출이에요. 이번 달에 가장 많이 썼어요.",
+                        "배달 지출을 줄이는 게 가장 빠른 길이에요.");
         assertThat(res.scenarios().get(1).narrations())
                 .containsExactly(
-                        "이렇게 줄이면 약 14개월 뒤 제주도 여행 도착, 6개월 빨라져요.",
-                        "배달 지출을 줄이면 매달 모으는 돈이 1,500,000원이 돼요.",
-                        "그만큼 제주도 여행 도착이 앞당겨져요.");
+                        "이렇게 줄이면 14개월 뒤 제주도 여행 도착, 6개월 빨라져요.",
+                        "배달 지출을 줄이면 매달 500,000원이 더 남아요.",
+                        "그 돈이 남은 20,000,000원을 앞당겨 줘요.");
 
         // 카드가 크게 보여주는 이번 달 지출 금액은 문장에 다시 나오지 않는다.
         assertThat(res.scenarios().get(0).narrations()).noneMatch(line -> line.contains("2,000,000원"));
@@ -254,6 +256,6 @@ class UniverseServiceTest {
 
         // 이름이 없다고 "  에 닿아요" 같은 문장이 나가면 안 된다.
         assertThat(res.scenarios().get(0).narrations().get(0))
-                .isEqualTo("지금 속도라면 약 20개월 뒤 목표에 닿아요.");
+                .isEqualTo("이대로 쓰면 목표까지 20개월 걸려요.");
     }
 }

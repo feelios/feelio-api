@@ -84,7 +84,15 @@ public class UniverseService {
         ScenarioDto currentScenario = new ScenarioDto("CURRENT", "지금처럼 쓴다면",
                 expense, current.saving(), current.months(), current.days(), current.achieveDate(), narrations.get(0));
 
-        String reducedTitle = (topCategory != null ? topCategory.name() : "전체") + " 소비를 줄이면";
+        /*
+         * 제목에는 카테고리를 넣지 않는다.
+         *
+         * "여행 소비를 줄이면" 처럼 쓰면 이 우주가 여행 전용 시뮬레이션인 것처럼 읽힌다.
+         * 이 화면이 보여주는 건 "소비를 줄이면 목표에 언제 닿는가" 하나이고, 어떤 항목부터
+         * 줄일지는 그 안에서 말랑이 문구(narration)가 이미 이름을 불러 짚어 준다.
+         * 우주의 이름과 그 안의 조언은 다른 층위다.
+         */
+        String reducedTitle = "소비를 줄이면";
         ScenarioDto reducedScenario = new ScenarioDto("REDUCED", reducedTitle,
                 reducedExpense, reduced.saving(), reduced.months(), reduced.days(), reduced.achieveDate(), narrations.get(1));
 
